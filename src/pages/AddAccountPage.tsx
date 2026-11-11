@@ -28,6 +28,7 @@ export const AddAccountPage: React.FC = () => {
 	const { params, patch, env, chain } = useUrlState();
 	const accounts = useAppStore((s) => s.accounts);
 	const addAccount = useAppStore((s) => s.addAccount);
+	const signers = useAppStore((s) => s.signers);
 
 	const kindParam = params.get("kind");
 	const kind: AccountKind | undefined = kindParam === "hl" || kindParam === "safe" ? kindParam : undefined;
@@ -50,8 +51,16 @@ export const AddAccountPage: React.FC = () => {
 			if (accounts.some((a) => a.id === accountId(kind, scope, account.address))) continue;
 			out.push({ address: account.address, account });
 		}
+		// An exchange account is an ordinary key, so any signer may own one (a Safe never is a signer).
+		if (kind === "hl") {
+			for (const signer of signers) {
+				if (out.some((k) => sameAddress(k.address, signer.address))) continue;
+				if (accounts.some((a) => a.id === accountId("hl", env, signer.address))) continue;
+				out.push({ address: signer.address, signer });
+			}
+		}
 		return out;
-	}, [accounts, kind, env, chainConfig.id]);
+	}, [accounts, signers, kind, env, chainConfig.id]);
 
 	const check = useAccountCheck({
 		kind: kind ?? "hl",
