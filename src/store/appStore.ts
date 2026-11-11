@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	mevProtection: true,
 	tokenListAutoUpdate: true,
 	verifyUpdates: true,
+	clearSigning: true,
 	rpcOverrides: {},
 };
 

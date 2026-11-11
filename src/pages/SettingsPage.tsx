@@ -65,6 +65,19 @@ export const SettingsPage: React.FC = () => {
 					}
 				/>
 				<SettingRow
+					label={t("settings.clearSigning")}
+					hint={t("settings.clearSigningHint")}
+					control={
+						<input
+							type="checkbox"
+							className="toggle toggle-primary"
+							checked={settings.clearSigning}
+							onChange={(e) => update({ clearSigning: e.target.checked })}
+							aria-label={t("settings.clearSigning")}
+						/>
+					}
+				/>
+				<SettingRow
 					label={t("settings.rpc")}
 					control={
 						<button type="button" className="btn btn-sm" onClick={() => setShowRpc((v) => !v)} aria-expanded={showRpc}>

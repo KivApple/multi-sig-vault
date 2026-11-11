@@ -122,6 +122,8 @@ export interface Settings {
 	mevProtection: boolean;
 	tokenListAutoUpdate: boolean;
 	verifyUpdates: boolean;
+	/** Let hardware wallet SDKs fetch clear-signing descriptors from the vendor's servers. */
+	clearSigning: boolean;
 	/** Custom RPC endpoint per chain id. */
 	rpcOverrides: Record<string, string>;
 }

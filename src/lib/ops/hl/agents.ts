@@ -97,7 +97,8 @@ export const revokeAgentOp: OpDefinition<RevokeParams> = {
 	},
 	Form: RevokeAgentForm,
 	validate: (p, _env, t): OpErrors => (p.name ? {} : { name: t("error.required") }),
-	// Approving the zero address under the same name removes the named agent.
+	// Same as the exchange's own front end (API page → Remove): approving the zero address under
+	// the agent's name removes that named agent.
 	buildHl: (p) => agentAction(ZERO_ADDRESS, p.name),
 	summary: (p, { t }) => [
 		{ label: t("common.name"), value: p.name },

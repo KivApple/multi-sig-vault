@@ -118,6 +118,12 @@ export const STRINGS = [
 		"Ethereum transactions signed by Ledger or Trezor go through a private relay (Flashbots Protect). MetaMask uses its own settings.",
 		"Транзакции Ethereum, подписанные Ledger или Trezor, отправляются через приватный релей (Flashbots Protect). MetaMask использует собственные настройки.",
 	],
+	["settings.clearSigning", "Clear signing descriptors", "Описания для clear signing"],
+	[
+		"settings.clearSigningHint",
+		"Ledger loads token, contract and message descriptions from Ledger's servers, so the device shows what you sign instead of raw data. When off or offline, fields are shown without labels; blind signing is used only when nothing else works. Trezor Connect loads its definitions on its own.",
+		"Ledger загружает описания токенов, контрактов и сообщений с серверов Ledger, чтобы устройство показывало, что вы подписываете, а не сырые данные. Если выключено или нет сети, поля показываются без подписей; blind signing используется, только когда иначе нельзя. Trezor Connect загружает свои описания сам.",
+	],
 	["settings.rpc", "RPC endpoints", "RPC-узлы"],
 	["settings.rpcFor", "RPC endpoint for {network}", "RPC-узел для {network}"],
 	[

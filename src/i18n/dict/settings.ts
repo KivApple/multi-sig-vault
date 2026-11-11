@@ -13,6 +13,9 @@ export default defineDict({
 		"settings.mev": "MEV protection",
 		"settings.mevHint":
 			"Ethereum transactions signed by Ledger or Trezor go through a private relay (Flashbots Protect). MetaMask uses its own settings.",
+		"settings.clearSigning": "Clear signing descriptors",
+		"settings.clearSigningHint":
+			"Ledger loads token, contract and message descriptions from Ledger's servers, so the device shows what you sign instead of raw data. When off or offline, fields are shown without labels; blind signing is used only when nothing else works. Trezor Connect loads its definitions on its own.",
 		"settings.rpc": "RPC endpoints",
 		"settings.rpcFor": "RPC endpoint for {network}",
 		"settings.rpcHint": "HTTPS only. Leave empty to use the built-in public endpoints.",
@@ -29,6 +32,9 @@ export default defineDict({
 		"settings.mev": "Защита от MEV",
 		"settings.mevHint":
 			"Транзакции Ethereum, подписанные Ledger или Trezor, отправляются через приватный релей (Flashbots Protect). MetaMask использует собственные настройки.",
+		"settings.clearSigning": "Описания для clear signing",
+		"settings.clearSigningHint":
+			"Ledger загружает описания токенов, контрактов и сообщений с серверов Ledger, чтобы устройство показывало, что вы подписываете, а не сырые данные. Если выключено или нет сети, поля показываются без подписей; blind signing используется, только когда иначе нельзя. Trezor Connect загружает свои описания сам.",
 		"settings.rpc": "RPC-узлы",
 		"settings.rpcFor": "RPC-узел для {network}",
 		"settings.rpcHint": "Только HTTPS. Оставьте пустым, чтобы использовать встроенные публичные узлы.",

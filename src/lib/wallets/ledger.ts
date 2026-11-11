@@ -1,6 +1,7 @@
 import { getAddress, type Address, type Hex } from "viem";
 import { WalletError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
+import { useAppStore } from "@/store/appStore";
 import type { Signer } from "@/types/domain";
 import { assembleSigned, broadcast, prepareTx, serializeUnsigned } from "./evmTx";
 import { DEFAULT_PAGE, LEDGER_SCHEMES, resolveScheme, stripMasterPrefix } from "./paths";
@@ -9,9 +10,12 @@ import type { DiscoveredAccount, ListAccountsOptions, TxRequest, TypedDataPayloa
 
 /**
  * Ledger over WebHID (desktop Chrome) with WebUSB fallback (Chrome on Android has no WebHID).
- * Talks to the device directly – works offline. All of hw-app-eth's network lookups
- * (clear-signing descriptors, token lists, plugins) are disabled: nothing about the user's
- * transactions leaves the device, and contract calls are confirmed as raw data / blind signed.
+ * Talks to the device directly, so it also works offline.
+ *
+ * Clear signing first: with the "clear signing" setting on (default) hw-app-eth may ask Ledger's
+ * services for descriptors (tokens, contract plugins, EIP-712 field labels) so the device shows what
+ * is being signed. If they are unreachable or the setting is off, typed data is still shown field by
+ * field without labels. Blind signing (raw hashes / raw calldata) is only the last resort.
  */
 interface LedgerTransport {
 	close: () => Promise<void>;
@@ -31,9 +35,16 @@ interface LedgerEth {
 		rawTxHex: string,
 		resolution: unknown,
 	) => Promise<{ v: string; r: string; s: string }>;
+	clearSignTransaction: (
+		path: string,
+		rawTxHex: string,
+		resolutionConfig: Record<string, boolean>,
+		throwOnError?: boolean,
+	) => Promise<{ v: string; r: string; s: string }>;
+	setLoadConfig: (loadConfig: unknown) => void;
 }
 
-/** No remote services: privacy + offline. */
+/** No remote services: nothing is fetched, descriptors are not used. */
 const OFFLINE_LOAD_CONFIG = {
 	nftExplorerBaseURL: null,
 	pluginBaseURL: null,
@@ -43,6 +54,16 @@ const OFFLINE_LOAD_CONFIG = {
 };
 
 const EMPTY_RESOLUTION = { erc20Tokens: [], nfts: [], externalPlugin: [], plugin: [], domains: [] };
+/** Everything hw-app-eth can resolve to show a transaction in clear on the device. */
+const CLEAR_SIGN_CONFIG = { erc20: true, externalPlugins: true, nft: true, uniswapV3: true };
+
+const lookupsAllowed = (): boolean => useAppStore.getState().settings.clearSigning && navigator.onLine;
+const isFinal = (e: unknown): boolean => {
+	const code = mapLedgerError(e).code;
+	return (
+		code === "rejected" || code === "locked" || code === "unavailable" || code === "busy" || code === "wrong-device"
+	);
+};
 
 let transport: LedgerTransport | null = null;
 let queue: Promise<unknown> = Promise.resolve();
@@ -118,7 +139,8 @@ const openTransport = async (): Promise<LedgerTransport> => {
 const connect = async (): Promise<LedgerEth> => {
 	const [{ default: Eth }, t] = await Promise.all([import("@ledgerhq/hw-app-eth"), openTransport()]);
 	const EthCtor = Eth as unknown as new (transport: unknown, scrambleKey?: string, loadConfig?: unknown) => LedgerEth;
-	return new EthCtor(t, undefined, OFFLINE_LOAD_CONFIG);
+	// `{}` keeps hw-app-eth's default service URLs.
+	return new EthCtor(t, undefined, lookupsAllowed() ? {} : OFFLINE_LOAD_CONFIG);
 };
 
 /**
@@ -175,15 +197,21 @@ export const ledgerAdapter: WalletAdapter = {
 		withLedger(async (eth) => {
 			const path = requirePath(signer);
 			await assertDevice(eth, path, signer);
-			try {
-				const sig = await eth.signEIP712Message(path, toFullTypedData(data));
-				return joinSignature(sig.r, sig.s, sig.v);
-			} catch (e) {
-				const code = mapLedgerError(e).code;
-				// Rejected / locked / unplugged are final; anything else means the app or device
-				// cannot display this structure – sign the two hashes instead (Nano S, old apps).
-				if (code === "rejected" || code === "locked" || code === "unavailable" || code === "busy") throw e;
+			const full = toFullTypedData(data);
+			// 1) fields with descriptors from Ledger, 2) fields without descriptors, 3) hashes (blind).
+			const attempts = lookupsAllowed() ? [{}, OFFLINE_LOAD_CONFIG] : [OFFLINE_LOAD_CONFIG];
+			for (const loadConfig of attempts) {
+				try {
+					eth.setLoadConfig(loadConfig);
+					const sig = await eth.signEIP712Message(path, full);
+					return joinSignature(sig.r, sig.s, sig.v);
+				} catch (e) {
+					// Rejected / locked / unplugged are final; anything else means the lookup failed or the
+					// app cannot display this structure – try the next, less descriptive way.
+					if (isFinal(e)) throw e;
+				}
 			}
+			// Last resort for devices that cannot parse EIP-712 at all (Nano S, old apps).
 			const { domainSeparator, messageHash } = typedDataHashes(data);
 			const sig = await eth.signEIP712HashedMessage(path, domainSeparator.slice(2), messageHash.slice(2));
 			return joinSignature(sig.r, sig.s, sig.v);
@@ -194,7 +222,17 @@ export const ledgerAdapter: WalletAdapter = {
 		const serialized = await withLedger(async (eth) => {
 			const path = requirePath(signer);
 			await assertDevice(eth, path, signer);
-			const sig = await eth.signTransaction(path, serializeUnsigned(prepared).slice(2), EMPTY_RESOLUTION);
+			const raw = serializeUnsigned(prepared).slice(2);
+			let sig: { r: string; s: string } | undefined;
+			if (lookupsAllowed()) {
+				try {
+					// Resolves token / plugin descriptors; falls back to blind signing by itself when none exist.
+					sig = await eth.clearSignTransaction(path, raw, CLEAR_SIGN_CONFIG, false);
+				} catch (e) {
+					if (isFinal(e) || mapLedgerError(e).code === "blind-signing") throw e;
+				}
+			}
+			sig ??= await eth.signTransaction(path, raw, EMPTY_RESOLUTION);
 			return assembleSigned(prepared, signer.address, sig.r, sig.s);
 		});
 		return broadcast(tx.chainId, serialized);
