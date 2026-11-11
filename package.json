@@ -8,7 +8,11 @@
     "build": "tsc --noEmit && rsbuild build",
     "preview": "rsbuild preview",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "tokens:list": "node scripts/tokens/build-token-list.mjs",
+    "tokens:icons": "node scripts/tokens/extract-icons.mjs",
+    "release:info": "node scripts/release/info.mjs",
+    "icons:app": "node scripts/icons-app/render.mjs"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
@@ -31,12 +35,14 @@
     "zustand": "^5.1.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.6.7",
     "@nktkas/hyperliquid": "^0.33.3",
     "@rsbuild/core": "^2.3.2",
     "@rsbuild/plugin-node-polyfill": "^1.4.6",
     "@rsbuild/plugin-react": "^2.1.1",
     "@tailwindcss/postcss": "^4.3.5",
     "@types/canvas-confetti": "^1.9.0",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@types/w3c-web-hid": "^1.0.7",

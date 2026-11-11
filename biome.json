@@ -1,0 +1,9 @@
+{
+	"$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+	"files": { "includes": ["src/**", "tests/**", "scripts/**", "*.ts", "*.mjs", "*.json", "!src/lib/tokens/builtin.json", "!src/assets/**", "!dist/**"] },
+	"formatter": { "enabled": true, "indentStyle": "tab", "lineWidth": 120 },
+	"javascript": { "formatter": { "quoteStyle": "double", "jsxQuoteStyle": "double" } },
+	"css": { "formatter": { "quoteStyle": "double" }, "parser": { "tailwindDirectives": true } },
+	"linter": { "enabled": false },
+	"assist": { "enabled": false }
+}

@@ -8,8 +8,8 @@ export interface DexConfig {
   router: Address;
   quoter: Address;
   factory: Address;
-  /** `true` – SwapRouter (params contain `deadline`), `false` – SwapRouter02. */
-  deadlineInParams: boolean;
+  /** Wrapped native token the router uses when it differs from the chain's canonical one. */
+  weth?: Address;
   feeTiers: number[];
   name: string;
 }
@@ -44,6 +44,12 @@ export interface ChainConfig {
 
 const UNI_TIERS = [100, 500, 3000, 10000];
 
+/** Circle Iris API (attestations, fees) per environment. */
+export const IRIS_API: Record<NetworkEnv, string> = {
+  mainnet: 'https://iris-api.circle.com',
+  testnet: 'https://iris-api-sandbox.circle.com',
+};
+
 const CCTP_MAINNET = {
   tokenMessenger: '0x28b5a0e9C621a5BadaA536219b3a228C8168cf5d',
   messageTransmitter: '0x81D40F21F12A8F0E3252Bccb954D722d4c464B64',
@@ -77,11 +83,10 @@ export const CHAINS: ChainConfig[] = [
       router: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',
       quoter: '0x61fFE014bA17989E743c5F6cB21bF9697530B21e',
       factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-      deadlineInParams: false,
       feeTiers: UNI_TIERS,
     },
     cctp: { domain: 0, ...CCTP_MAINNET },
-    safeTxService: 'https://safe-transaction-mainnet.safe.global',
+    safeTxService: 'https://api.safe.global/tx-service/eth',
   },
   {
     id: 999,
@@ -95,7 +100,15 @@ export const CHAINS: ChainConfig[] = [
     explorer: 'https://hyperevmscan.io',
     wrappedNative: '0x5555555555555555555555555555555555555555',
     usdc: '0xb88339CB7199b77E23DB6E890353E22632Ba630f',
+    dex: {
+      name: 'HyperSwap V3',
+      router: '0x6D99e7f6747AF2cDbB5164b6DD50e40D4fDe1e77',
+      quoter: '0x03A918028f22D9E1473B7959C927AD7425A45C7C',
+      factory: '0xB1c0fa0B789320044A6F623cFe5eBda9562602E3',
+      feeTiers: UNI_TIERS,
+    },
     cctp: { domain: 19, ...CCTP_MAINNET },
+    safeTxService: 'https://api.safe.global/tx-service/hyper',
   },
   {
     id: 42161,
@@ -114,11 +127,10 @@ export const CHAINS: ChainConfig[] = [
       router: '0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45',
       quoter: '0x61fFE014bA17989E743c5F6cB21bF9697530B21e',
       factory: '0x1F98431c8aD98523631AE4a59f267346ea31F984',
-      deadlineInParams: false,
       feeTiers: UNI_TIERS,
     },
     cctp: { domain: 3, ...CCTP_MAINNET },
-    safeTxService: 'https://safe-transaction-arbitrum.safe.global',
+    safeTxService: 'https://api.safe.global/tx-service/arb1',
   },
   {
     id: 8453,
@@ -137,11 +149,10 @@ export const CHAINS: ChainConfig[] = [
       router: '0x2626664c2603336E57B271c5C0b26F421741e481',
       quoter: '0x3d4e44Eb1374240CE5F1B871ab261CD16335B76a',
       factory: '0x33128a8fC17869897dcE68Ed026d694621f6FDfD',
-      deadlineInParams: false,
       feeTiers: UNI_TIERS,
     },
     cctp: { domain: 6, ...CCTP_MAINNET },
-    safeTxService: 'https://safe-transaction-base.safe.global',
+    safeTxService: 'https://api.safe.global/tx-service/base',
   },
   {
     id: 11155111,
@@ -160,11 +171,10 @@ export const CHAINS: ChainConfig[] = [
       router: '0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E',
       quoter: '0xEd1f6473345F45b75F8179591dd5bA1888cf2FB3',
       factory: '0x0227628f3F023bb0B980b67D528571c95c6DaC1c',
-      deadlineInParams: false,
       feeTiers: UNI_TIERS,
     },
     cctp: { domain: 0, ...CCTP_TESTNET },
-    safeTxService: 'https://safe-transaction-sepolia.safe.global',
+    safeTxService: 'https://api.safe.global/tx-service/sep',
   },
   {
     id: 998,
@@ -178,6 +188,14 @@ export const CHAINS: ChainConfig[] = [
     explorer: 'https://testnet.purrsec.com',
     wrappedNative: '0x5555555555555555555555555555555555555555',
     usdc: '0x2B3370eE501B4a559b57D449569354196457D8Ab',
+    dex: {
+      name: 'HyperSwap V3',
+      router: '0x51c5958FFb3e326F8d7AA945948159f1FF27e14A',
+      quoter: '0x7FEd8993828A61A5985F384Cee8bDD42177Aa263',
+      factory: '0x22B0768972bB7f1F5ea7a8740BB8f94b32483826',
+      weth: '0xADcb2f358Eae6492F61A5F87eb8893d09391d160',
+      feeTiers: UNI_TIERS,
+    },
     cctp: { domain: 19, ...CCTP_TESTNET },
   },
   {
@@ -197,7 +215,6 @@ export const CHAINS: ChainConfig[] = [
       router: '0x101F443B4d1b059569D643917553c771E1b9663E',
       quoter: '0x2779a0CC1c3e0E44D2542EC3e79e3864Ae93Ef0B',
       factory: '0x248AB79Bbb9bC29bB72f7Cd42F17e054Fc40188e',
-      deadlineInParams: false,
       feeTiers: UNI_TIERS,
     },
     cctp: { domain: 3, ...CCTP_TESTNET },
@@ -216,14 +233,13 @@ export const CHAINS: ChainConfig[] = [
     usdc: '0x036CbD53842c5426634e7929541eC2318f3dCF7e',
     dex: {
       name: 'Uniswap V3',
-      router: '0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4',
+      router: '0x94cC0AaC535CCDB3C01d6787D6413C739ae12bC4',
       quoter: '0xC5290058841028F1614F3A6F0F5816cAd0df5E27',
       factory: '0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24',
-      deadlineInParams: false,
       feeTiers: UNI_TIERS,
     },
     cctp: { domain: 6, ...CCTP_TESTNET },
-    safeTxService: 'https://safe-transaction-base-sepolia.safe.global',
+    safeTxService: 'https://api.safe.global/tx-service/basesep',
   },
 ];
 

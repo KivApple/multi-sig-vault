@@ -9,6 +9,9 @@ import settings from './dict/settings';
 import ops from './dict/ops';
 import hl from './dict/hl';
 import safe from './dict/safe';
+import swap from './dict/swap';
+import advanced from './dict/advanced';
+import addAccount from './dict/addAccount';
 import type { ModuleDict } from './define';
 
-export const DICTS: ModuleDict[] = [core, wallets, qr, update, tokens, accounts, signers, settings, ops, hl, safe];
+export const DICTS: ModuleDict[] = [core, wallets, qr, update, tokens, accounts, signers, settings, ops, hl, safe, swap, advanced, addAccount];

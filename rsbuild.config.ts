@@ -2,6 +2,7 @@ import { defineConfig } from '@rsbuild/core';
 import { pluginNodePolyfill } from '@rsbuild/plugin-node-polyfill';
 import { pluginReact } from '@rsbuild/plugin-react';
 import pkg from './package.json' with { type: 'json' };
+import { pluginReleaseManifest } from './scripts/release/plugin';
 
 const isProd = process.env.NODE_ENV === 'production';
 
@@ -15,8 +16,8 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https: wss:",
-  'frame-src https://connect.trezor.io',
+  "connect-src 'self' https: wss: ws://127.0.0.1:21335",
+  'frame-src https://connect.trezor.io https://suite.trezor.io',
   "worker-src 'self' blob:",
   "media-src 'self' blob:",
   "object-src 'none'",
@@ -25,14 +26,14 @@ const CSP = [
 ].join('; ');
 
 export default defineConfig({
-  plugins: [pluginReact(), pluginNodePolyfill()],
+  plugins: [pluginReact(), pluginNodePolyfill(), pluginReleaseManifest({ version: pkg.version })],
   source: {
     entry: { index: './src/index.tsx' },
     define: {
       'import.meta.env.PUBLIC_APP_VERSION': JSON.stringify(pkg.version),
     },
   },
-  resolve: { alias: { '@': './src' } },
+  resolve: { alias: { '@': './src', '@react-native-async-storage/async-storage': false } },
   html: {
     template: './src/index.html',
     title: 'Multi Sig Vault',

@@ -16,9 +16,8 @@
     "esModuleInterop": true,
     "allowImportingTsExtensions": false,
     "noEmit": true,
-    "baseUrl": ".",
-    "paths": { "@/*": ["src/*"] },
-    "types": ["w3c-web-usb", "w3c-web-hid"]
+    "paths": { "@/*": ["./src/*"] },
+    "types": ["node", "w3c-web-usb", "w3c-web-hid"]
   },
   "include": ["src", "tests", "rsbuild.config.ts", "scripts"]
 }

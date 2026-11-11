@@ -1,9 +1,11 @@
-import { createPublicClient, defineChain, fallback, http, type Chain, type PublicClient } from 'viem';
+import { createPublicClient, defineChain, fallback, http, type Chain, type PublicClient, type Transport } from 'viem';
 import { getChain } from '@/config/chains';
 import { MULTICALL3 } from '@/config/constants';
 import { useAppStore } from '@/store/appStore';
 
-const clients = new Map<string, PublicClient>();
+export type ChainClient = PublicClient<Transport, Chain>;
+
+const clients = new Map<string, ChainClient>();
 
 export const viemChain = (chainId: number): Chain => {
   const c = getChain(chainId);
@@ -25,7 +27,7 @@ export const rpcUrlsFor = (chainId: number): string[] => {
 };
 
 /** Read client with endpoint fallback; honours the custom RPC from settings. */
-export const getPublicClient = (chainId: number): PublicClient => {
+export const getPublicClient = (chainId: number): ChainClient => {
   const urls = rpcUrlsFor(chainId);
   const key = `${chainId}|${urls[0]}`;
   let client = clients.get(key);
@@ -46,7 +48,7 @@ export const getPublicClient = (chainId: number): PublicClient => {
  * Client used to broadcast raw transactions signed by hardware wallets.
  * With MEV protection on, chains that have a private endpoint use only that endpoint.
  */
-export const getBroadcastClient = (chainId: number): PublicClient => {
+export const getBroadcastClient = (chainId: number): ChainClient => {
   const { mevProtection } = useAppStore.getState().settings;
   const mev = getChain(chainId).mevRpcUrl;
   if (!mevProtection || !mev) return getPublicClient(chainId);
