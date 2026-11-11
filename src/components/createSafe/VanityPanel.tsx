@@ -59,7 +59,13 @@ export const VanityPanel: React.FC<VanityPanelProps> = ({
 		<div className="flex flex-col gap-4">
 			{!locked && (
 				<>
-					<OwnersEditor owners={owners} threshold={threshold} onChange={onOwners} errors={ownerErrors} disabled={disabled} />
+					<OwnersEditor
+						owners={owners}
+						threshold={threshold}
+						onChange={onOwners}
+						errors={ownerErrors}
+						disabled={disabled}
+					/>
 					<TextField
 						label={t("createSafe.vanity.prefix")}
 						value={prefix}

@@ -64,9 +64,26 @@ let nextPort = 18545 + Math.floor(Math.random() * 500);
 const startFork = async (chainId: number): Promise<Fork> => {
 	const port = nextPort++;
 	const url = `http://127.0.0.1:${port}`;
-	const proc = spawn("anvil", ["--fork-url", FORK_RPC[chainId], "--port", String(port), "--chain-id", String(chainId), "--no-rate-limit", "--timeout", "20000", "--retries", "8", "--silent"], {
-		stdio: "ignore",
-	});
+	const proc = spawn(
+		"anvil",
+		[
+			"--fork-url",
+			FORK_RPC[chainId],
+			"--port",
+			String(port),
+			"--chain-id",
+			String(chainId),
+			"--no-rate-limit",
+			"--timeout",
+			"20000",
+			"--retries",
+			"8",
+			"--silent",
+		],
+		{
+			stdio: "ignore",
+		},
+	);
 	const pub = createPublicClient({ transport: http(url, { timeout: 120_000 }) }) as PublicClient;
 	for (let i = 0; ; i++) {
 		try {
@@ -101,7 +118,9 @@ const startFork = async (chainId: number): Promise<Fork> => {
 	await pub.request({ method: "anvil_setBalance" as never, params: [safe, "0x56BC75E2D63100000"] as never });
 
 	// Route all app reads for this chain to the fork.
-	useAppStore.setState((s) => ({ settings: { ...s.settings, rpcOverrides: { ...s.settings.rpcOverrides, [String(chainId)]: url } } }));
+	useAppStore.setState((s) => ({
+		settings: { ...s.settings, rpcOverrides: { ...s.settings.rpcOverrides, [String(chainId)]: url } },
+	}));
 	const account: Account = {
 		id: `safe:${chainId}:${safe.toLowerCase()}`,
 		kind: "safe",
@@ -208,11 +227,16 @@ const suite = (chainId: number, bridgeTo: number): void => {
 
 		it("native → USDC", async () => {
 			const before = await balanceOf(f, usdc);
-			const { resolved } = await run(f, params(f, { amount: "2", tokenOut: usdc, tokenOutSymbol: "USDC", tokenOutDecimals: 6 }));
+			const { resolved } = await run(
+				f,
+				params(f, { amount: "2", tokenOut: usdc, tokenOutSymbol: "USDC", tokenOutDecimals: 6 }),
+			);
 			const got = (await balanceOf(f, usdc)) - before;
 			expect(got).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
 			expect(got).toBeGreaterThan(0n);
-			console.log(`[${chainId}] 2 ${chain.nativeSymbol} → ${Number(got) / 1e6} USDC via fees ${resolved.swap?.fees.join("+")}, impact ${resolved.swap?.impactBps} bps`);
+			console.log(
+				`[${chainId}] 2 ${chain.nativeSymbol} → ${Number(got) / 1e6} USDC via fees ${resolved.swap?.fees.join("+")}, impact ${resolved.swap?.impactBps} bps`,
+			);
 		}, 180_000);
 
 		it("USDC → wrapped native (ERC-20 → ERC-20)", async () => {
@@ -220,13 +244,26 @@ const suite = (chainId: number, bridgeTo: number): void => {
 			const usdcBefore = await balanceOf(f, usdc);
 			const { resolved } = await run(
 				f,
-				params(f, { tokenIn: usdc, tokenInSymbol: "USDC", tokenInDecimals: 6, amount: "20", tokenOut: weth, tokenOutSymbol: "WETH", tokenOutDecimals: 18 }),
+				params(f, {
+					tokenIn: usdc,
+					tokenInSymbol: "USDC",
+					tokenInDecimals: 6,
+					amount: "20",
+					tokenOut: weth,
+					tokenOutSymbol: "WETH",
+					tokenOutDecimals: 18,
+				}),
 			);
 			expect((await balanceOf(f, weth)) - before).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
 			expect(usdcBefore - (await balanceOf(f, usdc))).toBe(20_000_000n);
 			// Exact approval is fully consumed.
 			expect(
-				await f.pub.readContract({ address: usdc, abi: ERC20_ABI, functionName: "allowance", args: [f.safe, chain.dex?.router as Address] }),
+				await f.pub.readContract({
+					address: usdc,
+					abi: ERC20_ABI,
+					functionName: "allowance",
+					args: [f.safe, chain.dex?.router as Address],
+				}),
 			).toBe(0n);
 		}, 180_000);
 
@@ -234,7 +271,15 @@ const suite = (chainId: number, bridgeTo: number): void => {
 			const before = await f.pub.getBalance({ address: STRANGER });
 			const { resolved } = await run(
 				f,
-				params(f, { tokenIn: usdc, tokenInSymbol: "USDC", tokenInDecimals: 6, amount: "20", tokenOut: NATIVE, tokenOutSymbol: chain.nativeSymbol, recipient: STRANGER }),
+				params(f, {
+					tokenIn: usdc,
+					tokenInSymbol: "USDC",
+					tokenInDecimals: 6,
+					amount: "20",
+					tokenOut: NATIVE,
+					tokenOutSymbol: chain.nativeSymbol,
+					recipient: STRANGER,
+				}),
 			);
 			const got = (await f.pub.getBalance({ address: STRANGER })) - before;
 			expect(got).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
@@ -242,27 +287,59 @@ const suite = (chainId: number, bridgeTo: number): void => {
 		}, 180_000);
 
 		const tk = TOKENS[chainId];
-		it.skipIf(!tk.usdt || !tk.alt)("USDT → another ERC-20 (USDT-style approve, multi-hop route)", async () => {
-			const usdt = tk.usdt as Address;
-			const alt = tk.alt as NonNullable<typeof tk.alt>;
-			await run(f, params(f, { tokenIn: usdc, tokenInSymbol: "USDC", tokenInDecimals: 6, amount: "50", tokenOut: usdt, tokenOutSymbol: "USDT", tokenOutDecimals: 6 }));
-			const usdtBalance = await balanceOf(f, usdt);
-			expect(usdtBalance).toBeGreaterThan(40_000_000n);
-			const before = await balanceOf(f, alt.address);
-			const { resolved } = await run(
-				f,
-				params(f, { tokenIn: usdt, tokenInSymbol: "USDT", tokenInDecimals: 6, amount: "40", tokenOut: alt.address, tokenOutSymbol: alt.symbol, tokenOutDecimals: alt.decimals }),
-			);
-			console.log(`[${chainId}] USDT → ${alt.symbol} route: ${resolved.swap?.tokens.join(" → ")} fees ${resolved.swap?.fees.join("+")}`);
-			expect(resolved.swap?.tokens.length).toBe(3);
-			expect((await balanceOf(f, alt.address)) - before).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
-		}, 900_000);
+		it.skipIf(!tk.usdt || !tk.alt)(
+			"USDT → another ERC-20 (USDT-style approve, multi-hop route)",
+			async () => {
+				const usdt = tk.usdt as Address;
+				const alt = tk.alt as NonNullable<typeof tk.alt>;
+				await run(
+					f,
+					params(f, {
+						tokenIn: usdc,
+						tokenInSymbol: "USDC",
+						tokenInDecimals: 6,
+						amount: "50",
+						tokenOut: usdt,
+						tokenOutSymbol: "USDT",
+						tokenOutDecimals: 6,
+					}),
+				);
+				const usdtBalance = await balanceOf(f, usdt);
+				expect(usdtBalance).toBeGreaterThan(40_000_000n);
+				const before = await balanceOf(f, alt.address);
+				const { resolved } = await run(
+					f,
+					params(f, {
+						tokenIn: usdt,
+						tokenInSymbol: "USDT",
+						tokenInDecimals: 6,
+						amount: "40",
+						tokenOut: alt.address,
+						tokenOutSymbol: alt.symbol,
+						tokenOutDecimals: alt.decimals,
+					}),
+				);
+				console.log(
+					`[${chainId}] USDT → ${alt.symbol} route: ${resolved.swap?.tokens.join(" → ")} fees ${resolved.swap?.fees.join("+")}`,
+				);
+				expect(resolved.swap?.tokens.length).toBe(3);
+				expect((await balanceOf(f, alt.address)) - before).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
+			},
+			900_000,
+		);
 
 		it("USDC bridge with Circle forwarding", async () => {
 			const before = await balanceOf(f, usdc);
 			const { resolved, receipt } = await run(
 				f,
-				params(f, { tokenIn: usdc, tokenInSymbol: "USDC", tokenInDecimals: 6, amount: "25", destChainId: bridgeTo, recipient: STRANGER }),
+				params(f, {
+					tokenIn: usdc,
+					tokenInSymbol: "USDC",
+					tokenInDecimals: 6,
+					amount: "25",
+					destChainId: bridgeTo,
+					recipient: STRANGER,
+				}),
 			);
 			expect(resolved.swap).toBeUndefined();
 			const bridge = resolved.bridge as NonNullable<typeof resolved.bridge>;
@@ -285,7 +362,10 @@ const suite = (chainId: number, bridgeTo: number): void => {
 		it("native → USDC → bridge without forwarding", async () => {
 			const before = await balanceOf(f, usdc);
 			const fast = chain.key !== "hyperevm";
-			const { resolved, receipt } = await run(f, params(f, { amount: "1", destChainId: bridgeTo, forward: false, speed: fast ? "fast" : "standard" }));
+			const { resolved, receipt } = await run(
+				f,
+				params(f, { amount: "1", destChainId: bridgeTo, forward: false, speed: fast ? "fast" : "standard" }),
+			);
 			const swap = resolved.swap as NonNullable<typeof resolved.swap>;
 			const bridge = resolved.bridge as NonNullable<typeof resolved.bridge>;
 			const ev = burnEvent(f, receipt.logs);
@@ -299,12 +379,20 @@ const suite = (chainId: number, bridgeTo: number): void => {
 			expect(bridge.forwardFee).toBe("0");
 			const surplus = (await balanceOf(f, usdc)) - before;
 			expect(surplus).toBeGreaterThanOrEqual(0n);
-			console.log(`[${chainId}→${bridgeTo}] bridged ${Number(ev.amount) / 1e6} USDC, surplus kept ${Number(surplus) / 1e6}, maxFee ${bridge.maxFee}`);
+			console.log(
+				`[${chainId}→${bridgeTo}] bridged ${Number(ev.amount) / 1e6} USDC, surplus kept ${Number(surplus) / 1e6}, maxFee ${bridge.maxFee}`,
+			);
 		}, 180_000);
 
 		it("prepare refuses an operation that would revert", async () => {
 			const env: OpEnv = { account: f.account, accounts: [], signers: [] };
-			const p = params(f, { tokenIn: usdc, tokenInSymbol: "USDC", tokenInDecimals: 6, amount: "900000000", destChainId: bridgeTo });
+			const p = params(f, {
+				tokenIn: usdc,
+				tokenInSymbol: "USDC",
+				tokenInDecimals: 6,
+				amount: "900000000",
+				destChainId: bridgeTo,
+			});
 			await expect((swapOp.prepare as NonNullable<typeof swapOp.prepare>)(p, env)).rejects.toThrow();
 		}, 120_000);
 	});

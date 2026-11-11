@@ -52,7 +52,10 @@ export const useAccountCheck = ({ kind, env, chainId, address, skip }: AccountCh
 			try {
 				if (kind === "hl") {
 					await verifyHlAccount(env, address);
-					const multiSig = await hlInfo<HlMultiSigSigners | null>(env, { type: "userToMultiSigSigners", user: address });
+					const multiSig = await hlInfo<HlMultiSigSigners | null>(env, {
+						type: "userToMultiSigSigners",
+						user: address,
+					});
 					check = { status: "ok", multiSig };
 				} else {
 					check = { status: "ok", safe: await fetchSafeInfo(chainId as number, address) };

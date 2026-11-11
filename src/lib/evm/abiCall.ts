@@ -30,4 +30,3 @@ export const callData = (p: CallParams): Hex => {
 	if (!fn) throw new AppError("advanced.err.noFunction");
 	return encodeCall(fn, p.args);
 };
-

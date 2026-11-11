@@ -43,7 +43,11 @@ export const SwapQuoteBox: React.FC<SwapQuoteBoxProps> = ({ params, preview, cha
 				<>
 					{resolved.swap && (
 						<>
-							<SwapQuoteRow label={t("swap.quote.out")} value={fmt(resolved.swap.quoteOut, outDecimals, outSymbol)} busy={loading} />
+							<SwapQuoteRow
+								label={t("swap.quote.out")}
+								value={fmt(resolved.swap.quoteOut, outDecimals, outSymbol)}
+								busy={loading}
+							/>
 							<SwapQuoteRow label={t("swap.quote.minOut")} value={fmt(resolved.swap.minOut, outDecimals, outSymbol)} />
 							{resolved.swap.impactBps !== undefined && (
 								<SwapQuoteRow
@@ -61,14 +65,21 @@ export const SwapQuoteBox: React.FC<SwapQuoteBoxProps> = ({ params, preview, cha
 					{resolved.bridge && (
 						<>
 							{resolved.swap && (
-								<SwapQuoteRow label={t("swap.quote.bridged")} value={fmt(resolved.bridge.amount, USDC_DECIMALS, "USDC")} />
+								<SwapQuoteRow
+									label={t("swap.quote.bridged")}
+									value={fmt(resolved.bridge.amount, USDC_DECIMALS, "USDC")}
+								/>
 							)}
 							<SwapQuoteRow
 								label={t("swap.quote.bridgeFee")}
 								value={fmt(resolved.bridge.maxFee, USDC_DECIMALS, "USDC")}
 								busy={loading && !resolved.swap}
 							/>
-							<SwapQuoteRow label={t("swap.quote.receive")} value={fmt(resolved.bridge.receive, USDC_DECIMALS, "USDC")} strong />
+							<SwapQuoteRow
+								label={t("swap.quote.receive")}
+								value={fmt(resolved.bridge.receive, USDC_DECIMALS, "USDC")}
+								strong
+							/>
 							{resolved.swap && <p className="text-base-content/60 text-xs">{t("swap.surplusNote")}</p>}
 						</>
 					)}

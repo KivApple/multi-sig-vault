@@ -30,7 +30,14 @@ type Lookup = { status: "idle" | "loading" | "needTx" } | { status: "error"; mes
  * Mode "same address as an existing Safe": finds how the source Safe was created (stored parameters,
  * Safe Transaction Service, or its creation transaction) so the same deployment can be repeated.
  */
-export const CopyPanel: React.FC<CopyPanelProps> = ({ sources, sourceId, creation, onSource, onResolved, disabled }) => {
+export const CopyPanel: React.FC<CopyPanelProps> = ({
+	sources,
+	sourceId,
+	creation,
+	onSource,
+	onResolved,
+	disabled,
+}) => {
 	const t = useT();
 	const source = useMemo(() => sources.find((a) => a.id === sourceId), [sources, sourceId]);
 	const [lookup, setLookup] = useState<Lookup>({ status: "idle" });

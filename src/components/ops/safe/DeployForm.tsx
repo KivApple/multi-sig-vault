@@ -132,8 +132,17 @@ export const DeployForm: React.FC<OpFormProps<DeployParams>> = ({ value, onChang
 					error={errors.value}
 				/>
 			)}
-			<Field label={t("advanced.method")} hint={value.method === "create2" ? t("advanced.create2Hint") : t("advanced.createHint")}>
-				<Segmented value={value.method} options={methods} onChange={(method) => onChange({ method })} size="sm" ariaLabel={t("advanced.method")} />
+			<Field
+				label={t("advanced.method")}
+				hint={value.method === "create2" ? t("advanced.create2Hint") : t("advanced.createHint")}
+			>
+				<Segmented
+					value={value.method}
+					options={methods}
+					onChange={(method) => onChange({ method })}
+					size="sm"
+					ariaLabel={t("advanced.method")}
+				/>
 			</Field>
 			{value.method === "create2" && (
 				<TextField
@@ -143,7 +152,11 @@ export const DeployForm: React.FC<OpFormProps<DeployParams>> = ({ value, onChang
 					error={errors.salt}
 					mono
 					placeholder={t("advanced.saltPlaceholder")}
-					hint={salt && salt !== value.salt.trim().toLowerCase() ? <span className="mono break-all">{salt}</span> : undefined}
+					hint={
+						salt && salt !== value.salt.trim().toLowerCase() ? (
+							<span className="mono break-all">{salt}</span>
+						) : undefined
+					}
 				/>
 			)}
 			{initCode && predicted && (
@@ -153,7 +166,9 @@ export const DeployForm: React.FC<OpFormProps<DeployParams>> = ({ value, onChang
 							{value.method === "create2" ? t("advanced.contractAddress") : t("advanced.expectedAddress")}
 						</div>
 						<AddressText address={predicted} full />
-						{value.method === "create" && <div className="text-base-content/60 text-xs">{t("advanced.expectedAddressHint")}</div>}
+						{value.method === "create" && (
+							<div className="text-base-content/60 text-xs">{t("advanced.expectedAddressHint")}</div>
+						)}
 					</div>
 					<CopyButton value={predicted} />
 				</div>

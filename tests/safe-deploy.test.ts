@@ -23,7 +23,13 @@ const OWNERS: Address[] = [
 	"0x3333333333333333333333333333333333333333",
 ];
 
-const setup = (over: Partial<Record<"to" | "data" | "handler" | "token" | "receiver", string>> & { payment?: bigint; owners?: Address[]; threshold?: number }): Hex =>
+const setup = (
+	over: Partial<Record<"to" | "data" | "handler" | "token" | "receiver", string>> & {
+		payment?: bigint;
+		owners?: Address[];
+		threshold?: number;
+	},
+): Hex =>
 	encodeFunctionData({
 		abi: SAFE_ABI,
 		functionName: "setup",

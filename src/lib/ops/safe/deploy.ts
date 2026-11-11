@@ -29,7 +29,16 @@ export const deployOp: OpDefinition<DeployParams> = {
 	kind: "safe",
 	icon: Rocket,
 	available: () => true,
-	defaults: () => ({ bytecodeText: "", bytecode: "", ctor: "", args: [], rawArgs: "", value: "", method: "create", salt: "" }),
+	defaults: () => ({
+		bytecodeText: "",
+		bytecode: "",
+		ctor: "",
+		args: [],
+		rawArgs: "",
+		value: "",
+		method: "create",
+		salt: "",
+	}),
 	Form: DeployForm,
 	validate: (p, env, t) => {
 		const errors: OpErrors = {};
@@ -41,8 +50,10 @@ export const deployOp: OpDefinition<DeployParams> = {
 			for (const [i, e] of Object.entries(argErrors(ctor.inputs, p.args))) errors[`arg${i}`] = t(e.key, e.vars);
 		} else if (!normalizeHex(p.rawArgs)) errors.rawArgs = t("advanced.err.hex");
 		if (p.value.trim() && !isDecimal(p.value.trim(), 18)) errors.value = t("advanced.err.amount");
-		else if (env.safe && valueWei(p) > BigInt(env.safe.holdings[0]?.balance ?? "0")) errors.value = t("advanced.err.balance");
-		else if (ctor && ctor.stateMutability !== "payable" && valueWei(p) > 0n) errors.value = t("advanced.err.ctorNotPayable");
+		else if (env.safe && valueWei(p) > BigInt(env.safe.holdings[0]?.balance ?? "0"))
+			errors.value = t("advanced.err.balance");
+		else if (ctor && ctor.stateMutability !== "payable" && valueWei(p) > 0n)
+			errors.value = t("advanced.err.ctorNotPayable");
 		if (p.method === "create2" && !deploySalt(p.salt)) errors.salt = t("error.required");
 		if (Object.keys(errors).length === 0 && size(deployInitCode(p)) > MAX_INITCODE_BYTES) {
 			errors.bytecode = t("advanced.err.initcodeSize", { max: MAX_INITCODE_BYTES });
@@ -69,7 +80,9 @@ export const deployOp: OpDefinition<DeployParams> = {
 		} else {
 			const predicted = deployAddress(next, safe);
 			if (predicted) {
-				const code = await getPublicClient(chainId).getCode({ address: predicted }).catch(() => undefined);
+				const code = await getPublicClient(chainId)
+					.getCode({ address: predicted })
+					.catch(() => undefined);
 				if (code && code !== "0x") throw new AppError("advanced.err.alreadyDeployed");
 			}
 		}
@@ -91,7 +104,11 @@ export const deployOp: OpDefinition<DeployParams> = {
 			// Incomplete draft.
 		}
 		if (initCode) {
-			rows.push({ label: t("advanced.initCode"), value: `${t("advanced.bytes", { count: size(initCode) })} · ${keccak256(initCode)}`, mono: true });
+			rows.push({
+				label: t("advanced.initCode"),
+				value: `${t("advanced.bytes", { count: size(initCode) })} · ${keccak256(initCode)}`,
+				mono: true,
+			});
 		}
 		const ctor = parseCtorFragment(p.ctor);
 		if (ctor && ctor.inputs.length > 0) {
@@ -99,7 +116,11 @@ export const deployOp: OpDefinition<DeployParams> = {
 			ctor.inputs.forEach((input, i) => {
 				const raw = p.args[i] ?? "";
 				const address = argKind(input) === "address" ? parseAddress(raw) : undefined;
-				rows.push(address ? { label: argLabel(input, i), address, chainId } : { label: argLabel(input, i), value: raw, mono: input.type !== "string" });
+				rows.push(
+					address
+						? { label: argLabel(input, i), address, chainId }
+						: { label: argLabel(input, i), value: raw, mono: input.type !== "string" },
+				);
 			});
 		}
 		rows.push({ label: t("advanced.method"), value: p.method === "create2" ? "CREATE2" : "CREATE" });
@@ -113,11 +134,13 @@ export const deployOp: OpDefinition<DeployParams> = {
 			rows.push({ label: "", value: t("advanced.expectedAddressHint") });
 		}
 		if (p.value.trim() && valueWei(p) > 0n) {
-			rows.push({ label: t("advanced.value"), value: `${trimDecimal(p.value.trim())} ${getChain(chainId).nativeSymbol}` });
+			rows.push({
+				label: t("advanced.value"),
+				value: `${trimDecimal(p.value.trim())} ${getChain(chainId).nativeSymbol}`,
+			});
 		}
 		for (const key of p.warnings ?? []) rows.push({ label: "", value: t(key), tone: "warning" });
 		return rows;
 	},
 	Result: DeployResult,
 };
-

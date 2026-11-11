@@ -98,7 +98,9 @@ export const SwapClaimDialog: React.FC<SwapClaimDialogProps> = ({
 
 	return (
 		<Dialog open={open} onClose={onClose} title={t("swap.claim.title")} dismissable={!busy}>
-			<p className="text-base-content/70 mb-3 text-sm">{t("swap.claim.text", { network: chain.name, symbol: chain.nativeSymbol })}</p>
+			<p className="text-base-content/70 mb-3 text-sm">
+				{t("swap.claim.text", { network: chain.name, symbol: chain.nativeSymbol })}
+			</p>
 			{signers.length === 0 && <p className="text-base-content/60 text-sm">{t("swap.claim.noSigners")}</p>}
 			<ul className="-mx-2 flex flex-col">
 				{signers.map((s) => {

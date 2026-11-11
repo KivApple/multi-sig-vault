@@ -33,8 +33,7 @@ export const CCTP_BURN_LIMIT = 10_000_000_000_000n;
 const MAX_SANE_FORWARD_FEE = 100_000_000n;
 const ZERO_BYTES32: Hex = `0x${"00".repeat(32)}`;
 
-export const addressToBytes32 = (address: Address): Hex =>
-	pad(getAddress(address).toLowerCase() as Hex, { size: 32 });
+export const addressToBytes32 = (address: Address): Hex => pad(getAddress(address).toLowerCase() as Hex, { size: 32 });
 
 export const bytes32ToAddress = (value: Hex): Address => getAddress(slice(value, 12, 32));
 
@@ -69,7 +68,9 @@ const toFeeUnits = (v: unknown): bigint => {
 /** Validates the fees endpoint answer (untrusted input) and picks the entry for `finality`. */
 export const parseCctpFees = (json: unknown, finality: Finality): CctpFees => {
 	if (!Array.isArray(json)) throw new AppError("swap.error.feeApi");
-	const entry = json.find((e) => isObject(e) && e.finalityThreshold === finality) as Record<string, unknown> | undefined;
+	const entry = json.find((e) => isObject(e) && e.finalityThreshold === finality) as
+		| Record<string, unknown>
+		| undefined;
 	if (!entry) throw new AppError("swap.error.feeApi");
 	const bps = entry.minimumFee;
 	// More than 1% would be an absurd bridge fee – refuse rather than sign it.
@@ -217,7 +218,10 @@ export const fetchCctpMessage = async (txHash: Hex, expected: ExpectedTransfer):
 
 /** Asks Circle to re-sign an expired fast-transfer attestation. */
 export const requestReattest = async (srcChainId: number, nonce: Hex): Promise<void> => {
-	const res = await fetch(`${irisBase(srcChainId)}/v2/reattest/${nonce}`, { method: "POST", referrerPolicy: "no-referrer" });
+	const res = await fetch(`${irisBase(srcChainId)}/v2/reattest/${nonce}`, {
+		method: "POST",
+		referrerPolicy: "no-referrer",
+	});
 	if (!res.ok) throw new AppError("swap.error.attestationApi");
 };
 

@@ -81,7 +81,10 @@ export const CreateSafePage: React.FC = () => {
 	const setOwners = useCallback((owners: string[], threshold: number) => setDraft({ owners, threshold }), [setDraft]);
 	const regenerate = useCallback(() => setDraft({ saltNonce: newSalt() }), [setDraft]);
 
-	const ownersInput = useMemo(() => checkOwnersInput(draft.owners, draft.threshold, t), [draft.owners, draft.threshold, t]);
+	const ownersInput = useMemo(
+		() => checkOwnersInput(draft.owners, draft.threshold, t),
+		[draft.owners, draft.threshold, t],
+	);
 
 	// Safes of the app whose address is free on the target network.
 	const sources = useMemo(
@@ -141,7 +144,8 @@ export const CreateSafePage: React.FC = () => {
 	);
 
 	const plan = useMemo<DeploymentPlan | undefined>(
-		() => (resolved ? { chainId, creation: resolved.creation, address: resolved.address, name: draft.name } : undefined),
+		() =>
+			resolved ? { chainId, creation: resolved.creation, address: resolved.address, name: draft.name } : undefined,
 		[resolved, chainId, draft.name],
 	);
 	const ready = target.status === "ready" && target.missing.length === 0 && !alreadyAdded;
@@ -155,7 +159,11 @@ export const CreateSafePage: React.FC = () => {
 		setFeeWei(null);
 		const client = getPublicClient(plan.chainId);
 		Promise.all([
-			client.estimateGas({ account: payerAddresses[0], to: plan.creation.factory, data: encodeCreateProxy(plan.creation) }),
+			client.estimateGas({
+				account: payerAddresses[0],
+				to: plan.creation.factory,
+				data: encodeCreateProxy(plan.creation),
+			}),
 			client.getGasPrice(),
 		])
 			.then(([gas, price]) => !cancelled && setFeeWei(gas * price))
@@ -192,7 +200,13 @@ export const CreateSafePage: React.FC = () => {
 				<div className="flex flex-col gap-4">
 					<NetworkFields showChain chain={chain} env={env} onChain={setChain} onEnv={setEnv} disabled={busy} />
 					<Field label={t("createSafe.mode")}>
-						<Segmented value={mode} options={modeOptions} onChange={setMode} size="sm" ariaLabel={t("createSafe.mode")} />
+						<Segmented
+							value={mode}
+							options={modeOptions}
+							onChange={setMode}
+							size="sm"
+							ariaLabel={t("createSafe.mode")}
+						/>
 					</Field>
 
 					{mode === "new" && (

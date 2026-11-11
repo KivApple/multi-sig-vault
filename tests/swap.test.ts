@@ -82,7 +82,10 @@ describe("CCTP API parsing", () => {
 	];
 
 	it("reads fees for the requested finality", () => {
-		expect(parseCctpFees(real, 2000)).toEqual({ minimumFeeBps: 0, forwardFee: { low: 71482n, med: 80445n, high: 89409n } });
+		expect(parseCctpFees(real, 2000)).toEqual({
+			minimumFeeBps: 0,
+			forwardFee: { low: 71482n, med: 80445n, high: 89409n },
+		});
 		expect(parseCctpFees(real, 1000).minimumFeeBps).toBe(1.4);
 		expect(parseCctpFees([{ finalityThreshold: 2000, minimumFee: 0 }], 2000).forwardFee).toBeUndefined();
 	});
@@ -92,16 +95,35 @@ describe("CCTP API parsing", () => {
 		expect(() => parseCctpFees([], 2000)).toThrow();
 		expect(() => parseCctpFees([{ finalityThreshold: 2000, minimumFee: "0" }], 2000)).toThrow();
 		expect(() => parseCctpFees([{ finalityThreshold: 2000, minimumFee: 500 }], 2000)).toThrow();
-		expect(() => parseCctpFees([{ finalityThreshold: 2000, minimumFee: 0, forwardFee: { low: 1, med: 1.5, high: 2 } }], 2000)).toThrow();
-		expect(() => parseCctpFees([{ finalityThreshold: 2000, minimumFee: 0, forwardFee: { low: 1, med: 1e12, high: 2 } }], 2000)).toThrow();
+		expect(() =>
+			parseCctpFees([{ finalityThreshold: 2000, minimumFee: 0, forwardFee: { low: 1, med: 1.5, high: 2 } }], 2000),
+		).toThrow();
+		expect(() =>
+			parseCctpFees([{ finalityThreshold: 2000, minimumFee: 0, forwardFee: { low: 1, med: 1e12, high: 2 } }], 2000),
+		).toThrow();
 	});
 
 	const u32 = (n: number): Hex => numberToHex(n, { size: 4 });
 	const word = (n: bigint): Hex => numberToHex(n, { size: 32 });
 	const message = (dstDomain: number, recipient: Address, sender: Address, expiration = 0n): Hex =>
 		concat([
-			u32(1), u32(0), u32(dstDomain), word(77n), pad(MESSENGER), pad(MESSENGER), word(0n), u32(2000), u32(2000),
-			u32(1), pad(USDC), pad(recipient), word(5n), pad(sender), word(0n), word(0n), word(expiration),
+			u32(1),
+			u32(0),
+			u32(dstDomain),
+			word(77n),
+			pad(MESSENGER),
+			pad(MESSENGER),
+			word(0n),
+			u32(2000),
+			u32(2000),
+			u32(1),
+			pad(USDC),
+			pad(recipient),
+			word(5n),
+			pad(sender),
+			word(0n),
+			word(0n),
+			word(expiration),
 		]);
 	const expected = { srcChainId: 1, dstChainId: 8453, sender: SAFE, recipient: OTHER };
 
@@ -116,17 +138,31 @@ describe("CCTP API parsing", () => {
 	it("parses the messages endpoint defensively", () => {
 		const nonce = word(77n);
 		const good = { message: message(6, OTHER, SAFE), attestation: "0xabcd", eventNonce: nonce, status: "complete" };
-		const parsed = parseCctpMessages({ messages: [{ message: message(6, SAFE, SAFE), attestation: "0xabcd", status: "complete" }, good] }, expected);
+		const parsed = parseCctpMessages(
+			{ messages: [{ message: message(6, SAFE, SAFE), attestation: "0xabcd", status: "complete" }, good] },
+			expected,
+		);
 		expect(parsed?.complete).toBe(true);
 		expect(parsed?.nonce).toBe(nonce);
 		expect(parsed?.mintTxHash).toBeUndefined();
-		expect(parseCctpMessages({ messages: [{ ...good, destinationMintTxHash: word(1n), forwardState: "COMPLETE" }] }, expected)?.mintTxHash).toBe(word(1n));
-		const pending = parseCctpMessages({ messages: [{ message: "0x", attestation: "PENDING", status: "pending_confirmations" }] }, expected);
+		expect(
+			parseCctpMessages(
+				{ messages: [{ ...good, destinationMintTxHash: word(1n), forwardState: "COMPLETE" }] },
+				expected,
+			)?.mintTxHash,
+		).toBe(word(1n));
+		const pending = parseCctpMessages(
+			{ messages: [{ message: "0x", attestation: "PENDING", status: "pending_confirmations" }] },
+			expected,
+		);
 		expect(pending?.complete).toBe(false);
 		expect(pending?.message).toBeUndefined();
 		expect(parseCctpMessages({ messages: [{ ...good, message: message(6, SAFE, SAFE) }] }, expected)).toBeUndefined();
 		expect(parseCctpMessages("nope", expected)).toBeUndefined();
-		expect(parseCctpMessages({ messages: [{ ...good, destinationMintTxHash: "javascript:alert(1)" }] }, expected)?.mintTxHash).toBeUndefined();
+		expect(
+			parseCctpMessages({ messages: [{ ...good, destinationMintTxHash: "javascript:alert(1)" }] }, expected)
+				?.mintTxHash,
+		).toBeUndefined();
 	});
 });
 
@@ -136,7 +172,15 @@ describe("buildSwapCalls", () => {
 		resolved: {
 			amountIn: "1000000000",
 			preparedAt: 1,
-			bridge: { amount: "1000000000", maxFee: "55636", forwardFee: "55636", percentFee: "0", finality: 2000, forward: true, receive: "999944364" },
+			bridge: {
+				amount: "1000000000",
+				maxFee: "55636",
+				forwardFee: "55636",
+				percentFee: "0",
+				finality: 2000,
+				forward: true,
+				receive: "999944364",
+			},
 		},
 		...over,
 	});
@@ -149,13 +193,25 @@ describe("buildSwapCalls", () => {
 		expect(calls[1].to).toBe(MESSENGER);
 		const burn = decodeFunctionData({ abi: TOKEN_MESSENGER_ABI, data: calls[1].data });
 		expect(burn.functionName).toBe("depositForBurnWithHook");
-		expect(burn.args).toEqual([1_000_000_000n, 6, addressToBytes32(SAFE), USDC, pad("0x00", { size: 32 }), 55_636n, 2000, FORWARD_HOOK_DATA]);
+		expect(burn.args).toEqual([
+			1_000_000_000n,
+			6,
+			addressToBytes32(SAFE),
+			USDC,
+			pad("0x00", { size: 32 }),
+			55_636n,
+			2000,
+			FORWARD_HOOK_DATA,
+		]);
 		expect(calls.every((c) => c.value === 0n && c.operation === undefined)).toBe(true);
 	});
 
 	it("uses plain depositForBurn without forwarding and honours a custom recipient", () => {
 		const p = bridged({ forward: false, recipient: OTHER });
-		p.resolved = { ...p.resolved!, bridge: { ...p.resolved!.bridge!, forward: false, maxFee: "0", forwardFee: "0", receive: "1000000000" } };
+		p.resolved = {
+			...p.resolved!,
+			bridge: { ...p.resolved!.bridge!, forward: false, maxFee: "0", forwardFee: "0", receive: "1000000000" },
+		};
 		const burn = decodeFunctionData({ abi: TOKEN_MESSENGER_ABI, data: buildSwapCalls(p, 1, SAFE)[1].data });
 		expect(burn.functionName).toBe("depositForBurn");
 		expect(burn.args?.[2]).toBe(addressToBytes32(OTHER));
@@ -172,12 +228,62 @@ describe("buildSwapCalls", () => {
 			fn(p);
 			return p;
 		};
-		expect(() => buildSwapCalls(tamper((p) => { p.amount = "1"; }), 1, SAFE)).toThrow();
-		expect(() => buildSwapCalls(tamper((p) => { p.resolved!.bridge!.amount = "2000000000"; }), 1, SAFE)).toThrow();
-		expect(() => buildSwapCalls(tamper((p) => { p.resolved!.bridge!.maxFee = "999999999"; }), 1, SAFE)).toThrow();
-		expect(() => buildSwapCalls(tamper((p) => { p.resolved!.bridge!.receive = "1"; }), 1, SAFE)).toThrow();
-		expect(() => buildSwapCalls(tamper((p) => { p.tokenInDecimals = 18; p.amount = "0.000000001"; }), 1, SAFE)).toThrow();
-		expect(() => buildSwapCalls(tamper((p) => { p.destChainId = 1; p.tokenOut = NATIVE; }), 1, SAFE)).toThrow();
+		expect(() =>
+			buildSwapCalls(
+				tamper((p) => {
+					p.amount = "1";
+				}),
+				1,
+				SAFE,
+			),
+		).toThrow();
+		expect(() =>
+			buildSwapCalls(
+				tamper((p) => {
+					p.resolved!.bridge!.amount = "2000000000";
+				}),
+				1,
+				SAFE,
+			),
+		).toThrow();
+		expect(() =>
+			buildSwapCalls(
+				tamper((p) => {
+					p.resolved!.bridge!.maxFee = "999999999";
+				}),
+				1,
+				SAFE,
+			),
+		).toThrow();
+		expect(() =>
+			buildSwapCalls(
+				tamper((p) => {
+					p.resolved!.bridge!.receive = "1";
+				}),
+				1,
+				SAFE,
+			),
+		).toThrow();
+		expect(() =>
+			buildSwapCalls(
+				tamper((p) => {
+					p.tokenInDecimals = 18;
+					p.amount = "0.000000001";
+				}),
+				1,
+				SAFE,
+			),
+		).toThrow();
+		expect(() =>
+			buildSwapCalls(
+				tamper((p) => {
+					p.destChainId = 1;
+					p.tokenOut = NATIVE;
+				}),
+				1,
+				SAFE,
+			),
+		).toThrow();
 		expect(() => buildSwapCalls({ ...base }, 1, SAFE)).toThrow();
 	});
 
@@ -194,7 +300,14 @@ describe("buildSwapCalls", () => {
 		resolved: {
 			amountIn: parseUnits("2", 18).toString(),
 			preparedAt: 1,
-			swap: { tokens: [WETH, USDC], fees: [500], quoteOut: "6000000000", minOut: "5940000000", deadline: 1_900_000_000, resetAllowance: false },
+			swap: {
+				tokens: [WETH, USDC],
+				fees: [500],
+				quoteOut: "6000000000",
+				minOut: "5940000000",
+				deadline: 1_900_000_000,
+				resetAllowance: false,
+			},
 		},
 		...over,
 	});
@@ -209,18 +322,41 @@ describe("buildSwapCalls", () => {
 		const [deadline, inner] = outer.args as [bigint, Hex[]];
 		expect(deadline).toBe(1_900_000_000n);
 		const swap = decodeFunctionData({ abi: ROUTER02_ABI, data: inner[0] });
-		expect(swap.args).toEqual([{ path: encodePath({ tokens: [WETH, USDC], fees: [500] }), recipient: SAFE, amountIn: parseUnits("2", 18), amountOutMinimum: 5_940_000_000n }]);
+		expect(swap.args).toEqual([
+			{
+				path: encodePath({ tokens: [WETH, USDC], fees: [500] }),
+				recipient: SAFE,
+				amountIn: parseUnits("2", 18),
+				amountOutMinimum: 5_940_000_000n,
+			},
+		]);
 	});
 
 	it("approves ERC-20 input (with reset) and unwraps native output to the recipient", () => {
-		const p = swapped({ tokenIn: USDC, tokenInSymbol: "USDC", tokenInDecimals: 6, amount: "100", tokenOut: NATIVE, tokenOutSymbol: "ETH", tokenOutDecimals: 18, recipient: OTHER });
-		p.resolved = { amountIn: "100000000", preparedAt: 1, swap: { tokens: [USDC, WETH], fees: [500], quoteOut: "30", minOut: "29", deadline: 5, resetAllowance: true } };
+		const p = swapped({
+			tokenIn: USDC,
+			tokenInSymbol: "USDC",
+			tokenInDecimals: 6,
+			amount: "100",
+			tokenOut: NATIVE,
+			tokenOutSymbol: "ETH",
+			tokenOutDecimals: 18,
+			recipient: OTHER,
+		});
+		p.resolved = {
+			amountIn: "100000000",
+			preparedAt: 1,
+			swap: { tokens: [USDC, WETH], fees: [500], quoteOut: "30", minOut: "29", deadline: 5, resetAllowance: true },
+		};
 		const calls = buildSwapCalls(p, 1, SAFE);
 		expect(calls.map((c) => c.to)).toEqual([USDC, USDC, ROUTER]);
 		expect(decodeFunctionData({ abi: ERC20_ABI, data: calls[0].data }).args).toEqual([ROUTER, 0n]);
 		expect(decodeFunctionData({ abi: ERC20_ABI, data: calls[1].data }).args).toEqual([ROUTER, 100_000_000n]);
 		const [, inner] = decodeFunctionData({ abi: ROUTER02_ABI, data: calls[2].data }).args as [bigint, Hex[]];
-		expect((decodeFunctionData({ abi: ROUTER02_ABI, data: inner[0] }).args as unknown as [{ recipient: Address }])[0].recipient).toBe(ROUTER);
+		expect(
+			(decodeFunctionData({ abi: ROUTER02_ABI, data: inner[0] }).args as unknown as [{ recipient: Address }])[0]
+				.recipient,
+		).toBe(ROUTER);
 		expect(decodeFunctionData({ abi: ROUTER02_ABI, data: inner[1] }).args).toEqual([29n, OTHER]);
 	});
 
@@ -235,7 +371,15 @@ describe("buildSwapCalls", () => {
 
 	it("bridges exactly the guaranteed minimum after a swap", () => {
 		const p = swapped({ destChainId: 42161, tokenOut: "" });
-		p.resolved!.bridge = { amount: "5940000000", maxFee: "100", forwardFee: "100", percentFee: "0", finality: 2000, forward: true, receive: "5939999900" };
+		p.resolved!.bridge = {
+			amount: "5940000000",
+			maxFee: "100",
+			forwardFee: "100",
+			percentFee: "0",
+			finality: 2000,
+			forward: true,
+			receive: "5939999900",
+		};
 		const calls = buildSwapCalls(p, 1, SAFE);
 		expect(calls.map((c) => c.to)).toEqual([ROUTER, USDC, MESSENGER]);
 		expect(decodeFunctionData({ abi: TOKEN_MESSENGER_ABI, data: calls[2].data }).args?.[0]).toBe(5_940_000_000n);

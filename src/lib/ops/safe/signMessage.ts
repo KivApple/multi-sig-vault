@@ -21,7 +21,14 @@ export const signMessageOp: OpDefinition<SignMessageParams> = {
 	prepare: async (p) => ({ hash: p.hash.trim().toLowerCase() }),
 	buildSafe: (p) => {
 		if (!isBytes32(p.hash)) throw new Error("Invalid hash");
-		return [{ to: SAFE_141.signMessageLib, value: 0n, data: signMessageCalldata(p.hash.trim().toLowerCase() as Hex), operation: 1 }];
+		return [
+			{
+				to: SAFE_141.signMessageLib,
+				value: 0n,
+				data: signMessageCalldata(p.hash.trim().toLowerCase() as Hex),
+				operation: 1,
+			},
+		];
 	},
 	summary: (p, { t, account }) =>
 		isBytes32(p.hash)

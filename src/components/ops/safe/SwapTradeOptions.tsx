@@ -25,12 +25,10 @@ export const SwapTradeOptions: React.FC<SwapTradeOptionsProps> = ({ value, onCha
 		() => [...SLIPPAGE_CHOICES.map((c) => ({ value: c, label: `${c}%` })), { value: CUSTOM, label: t("swap.custom") }],
 		[t],
 	);
-	const handleSlippage = useCallback(
-		(v: string) => onChange({ slippage: v === CUSTOM ? "" : v }),
-		[onChange],
-	);
+	const handleSlippage = useCallback((v: string) => onChange({ slippage: v === CUSTOM ? "" : v }), [onChange]);
 	const handleCustom = useCallback(
-		(e: React.ChangeEvent<HTMLInputElement>) => onChange({ slippage: e.target.value.replace(",", ".").replace(/[^\d.]/g, "") }),
+		(e: React.ChangeEvent<HTMLInputElement>) =>
+			onChange({ slippage: e.target.value.replace(",", ".").replace(/[^\d.]/g, "") }),
 		[onChange],
 	);
 	const handleTier = useCallback(

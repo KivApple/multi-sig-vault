@@ -11,7 +11,8 @@ export default defineDict({
 		"settings.dark": "Dark",
 		"settings.network": "Network",
 		"settings.mev": "MEV protection",
-		"settings.mevHint": "Ethereum transactions signed by Ledger or Trezor go through a private relay (Flashbots Protect). MetaMask uses its own settings.",
+		"settings.mevHint":
+			"Ethereum transactions signed by Ledger or Trezor go through a private relay (Flashbots Protect). MetaMask uses its own settings.",
 		"settings.rpc": "RPC endpoints",
 		"settings.rpcFor": "RPC endpoint for {network}",
 		"settings.rpcHint": "HTTPS only. Leave empty to use the built-in public endpoints.",
@@ -26,7 +27,8 @@ export default defineDict({
 		"settings.dark": "Тёмная",
 		"settings.network": "Сеть",
 		"settings.mev": "Защита от MEV",
-		"settings.mevHint": "Транзакции Ethereum, подписанные Ledger или Trezor, отправляются через приватный релей (Flashbots Protect). MetaMask использует собственные настройки.",
+		"settings.mevHint":
+			"Транзакции Ethereum, подписанные Ledger или Trezor, отправляются через приватный релей (Flashbots Protect). MetaMask использует собственные настройки.",
 		"settings.rpc": "RPC-узлы",
 		"settings.rpcFor": "RPC-узел для {network}",
 		"settings.rpcHint": "Только HTTPS. Оставьте пустым, чтобы использовать встроенные публичные узлы.",

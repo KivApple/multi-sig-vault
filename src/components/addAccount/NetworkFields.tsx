@@ -48,7 +48,13 @@ export const NetworkFields: React.FC<NetworkFieldsProps> = ({ showChain, chain, 
 					</div>
 				</Field>
 			)}
-			<Segmented value={env} options={envOptions} onChange={onEnv} disabled={disabled} ariaLabel={t("addAccount.env")} />
+			<Segmented
+				value={env}
+				options={envOptions}
+				onChange={onEnv}
+				disabled={disabled}
+				ariaLabel={t("addAccount.env")}
+			/>
 		</>
 	);
 };

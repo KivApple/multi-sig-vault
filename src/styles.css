@@ -1,115 +1,115 @@
 @import "tailwindcss";
 @plugin "daisyui" {
-  themes: false;
+	themes: false;
 }
 
 @plugin "daisyui/theme" {
-  name: "light";
-  default: true;
-  color-scheme: light;
-  --color-base-100: oklch(100% 0 0);
-  --color-base-200: oklch(97% 0.004 165);
-  --color-base-300: oklch(92.5% 0.007 165);
-  --color-base-content: oklch(24% 0.02 170);
-  --color-primary: oklch(52% 0.11 172);
-  --color-primary-content: oklch(99% 0.01 172);
-  --color-secondary: oklch(45% 0.05 200);
-  --color-secondary-content: oklch(98% 0.01 200);
-  --color-accent: oklch(62% 0.14 160);
-  --color-accent-content: oklch(99% 0.01 160);
-  --color-neutral: oklch(27% 0.02 170);
-  --color-neutral-content: oklch(96% 0.005 170);
-  --color-info: oklch(60% 0.12 235);
-  --color-info-content: oklch(99% 0.01 235);
-  --color-success: oklch(60% 0.14 152);
-  --color-success-content: oklch(99% 0.01 152);
-  --color-warning: oklch(76% 0.15 75);
-  --color-warning-content: oklch(25% 0.05 75);
-  --color-error: oklch(58% 0.2 25);
-  --color-error-content: oklch(99% 0.01 25);
-  --radius-selector: 0.75rem;
-  --radius-field: 0.75rem;
-  --radius-box: 1rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
+	name: "light";
+	default: true;
+	color-scheme: light;
+	--color-base-100: oklch(100% 0 0);
+	--color-base-200: oklch(97% 0.004 165);
+	--color-base-300: oklch(92.5% 0.007 165);
+	--color-base-content: oklch(24% 0.02 170);
+	--color-primary: oklch(52% 0.11 172);
+	--color-primary-content: oklch(99% 0.01 172);
+	--color-secondary: oklch(45% 0.05 200);
+	--color-secondary-content: oklch(98% 0.01 200);
+	--color-accent: oklch(62% 0.14 160);
+	--color-accent-content: oklch(99% 0.01 160);
+	--color-neutral: oklch(27% 0.02 170);
+	--color-neutral-content: oklch(96% 0.005 170);
+	--color-info: oklch(60% 0.12 235);
+	--color-info-content: oklch(99% 0.01 235);
+	--color-success: oklch(60% 0.14 152);
+	--color-success-content: oklch(99% 0.01 152);
+	--color-warning: oklch(76% 0.15 75);
+	--color-warning-content: oklch(25% 0.05 75);
+	--color-error: oklch(58% 0.2 25);
+	--color-error-content: oklch(99% 0.01 25);
+	--radius-selector: 0.75rem;
+	--radius-field: 0.75rem;
+	--radius-box: 1rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
 }
 
 @plugin "daisyui/theme" {
-  name: "dark";
-  prefersdark: true;
-  color-scheme: dark;
-  --color-base-100: oklch(21% 0.012 170);
-  --color-base-200: oklch(17.5% 0.01 170);
-  --color-base-300: oklch(27% 0.014 170);
-  --color-base-content: oklch(93% 0.008 170);
-  --color-primary: oklch(78% 0.13 172);
-  --color-primary-content: oklch(20% 0.04 172);
-  --color-secondary: oklch(70% 0.06 200);
-  --color-secondary-content: oklch(20% 0.03 200);
-  --color-accent: oklch(80% 0.15 160);
-  --color-accent-content: oklch(20% 0.04 160);
-  --color-neutral: oklch(30% 0.014 170);
-  --color-neutral-content: oklch(93% 0.008 170);
-  --color-info: oklch(74% 0.12 235);
-  --color-info-content: oklch(20% 0.04 235);
-  --color-success: oklch(77% 0.15 152);
-  --color-success-content: oklch(20% 0.04 152);
-  --color-warning: oklch(82% 0.14 80);
-  --color-warning-content: oklch(22% 0.05 80);
-  --color-error: oklch(70% 0.18 25);
-  --color-error-content: oklch(18% 0.04 25);
-  --radius-selector: 0.75rem;
-  --radius-field: 0.75rem;
-  --radius-box: 1rem;
-  --border: 1px;
-  --depth: 0;
-  --noise: 0;
+	name: "dark";
+	prefersdark: true;
+	color-scheme: dark;
+	--color-base-100: oklch(21% 0.012 170);
+	--color-base-200: oklch(17.5% 0.01 170);
+	--color-base-300: oklch(27% 0.014 170);
+	--color-base-content: oklch(93% 0.008 170);
+	--color-primary: oklch(78% 0.13 172);
+	--color-primary-content: oklch(20% 0.04 172);
+	--color-secondary: oklch(70% 0.06 200);
+	--color-secondary-content: oklch(20% 0.03 200);
+	--color-accent: oklch(80% 0.15 160);
+	--color-accent-content: oklch(20% 0.04 160);
+	--color-neutral: oklch(30% 0.014 170);
+	--color-neutral-content: oklch(93% 0.008 170);
+	--color-info: oklch(74% 0.12 235);
+	--color-info-content: oklch(20% 0.04 235);
+	--color-success: oklch(77% 0.15 152);
+	--color-success-content: oklch(20% 0.04 152);
+	--color-warning: oklch(82% 0.14 80);
+	--color-warning-content: oklch(22% 0.05 80);
+	--color-error: oklch(70% 0.18 25);
+	--color-error-content: oklch(18% 0.04 25);
+	--radius-selector: 0.75rem;
+	--radius-field: 0.75rem;
+	--radius-box: 1rem;
+	--border: 1px;
+	--depth: 0;
+	--noise: 0;
 }
 
 @layer base {
-  html {
-    -webkit-tap-highlight-color: transparent;
-    scrollbar-gutter: stable;
-  }
-  body {
-    @apply bg-base-200 text-base-content min-h-dvh antialiased;
-    overscroll-behavior-y: none;
-  }
-  /* Addresses, hashes and amounts line up when digits are monospaced. */
-  .mono {
-    font-family: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, Consolas, monospace;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-  }
-  .tabular {
-    font-variant-numeric: tabular-nums;
-  }
-  button,
-  [role='button'] {
-    touch-action: manipulation;
-  }
+	html {
+		-webkit-tap-highlight-color: transparent;
+		scrollbar-gutter: stable;
+	}
+	body {
+		@apply bg-base-200 text-base-content min-h-dvh antialiased;
+		overscroll-behavior-y: none;
+	}
+	/* Addresses, hashes and amounts line up when digits are monospaced. */
+	.mono {
+		font-family: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+		font-variant-numeric: tabular-nums;
+		letter-spacing: -0.01em;
+	}
+	.tabular {
+		font-variant-numeric: tabular-nums;
+	}
+	button,
+	[role="button"] {
+		touch-action: manipulation;
+	}
 }
 
 @utility card-surface {
-  @apply bg-base-100 border-base-300 rounded-box border;
+	@apply bg-base-100 border-base-300 rounded-box border;
 }
 
 @utility pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
+	padding-bottom: env(safe-area-inset-bottom);
 }
 
 @utility field-label {
-  @apply text-base-content/60 mb-1 block text-xs font-medium tracking-wide uppercase;
+	@apply text-base-content/60 mb-1 block text-xs font-medium tracking-wide uppercase;
 }
 
 dialog.modal::backdrop {
-  backdrop-filter: blur(2px);
+	backdrop-filter: blur(2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  * {
-    animation-duration: 0.01ms !important;
-    transition-duration: 0.01ms !important;
-  }
+	* {
+		animation-duration: 0.01ms !important;
+		transition-duration: 0.01ms !important;
+	}
 }

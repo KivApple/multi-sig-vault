@@ -28,7 +28,8 @@ export default defineDict({
 		"swap.speed.standardHint": "Waits for finality on the source network. No percentage fee.",
 		"swap.speed.fastHint": "Arrives in under a minute for a small percentage fee.",
 		"swap.forward": "Credit automatically",
-		"swap.forwardOn": "Circle submits the transaction on the destination network; its gas is deducted from the transfer.",
+		"swap.forwardOn":
+			"Circle submits the transaction on the destination network; its gas is deducted from the transfer.",
 		"swap.forwardOff": "After the transfer is attested, one of your signers pays gas on the destination network.",
 		"swap.level": "Gas priority",
 		"swap.level.low": "Low",
@@ -43,7 +44,8 @@ export default defineDict({
 		"swap.quote.bridged": "Bridged",
 		"swap.quote.bridgeFee": "Bridge fee",
 		"swap.quote.receive": "Recipient gets",
-		"swap.surplusNote": "The guaranteed minimum is bridged. Anything the swap returns above it stays in this Safe as USDC.",
+		"swap.surplusNote":
+			"The guaranteed minimum is bridged. Anything the swap returns above it stays in this Safe as USDC.",
 		"swap.sum.sell": "Sell",
 		"swap.sum.minOut": "Minimum received",
 		"swap.sum.route": "Route",
@@ -68,7 +70,8 @@ export default defineDict({
 		"swap.claim.button": "Credit manually",
 		"swap.claim.again": "Send again",
 		"swap.claim.title": "Who pays the gas?",
-		"swap.claim.text": "The signer pays {symbol} for the crediting transaction on {network}. The recipient stays the same.",
+		"swap.claim.text":
+			"The signer pays {symbol} for the crediting transaction on {network}. The recipient stays the same.",
 		"swap.claim.noSigners": "Add a signer first.",
 		"swap.claim.confirm": "Confirm the transaction in the wallet.",
 		"swap.claim.reattest": "Request a new attestation",
@@ -110,7 +113,8 @@ export default defineDict({
 		"swap.unknownSafeWarning":
 			"Safe с этим адресом в сети {network} не добавлен. Тот же адрес в другой сети может вам не принадлежать — сначала добавьте этот Safe или выберите другого получателя.",
 		"swap.slippage": "Проскальзывание",
-		"swap.slippageHint": "Фиксируется при первой подписи. Сбор подписей занимает время — оставьте запас на движение цены.",
+		"swap.slippageHint":
+			"Фиксируется при первой подписи. Сбор подписей занимает время — оставьте запас на движение цены.",
 		"swap.custom": "Другое",
 		"swap.poolFee": "Комиссия пула",
 		"swap.poolFeeAuto": "Авто — лучший маршрут",
@@ -135,7 +139,8 @@ export default defineDict({
 		"swap.quote.bridged": "Уйдёт в мост",
 		"swap.quote.bridgeFee": "Комиссия моста",
 		"swap.quote.receive": "Получатель получит",
-		"swap.surplusNote": "В мост уходит гарантированный минимум. Всё, что обмен даст сверх него, останется в этом Safe в USDC.",
+		"swap.surplusNote":
+			"В мост уходит гарантированный минимум. Всё, что обмен даст сверх него, останется в этом Safe в USDC.",
 		"swap.sum.sell": "Отдаёте",
 		"swap.sum.minOut": "Минимум к получению",
 		"swap.sum.route": "Маршрут",
@@ -160,7 +165,8 @@ export default defineDict({
 		"swap.claim.button": "Зачислить вручную",
 		"swap.claim.again": "Отправить ещё раз",
 		"swap.claim.title": "Кто оплатит газ?",
-		"swap.claim.text": "Подписант оплатит {symbol} за транзакцию зачисления в сети {network}. Получатель остаётся прежним.",
+		"swap.claim.text":
+			"Подписант оплатит {symbol} за транзакцию зачисления в сети {network}. Получатель остаётся прежним.",
 		"swap.claim.noSigners": "Сначала добавьте подписанта.",
 		"swap.claim.confirm": "Подтвердите транзакцию в кошельке.",
 		"swap.claim.reattest": "Запросить новое подтверждение",

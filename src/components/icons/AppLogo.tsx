@@ -1,16 +1,16 @@
 export interface AppLogoProps {
-  className?: string;
+	className?: string;
 }
 
 /** App mark (same drawing as public/icons/icon.svg): a ring of three keys, two of them signed. */
 export const AppLogo: React.FC<AppLogoProps> = ({ className }) => (
-  <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-    <rect width="64" height="64" rx="14" fill="#0f1513" />
-    <circle cx="32" cy="32" r="17" fill="none" stroke="#2bb5a0" strokeOpacity=".3" strokeWidth="3" />
-    <path d="M32 15A17 17 0 0 1 46.72 40.5" fill="none" stroke="#2bb5a0" strokeWidth="3" strokeLinecap="round" />
-    <circle cx="32" cy="15" r="5.5" fill="#2bb5a0" stroke="#0f1513" strokeWidth="2.5" />
-    <circle cx="46.72" cy="40.5" r="5.5" fill="#2bb5a0" stroke="#0f1513" strokeWidth="2.5" />
-    <circle cx="17.28" cy="40.5" r="4.25" fill="#0f1513" stroke="#2bb5a0" strokeWidth="2.5" />
-    <path d="M32 26.2a4 4 0 0 1 2.1 7.4l1.2 5.9h-6.6l1.2-5.9A4 4 0 0 1 32 26.2z" fill="#e6f4f1" />
-  </svg>
+	<svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+		<rect width="64" height="64" rx="14" fill="#0f1513" />
+		<circle cx="32" cy="32" r="17" fill="none" stroke="#2bb5a0" strokeOpacity=".3" strokeWidth="3" />
+		<path d="M32 15A17 17 0 0 1 46.72 40.5" fill="none" stroke="#2bb5a0" strokeWidth="3" strokeLinecap="round" />
+		<circle cx="32" cy="15" r="5.5" fill="#2bb5a0" stroke="#0f1513" strokeWidth="2.5" />
+		<circle cx="46.72" cy="40.5" r="5.5" fill="#2bb5a0" stroke="#0f1513" strokeWidth="2.5" />
+		<circle cx="17.28" cy="40.5" r="4.25" fill="#0f1513" stroke="#2bb5a0" strokeWidth="2.5" />
+		<path d="M32 26.2a4 4 0 0 1 2.1 7.4l1.2 5.9h-6.6l1.2-5.9A4 4 0 0 1 32 26.2z" fill="#e6f4f1" />
+	</svg>
 );

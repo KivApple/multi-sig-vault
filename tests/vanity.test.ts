@@ -4,10 +4,7 @@ import { decodeSetup, defaultCreation, encodeCreateProxy, predictSafeAddress } f
 import { SAFE_141 } from "@/lib/safe/deployments";
 import { deadbeefCommand, normalizePrefix, parseMinerOutput } from "@/lib/safe/vanity";
 
-const OWNERS: Address[] = [
-	"0x1111111111111111111111111111111111111111",
-	"0x2222222222222222222222222222222222222222",
-];
+const OWNERS: Address[] = ["0x1111111111111111111111111111111111111111", "0x2222222222222222222222222222222222222222"];
 const SALT = 0xdc50d6fbe25fc5fe0cffb1a2fc5170b76ac620f74f22c7b247d8c73d83072302n;
 const creation = defaultCreation(OWNERS, 1, SALT);
 const address = predictSafeAddress(creation);

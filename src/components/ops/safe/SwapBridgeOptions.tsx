@@ -41,15 +41,26 @@ export const SwapBridgeOptions: React.FC<SwapBridgeOptionsProps> = ({ value, onC
 	return (
 		<>
 			{fast && (
-				<Field label={t("swap.speed")} hint={t(value.speed === "fast" ? "swap.speed.fastHint" : "swap.speed.standardHint")}>
-					<Segmented value={value.speed} options={speedOptions} onChange={handleSpeed} size="sm" ariaLabel={t("swap.speed")} />
+				<Field
+					label={t("swap.speed")}
+					hint={t(value.speed === "fast" ? "swap.speed.fastHint" : "swap.speed.standardHint")}
+				>
+					<Segmented
+						value={value.speed}
+						options={speedOptions}
+						onChange={handleSpeed}
+						size="sm"
+						ariaLabel={t("swap.speed")}
+					/>
 				</Field>
 			)}
 			<label className="flex cursor-pointer items-start gap-3">
 				<input type="checkbox" className="toggle toggle-sm mt-0.5" checked={value.forward} onChange={handleForward} />
 				<span className="flex flex-col leading-tight">
 					<span className="text-sm font-medium">{t("swap.forward")}</span>
-					<span className="text-base-content/60 text-xs">{t(value.forward ? "swap.forwardOn" : "swap.forwardOff")}</span>
+					<span className="text-base-content/60 text-xs">
+						{t(value.forward ? "swap.forwardOn" : "swap.forwardOff")}
+					</span>
 				</span>
 			</label>
 			{value.forward && (

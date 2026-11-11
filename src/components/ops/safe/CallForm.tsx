@@ -110,7 +110,13 @@ export const CallForm: React.FC<OpFormProps<CallParams>> = ({ value, onChange, e
 				known={known}
 				error={errors.to}
 			/>
-			<Segmented value={value.mode} options={modes} onChange={(mode) => onChange({ mode })} size="sm" ariaLabel={t("advanced.mode")} />
+			<Segmented
+				value={value.mode}
+				options={modes}
+				onChange={(mode) => onChange({ mode })}
+				size="sm"
+				ariaLabel={t("advanced.mode")}
+			/>
 			{value.mode === "abi" ? (
 				<>
 					<AbiSourceInput
@@ -167,7 +173,9 @@ export const CallForm: React.FC<OpFormProps<CallParams>> = ({ value, onChange, e
 					error={errors.value}
 				/>
 			)}
-			{value.mode === "abi" && selected && encoded && <AbiCalldataPreview data={encoded} caption={functionSelector(selected)} />}
+			{value.mode === "abi" && selected && encoded && (
+				<AbiCalldataPreview data={encoded} caption={functionSelector(selected)} />
+			)}
 			{value.mode === "raw" && normalizeHex(value.data) && (normalizeHex(value.data) as string).length >= 10 && (
 				<p className="text-base-content/60 text-xs">
 					{t("advanced.selector")}: <span className="mono">{(normalizeHex(value.data) as string).slice(0, 10)}</span>

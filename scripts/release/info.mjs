@@ -1,20 +1,20 @@
 // Prints what the developer multi-sig has to execute to approve the built release.
 // Usage: npm run build && npm run release:info [-- path/to/release.json]
-import { readFile } from 'node:fs/promises';
+import { readFile } from "node:fs/promises";
 import {
-  RELEASE_DIGEST_PREFIX,
-  SIGN_MESSAGE_LIB,
-  isValidSignatureCalldata,
-  releaseDigest,
-  signMessageCalldata,
-  verifyManifest,
-} from '../../src/lib/update/releaseCore.mjs';
+	RELEASE_DIGEST_PREFIX,
+	SIGN_MESSAGE_LIB,
+	isValidSignatureCalldata,
+	releaseDigest,
+	signMessageCalldata,
+	verifyManifest,
+} from "../../src/lib/update/releaseCore.mjs";
 
-const file = process.argv[2] ?? new URL('../../dist/release.json', import.meta.url);
-const manifest = await verifyManifest(JSON.parse(await readFile(file, 'utf8')));
+const file = process.argv[2] ?? new URL("../../dist/release.json", import.meta.url);
+const manifest = await verifyManifest(JSON.parse(await readFile(file, "utf8")));
 const digest = releaseDigest(manifest.id);
-const safe = process.env.PUBLIC_RELEASE_SAFE ?? '<PUBLIC_RELEASE_SAFE>';
-const chain = process.env.PUBLIC_RELEASE_CHAIN_ID ?? '<PUBLIC_RELEASE_CHAIN_ID>';
+const safe = process.env.PUBLIC_RELEASE_SAFE ?? "<PUBLIC_RELEASE_SAFE>";
+const chain = process.env.PUBLIC_RELEASE_CHAIN_ID ?? "<PUBLIC_RELEASE_CHAIN_ID>";
 
 console.log(`Release ${manifest.version}
   id      ${manifest.id}
@@ -26,9 +26,9 @@ Approve it with the developer Safe ${safe} on chain ${chain}.
 Execute ONE Safe transaction (requires the Safe's threshold of owner signatures):
 
   to         SignMessageLib of the Safe's version:
-               ${SIGN_MESSAGE_LIB['1.4.1']}  (Safe 1.4.1)
-               ${SIGN_MESSAGE_LIB['1.3.0']}  (Safe 1.3.0)
-               ${SIGN_MESSAGE_LIB['1.3.0-eip155']}  (Safe 1.3.0, EIP-155 deployment)
+               ${SIGN_MESSAGE_LIB["1.4.1"]}  (Safe 1.4.1)
+               ${SIGN_MESSAGE_LIB["1.3.0"]}  (Safe 1.3.0)
+               ${SIGN_MESSAGE_LIB["1.3.0-eip155"]}  (Safe 1.3.0, EIP-155 deployment)
   value      0
   operation  1 (DELEGATECALL)
   data       ${signMessageCalldata(digest)}

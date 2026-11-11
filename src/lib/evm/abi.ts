@@ -38,7 +38,8 @@ export interface ParsedAbi {
 const cleanParam = (raw: unknown, depth: number): AbiParameter => {
 	if (depth > MAX_DEPTH || typeof raw !== "object" || raw === null) throw new AppError("advanced.err.abi");
 	const p = raw as { type?: unknown; name?: unknown; components?: unknown };
-	if (typeof p.type !== "string" || p.type.length > 100 || !TYPE_RE.test(p.type)) throw new AppError("advanced.err.abi");
+	if (typeof p.type !== "string" || p.type.length > 100 || !TYPE_RE.test(p.type))
+		throw new AppError("advanced.err.abi");
 	const name = typeof p.name === "string" && NAME_RE.test(p.name) && p.name.length <= 64 ? p.name : undefined;
 	if (p.type.startsWith("tuple")) {
 		if (!Array.isArray(p.components) || p.components.length > 64) throw new AppError("advanced.err.abi");
@@ -53,7 +54,11 @@ const cleanInputs = (raw: unknown): AbiParameter[] => {
 	return raw.map((p) => cleanParam(p, 0));
 };
 
-const mutability = (item: { stateMutability?: unknown; constant?: unknown; payable?: unknown }): AbiFunction["stateMutability"] => {
+const mutability = (item: {
+	stateMutability?: unknown;
+	constant?: unknown;
+	payable?: unknown;
+}): AbiFunction["stateMutability"] => {
 	const m = item.stateMutability;
 	if (m === "view" || m === "pure" || m === "payable" || m === "nonpayable") return m;
 	if (item.constant === true) return "view";
@@ -66,7 +71,14 @@ export const sanitizeAbi = (raw: unknown): ParsedAbi => {
 	const out: ParsedAbi = { functions: [] };
 	for (const item of raw) {
 		if (typeof item !== "object" || item === null) continue;
-		const it = item as { type?: unknown; name?: unknown; inputs?: unknown; stateMutability?: unknown; constant?: unknown; payable?: unknown };
+		const it = item as {
+			type?: unknown;
+			name?: unknown;
+			inputs?: unknown;
+			stateMutability?: unknown;
+			constant?: unknown;
+			payable?: unknown;
+		};
 		if (it.type === "constructor") {
 			out.ctor = {
 				type: "constructor",
@@ -89,7 +101,12 @@ export const sanitizeAbi = (raw: unknown): ParsedAbi => {
 
 const artifactBytecode = (obj: Record<string, unknown>): Hex | undefined => {
 	const b = obj.bytecode;
-	const hex = typeof b === "string" ? b : typeof (b as { object?: unknown })?.object === "string" ? (b as { object: string }).object : undefined;
+	const hex =
+		typeof b === "string"
+			? b
+			: typeof (b as { object?: unknown })?.object === "string"
+				? (b as { object: string }).object
+				: undefined;
 	if (!hex) return undefined;
 	return normalizeHex(hex);
 };
@@ -186,7 +203,14 @@ export const argKind = (param: AbiParameter): ArgKind => {
 const coerceInt = (type: string, raw: unknown): bigint => {
 	const signed = type.startsWith("int");
 	const bits = Number(type.replace(/^u?int/, "") || "256");
-	const text = typeof raw === "number" ? (Number.isSafeInteger(raw) ? String(raw) : "") : typeof raw === "string" ? raw.trim().replace(/_/g, "") : "";
+	const text =
+		typeof raw === "number"
+			? Number.isSafeInteger(raw)
+				? String(raw)
+				: ""
+			: typeof raw === "string"
+				? raw.trim().replace(/_/g, "")
+				: "";
 	if (!/^-?(\d+|0x[0-9a-fA-F]+)$/.test(text)) throw new AppError("advanced.err.integer");
 	const negative = text.startsWith("-");
 	const abs = BigInt(negative ? text.slice(1) : text);
@@ -200,10 +224,12 @@ const coerceInt = (type: string, raw: unknown): bigint => {
 
 const coerceLeaf = (type: string, raw: unknown): unknown => {
 	if (type === "address") {
-		if (typeof raw !== "string" || !isAddress(raw.trim(), { strict: false })) throw new AppError("error.invalidAddress");
+		if (typeof raw !== "string" || !isAddress(raw.trim(), { strict: false }))
+			throw new AppError("error.invalidAddress");
 		const v = raw.trim();
 		// Mixed-case input must carry a valid checksum – catches typos.
-		if (v !== v.toLowerCase() && v.slice(2) !== v.slice(2).toUpperCase() && !isAddress(v)) throw new AppError("advanced.err.checksum");
+		if (v !== v.toLowerCase() && v.slice(2) !== v.slice(2).toUpperCase() && !isAddress(v))
+			throw new AppError("advanced.err.checksum");
 		return getAddress(v.toLowerCase());
 	}
 	if (type === "bool") {
@@ -281,7 +307,8 @@ const example = (param: AbiParameter, depth = 0): unknown => {
 	if (arr) return depth > 2 ? [] : [example({ ...param, type: arr[1] } as AbiParameter, depth + 1)];
 	if (param.type === "tuple") {
 		const components = (param as { components?: AbiParameter[] }).components ?? [];
-		if (components.every((c) => c.name)) return Object.fromEntries(components.map((c) => [c.name, example(c, depth + 1)]));
+		if (components.every((c) => c.name))
+			return Object.fromEntries(components.map((c) => [c.name, example(c, depth + 1)]));
 		return components.map((c) => example(c, depth + 1));
 	}
 	if (param.type === "address") return "0x…";
@@ -294,7 +321,8 @@ const example = (param: AbiParameter, depth = 0): unknown => {
 /** JSON showing the shape expected for an array/tuple argument. */
 export const argPlaceholder = (param: AbiParameter): string => JSON.stringify(example(param));
 
-export const argLabel = (param: AbiParameter, index: number): string => `${param.name || `arg${index}`} (${param.type})`;
+export const argLabel = (param: AbiParameter, index: number): string =>
+	`${param.name || `arg${index}`} (${param.type})`;
 
 /** Per-argument validation: index → translated-key error. */
 export const argErrors = (inputs: readonly AbiParameter[], args: string[]): Record<number, AppError> => {
@@ -303,7 +331,10 @@ export const argErrors = (inputs: readonly AbiParameter[], args: string[]): Reco
 		try {
 			coerceArg(p, args[i] ?? "");
 		} catch (e) {
-			out[i] = e instanceof AppError ? e : new AppError("advanced.err.encode", { detail: e instanceof Error ? e.message.split("\n")[0] : "" });
+			out[i] =
+				e instanceof AppError
+					? e
+					: new AppError("advanced.err.encode", { detail: e instanceof Error ? e.message.split("\n")[0] : "" });
 		}
 	});
 	return out;

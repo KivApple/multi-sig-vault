@@ -2,7 +2,15 @@ import { FileCode2 } from "lucide-react";
 import { getAddress, keccak256, size, type Address, type Hex } from "viem";
 import { CallForm } from "@/components/ops/safe/CallForm";
 import { getChain } from "@/config/chains";
-import { argErrors, argKind, argLabel, functionSelector, functionSignature, normalizeHex, parseFragment } from "@/lib/evm/abi";
+import {
+	argErrors,
+	argKind,
+	argLabel,
+	functionSelector,
+	functionSignature,
+	normalizeHex,
+	parseFragment,
+} from "@/lib/evm/abi";
 import { callData, callValueWei as valueWei, type CallParams } from "@/lib/evm/abiCall";
 import { hasCode, simulateOrSkip } from "@/lib/evm/abiSim";
 import { AppError } from "@/lib/errors";
@@ -31,7 +39,8 @@ export const callOp: OpDefinition<CallParams> = {
 			if (!fn) errors.fragment = t("advanced.err.noFunction");
 			else {
 				for (const [i, e] of Object.entries(argErrors(fn.inputs, p.args))) errors[`arg${i}`] = t(e.key, e.vars);
-				if (fn.stateMutability !== "payable" && !errors.value && valueWei(p) > 0n) errors.value = t("advanced.err.notPayable");
+				if (fn.stateMutability !== "payable" && !errors.value && valueWei(p) > 0n)
+					errors.value = t("advanced.err.notPayable");
 			}
 		}
 		if (!errors.value && env.safe && valueWei(p) > BigInt(env.safe.holdings[0]?.balance ?? "0")) {
@@ -74,13 +83,24 @@ export const callOp: OpDefinition<CallParams> = {
 						: { label: argLabel(input, i), value: raw, mono: input.type !== "string" },
 				);
 			});
-			rows.push({ label: t("advanced.selector"), value: `${functionSelector(fn)} · ${t("advanced.bytes", { count: size(data) })}`, mono: true });
+			rows.push({
+				label: t("advanced.selector"),
+				value: `${functionSelector(fn)} · ${t("advanced.bytes", { count: size(data) })}`,
+				mono: true,
+			});
 		} else if (data !== "0x") {
 			rows.push({ label: t("advanced.data"), value: data.length <= 138 ? data : `${data.slice(0, 74)}…`, mono: true });
-			rows.push({ label: t("advanced.dataHash"), value: `${keccak256(data)} · ${t("advanced.bytes", { count: size(data) })}`, mono: true });
+			rows.push({
+				label: t("advanced.dataHash"),
+				value: `${keccak256(data)} · ${t("advanced.bytes", { count: size(data) })}`,
+				mono: true,
+			});
 		}
 		if (p.value.trim() && valueWei(p) > 0n) {
-			rows.push({ label: t("advanced.value"), value: `${trimDecimal(p.value.trim())} ${getChain(chainId).nativeSymbol}` });
+			rows.push({
+				label: t("advanced.value"),
+				value: `${trimDecimal(p.value.trim())} ${getChain(chainId).nativeSymbol}`,
+			});
 		}
 		return rows;
 	},

@@ -34,7 +34,9 @@ export const useSwapPreview = (params: SwapParams, chainId: number, safe: Addres
 	// biome-ignore lint/correctness/useExhaustiveDependencies: `key` captures every relevant field of `params`
 	useEffect(() => {
 		const ready =
-			!!parseAmountIn(params) && !!slippageBps(params.slippage) && (params.destChainId !== chainId || !!params.tokenOut);
+			!!parseAmountIn(params) &&
+			!!slippageBps(params.slippage) &&
+			(params.destChainId !== chainId || !!params.tokenOut);
 		if (!ready) {
 			setState({ loading: false });
 			return undefined;

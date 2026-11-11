@@ -97,7 +97,11 @@ export interface TargetState {
 }
 
 /** What the target chain looks like for this creation: prerequisites and whether the Safe already exists. */
-export const inspectTarget = async (chainId: number, creation: SafeCreation, address: Address): Promise<TargetState> => {
+export const inspectTarget = async (
+	chainId: number,
+	creation: SafeCreation,
+	address: Address,
+): Promise<TargetState> => {
 	const client = getPublicClient(chainId);
 	const deps = creationDependencies(creation, validateCreation(creation));
 	const codes = await Promise.all([address, ...deps].map((a) => client.getCode({ address: a })));

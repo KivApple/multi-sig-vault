@@ -54,7 +54,9 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 
 	const holding = useMemo(
 		() =>
-			holdings?.find((h) => (value.tokenIn === NATIVE ? !h.token : !!h.token && sameAddress(h.token.address, value.tokenIn))),
+			holdings?.find((h) =>
+				value.tokenIn === NATIVE ? !h.token : !!h.token && sameAddress(h.token.address, value.tokenIn),
+			),
 		[holdings, value.tokenIn],
 	);
 
@@ -133,7 +135,10 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 	);
 
 	const ownOnDest = useMemo(
-		() => accounts.find((a) => a.kind === "safe" && a.chainId === value.destChainId && sameAddress(a.address, account.address)),
+		() =>
+			accounts.find(
+				(a) => a.kind === "safe" && a.chainId === value.destChainId && sameAddress(a.address, account.address),
+			),
 		[accounts, value.destChainId, account.address],
 	);
 	const known = useMemo<KnownAddress[]>(

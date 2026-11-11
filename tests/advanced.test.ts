@@ -1,4 +1,12 @@
-import { encodeAbiParameters, encodeFunctionData, getContractAddress, keccak256, parseAbi, stringToHex, type Hex } from "viem";
+import {
+	encodeAbiParameters,
+	encodeFunctionData,
+	getContractAddress,
+	keccak256,
+	parseAbi,
+	stringToHex,
+	type Hex,
+} from "viem";
 import { describe, expect, it } from "vitest";
 import {
 	argKind,
@@ -39,8 +47,23 @@ describe("ABI text parsing", () => {
 	it("parses a JSON ABI and keeps only functions and the constructor", () => {
 		const abi = parseAbiText(
 			JSON.stringify([
-				{ type: "function", name: "transfer", inputs: [{ name: "to", type: "address" }, { name: "amount", type: "uint256" }], outputs: [{ type: "bool" }], stateMutability: "nonpayable" },
-				{ type: "function", name: "balanceOf", inputs: [{ name: "o", type: "address" }], outputs: [{ type: "uint256" }], stateMutability: "view" },
+				{
+					type: "function",
+					name: "transfer",
+					inputs: [
+						{ name: "to", type: "address" },
+						{ name: "amount", type: "uint256" },
+					],
+					outputs: [{ type: "bool" }],
+					stateMutability: "nonpayable",
+				},
+				{
+					type: "function",
+					name: "balanceOf",
+					inputs: [{ name: "o", type: "address" }],
+					outputs: [{ type: "uint256" }],
+					stateMutability: "view",
+				},
 				{ type: "event", name: "Transfer", inputs: [] },
 				{ type: "constructor", inputs: [{ name: "supply", type: "uint256" }], stateMutability: "payable" },
 			]),
@@ -58,7 +81,9 @@ describe("ABI text parsing", () => {
 	});
 
 	it("parses Foundry and Hardhat artifacts", () => {
-		const foundry = parseAbiText(JSON.stringify({ abi: [{ type: "constructor", inputs: [] }], bytecode: { object: "0x6080AA" } }));
+		const foundry = parseAbiText(
+			JSON.stringify({ abi: [{ type: "constructor", inputs: [] }], bytecode: { object: "0x6080AA" } }),
+		);
 		expect(foundry.bytecode).toBe("0x6080aa");
 		expect(foundry.ctor).toBeDefined();
 		const hardhat = parseAbiText(JSON.stringify({ abi: [], bytecode: "0x6001" }));
@@ -69,7 +94,9 @@ describe("ABI text parsing", () => {
 	});
 
 	it("parses human-readable signatures", () => {
-		const abi = parseAbiText("transfer(address,uint256)\nfunction mint(address to, uint256 amount) payable\n// comment\nfunction name() view returns (string)");
+		const abi = parseAbiText(
+			"transfer(address,uint256)\nfunction mint(address to, uint256 amount) payable\n// comment\nfunction name() view returns (string)",
+		);
 		expect(abi.functions.map((f) => f.name)).toEqual(["transfer", "mint", "name"]);
 		expect(abi.functions[1].stateMutability).toBe("payable");
 		expect(abi.functions.filter(isWritable)).toHaveLength(2);
@@ -84,7 +111,9 @@ describe("ABI text parsing", () => {
 		expect(key(() => parseAbiText("[{]"))).toBe("advanced.err.abiJson");
 		expect(key(() => parseAbiText("this is not an abi"))).toBe("advanced.err.abiSignature");
 		expect(key(() => parseAbiText('{"foo":1}'))).toBe("advanced.err.abi");
-		expect(key(() => parseAbiText(JSON.stringify([{ type: "function", name: "x", inputs: [{ type: "uint256); drop" }] }])))).toBe("advanced.err.abi");
+		expect(
+			key(() => parseAbiText(JSON.stringify([{ type: "function", name: "x", inputs: [{ type: "uint256); drop" }] }]))),
+		).toBe("advanced.err.abi");
 		expect(parseAbiText("").functions).toEqual([]);
 		expect(parseAbiText(JSON.stringify([{ type: "function", name: "<script>", inputs: [] }])).functions).toEqual([]);
 	});
@@ -145,14 +174,21 @@ describe("argument coercion", () => {
 	});
 
 	it("coerces arrays and nested tuples from JSON", () => {
-		const leg = p("tuple[]", [{ type: "address", name: "token" }, { type: "uint256", name: "amount" }, { type: "bool[2]", name: "flags" }]);
-		const value = coerceArg(leg, JSON.stringify([{ token: ADDR, amount: "5", flags: [true, false] }, [ADDR.toLowerCase(), 7, [false, false]]]));
+		const leg = p("tuple[]", [
+			{ type: "address", name: "token" },
+			{ type: "uint256", name: "amount" },
+			{ type: "bool[2]", name: "flags" },
+		]);
+		const value = coerceArg(
+			leg,
+			JSON.stringify([{ token: ADDR, amount: "5", flags: [true, false] }, [ADDR.toLowerCase(), 7, [false, false]]]),
+		);
 		expect(value).toEqual([
 			[ADDR, 5n, [true, false]],
 			[ADDR, 7n, [false, false]],
 		]);
 		expect(key(() => coerceArg(leg, "{}"))).toBe("advanced.err.expectedArray");
-		expect(key(() => coerceArg(leg, "[{\"token\":\"" + ADDR + "\"}]"))).toBe("advanced.err.tupleField");
+		expect(key(() => coerceArg(leg, '[{"token":"' + ADDR + '"}]'))).toBe("advanced.err.tupleField");
 		expect(key(() => coerceArg(leg, "[[1]]"))).toBe("advanced.err.tupleLength");
 		expect(key(() => coerceArg(leg, "[oops"))).toBe("advanced.err.json");
 		expect(key(() => coerceArg(p("uint256[2]"), "[1]"))).toBe("advanced.err.arrayLength");
@@ -162,7 +198,8 @@ describe("argument coercion", () => {
 	});
 
 	it("encodes exactly like viem", () => {
-		const fn = parseAbiText("exec((address token, uint256 amount)[] legs, bytes32 id, string memo, int24 tick)").functions[0];
+		const fn = parseAbiText("exec((address token, uint256 amount)[] legs, bytes32 id, string memo, int24 tick)")
+			.functions[0];
 		const id = `0x${"ab".repeat(32)}` as Hex;
 		const mine = encodeCall(fn, [JSON.stringify([{ token: ADDR, amount: "12" }]), id, "hi", "-5"]);
 		const ref = encodeFunctionData({
@@ -176,11 +213,25 @@ describe("argument coercion", () => {
 
 describe("safe.call parameters", () => {
 	const fn = parseAbiText("transfer(address to, uint256 amount)").functions[0];
-	const base: CallParams = { to: ADDR, value: "", mode: "abi", abiText: "", fragment: JSON.stringify(fn), args: [SAFE, "1000000"], data: "" };
+	const base: CallParams = {
+		to: ADDR,
+		value: "",
+		mode: "abi",
+		abiText: "",
+		fragment: JSON.stringify(fn),
+		args: [SAFE, "1000000"],
+		data: "",
+	};
 
 	it("rebuilds calldata deterministically from fragment and arguments", () => {
 		const data = callData(base);
-		expect(data).toBe(encodeFunctionData({ abi: parseAbi(["function transfer(address,uint256)"]), functionName: "transfer", args: [SAFE, 1_000_000n] }));
+		expect(data).toBe(
+			encodeFunctionData({
+				abi: parseAbi(["function transfer(address,uint256)"]),
+				functionName: "transfer",
+				args: [SAFE, 1_000_000n],
+			}),
+		);
 		expect(callData({ ...base, data })).toBe(data);
 		// Tampered arguments produce different calldata than the stored one.
 		expect(callData({ ...base, args: [SAFE, "2000000"], data })).not.toBe(data);
@@ -196,8 +247,27 @@ describe("safe.call parameters", () => {
 
 describe("safe.deploy parameters", () => {
 	const bytecode = "0x600a600c600039600a6000f3602a60005260206000f3";
-	const ctor = parseAbiText(JSON.stringify([{ type: "constructor", inputs: [{ name: "owner", type: "address" }, { name: "cap", type: "uint256" }] }])).ctor;
-	const base: DeployParams = { bytecodeText: bytecode, bytecode, ctor: "", args: [], rawArgs: "", value: "", method: "create", salt: "" };
+	const ctor = parseAbiText(
+		JSON.stringify([
+			{
+				type: "constructor",
+				inputs: [
+					{ name: "owner", type: "address" },
+					{ name: "cap", type: "uint256" },
+				],
+			},
+		]),
+	).ctor;
+	const base: DeployParams = {
+		bytecodeText: bytecode,
+		bytecode,
+		ctor: "",
+		args: [],
+		rawArgs: "",
+		value: "",
+		method: "create",
+		salt: "",
+	};
 
 	it("appends constructor arguments", () => {
 		expect(deployInitCode(base)).toBe(bytecode);
@@ -228,11 +298,19 @@ describe("safe.deploy parameters", () => {
 			to: SAFE_LIBS.createCall,
 			value: 0n,
 			operation: 1,
-			data: encodeFunctionData({ abi: CREATE_CALL_ABI, functionName: "performCreate", args: [5n * 10n ** 17n, bytecode] }),
+			data: encodeFunctionData({
+				abi: CREATE_CALL_ABI,
+				functionName: "performCreate",
+				args: [5n * 10n ** 17n, bytecode],
+			}),
 		});
 		const [create2] = buildDeploy({ ...base, method: "create2", salt: "s" });
 		expect(create2.data).toBe(
-			encodeFunctionData({ abi: CREATE_CALL_ABI, functionName: "performCreate2", args: [0n, bytecode, keccak256(stringToHex("s"))] }),
+			encodeFunctionData({
+				abi: CREATE_CALL_ABI,
+				functionName: "performCreate2",
+				args: [0n, bytecode, keccak256(stringToHex("s"))],
+			}),
 		);
 		expect(toSafeTx([create], 3).operation).toBe(1);
 		expect(key(() => buildDeploy({ ...base, method: "create2", salt: "" }))).toBe("advanced.err.salt");
@@ -256,8 +334,12 @@ describe("safe.signMessage", () => {
 				[keccak256(stringToHex("EIP712Domain(uint256 chainId,address verifyingContract)")), 8453n, SAFE],
 			),
 		);
-		const structHash = keccak256(encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [SAFE_MSG_TYPEHASH, keccak256(digest)]));
-		expect(safeMessageHash(8453, SAFE, digest)).toBe(keccak256(`0x1901${domainSeparator.slice(2)}${structHash.slice(2)}`));
+		const structHash = keccak256(
+			encodeAbiParameters([{ type: "bytes32" }, { type: "bytes32" }], [SAFE_MSG_TYPEHASH, keccak256(digest)]),
+		);
+		expect(safeMessageHash(8453, SAFE, digest)).toBe(
+			keccak256(`0x1901${domainSeparator.slice(2)}${structHash.slice(2)}`),
+		);
 	});
 
 	it("validates bytes32", () => {
@@ -267,7 +349,10 @@ describe("safe.signMessage", () => {
 	});
 
 	it("is a stable Safe transaction", () => {
-		const tx = toSafeTx([{ to: SAFE_141.signMessageLib, value: 0n, data: signMessageCalldata(digest), operation: 1 }], 0);
+		const tx = toSafeTx(
+			[{ to: SAFE_141.signMessageLib, value: 0n, data: signMessageCalldata(digest), operation: 1 }],
+			0,
+		);
 		expect(computeSafeTxHash(8453, SAFE, tx)).toBe(computeSafeTxHash(8453, SAFE, { ...tx }));
 		expect(normalizeHex(tx.data)).toBe(tx.data);
 	});

@@ -24,7 +24,9 @@ for (const file of walk("src")) {
 	if (file.includes("i18n/dict")) continue;
 	const text = readFileSync(file, "utf8");
 	for (const m of text.matchAll(/(?:\bt|tNow|AppError)\(\s*["'`]([\w.:-]+)["'`]/g)) used.set(m[1], file);
-	for (const m of text.matchAll(/["'`]((?:ops|hl|safe|import|safeError|walletError|swap|advanced|addAccount|createSafe|accounts|signers|settings|owners|amount|address|common|error|update|tokens|wallets|qr)\.[\w.-]+)["'`]/g)) {
+	for (const m of text.matchAll(
+		/["'`]((?:ops|hl|safe|import|safeError|walletError|swap|advanced|addAccount|createSafe|accounts|signers|settings|owners|amount|address|common|error|update|tokens|wallets|qr)\.[\w.-]+)["'`]/g,
+	)) {
 		if (!used.has(m[1])) used.set(m[1], file);
 	}
 }

@@ -68,13 +68,13 @@ export default defineDict({
 		"createSafe.target.exists": "A contract already exists at this address on {network}.",
 
 		"createSafe.error.unknownFactory": "Unknown proxy factory {address}. Only official Safe factories are accepted.",
-		"createSafe.error.unknownSingleton": "Unknown Safe implementation {address}. Only official Safe contracts are accepted.",
+		"createSafe.error.unknownSingleton":
+			"Unknown Safe implementation {address}. Only official Safe contracts are accepted.",
 		"createSafe.error.badSalt": "Invalid salt nonce.",
 		"createSafe.error.badInitializer": "The initializer is not a Safe setup call.",
 		"createSafe.error.badOwners": "Invalid signer set or threshold in the setup data.",
 		"createSafe.error.payment": "The setup pays someone on creation. Refused.",
-		"createSafe.error.setupCall":
-			"The setup runs extra code ({address}) that could take control of the Safe. Refused.",
+		"createSafe.error.setupCall": "The setup runs extra code ({address}) that could take control of the Safe. Refused.",
 		"createSafe.error.fallbackHandler": "Unknown fallback handler {address}. Refused.",
 		"createSafe.error.txNotFound": "Transaction not found on this network.",
 		"createSafe.error.txNoCreation": "This transaction did not create the selected Safe.",
@@ -151,8 +151,10 @@ export default defineDict({
 			"Этот адрес нельзя воспроизвести в {network}: там нет нужных контрактов Safe ({contracts}).",
 		"createSafe.target.exists": "По этому адресу в {network} уже есть контракт.",
 
-		"createSafe.error.unknownFactory": "Неизвестная фабрика прокси {address}. Принимаются только официальные фабрики Safe.",
-		"createSafe.error.unknownSingleton": "Неизвестная реализация Safe {address}. Принимаются только официальные контракты Safe.",
+		"createSafe.error.unknownFactory":
+			"Неизвестная фабрика прокси {address}. Принимаются только официальные фабрики Safe.",
+		"createSafe.error.unknownSingleton":
+			"Неизвестная реализация Safe {address}. Принимаются только официальные контракты Safe.",
 		"createSafe.error.badSalt": "Некорректный salt nonce.",
 		"createSafe.error.badInitializer": "Инициализатор не является вызовом Safe setup.",
 		"createSafe.error.badOwners": "Некорректный набор подписантов или порог в данных setup.",

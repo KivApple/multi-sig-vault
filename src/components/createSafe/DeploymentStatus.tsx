@@ -14,7 +14,14 @@ export interface DeploymentStatusProps {
 }
 
 /** Progress of a sent deployment transaction, with a way out when it never confirms. */
-export const DeploymentStatus: React.FC<DeploymentStatusProps> = ({ chainId, txHash, waiting, error, onRetry, onDiscard }) => {
+export const DeploymentStatus: React.FC<DeploymentStatusProps> = ({
+	chainId,
+	txHash,
+	waiting,
+	error,
+	onRetry,
+	onDiscard,
+}) => {
 	const t = useT();
 	return (
 		<div className="card-surface flex flex-col gap-3 px-4 py-4" role="status">

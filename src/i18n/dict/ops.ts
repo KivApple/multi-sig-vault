@@ -32,11 +32,14 @@ export default defineDict({
 		"ops.needAccountData": "Account data has not loaded yet. Connect to the network once to load signers.",
 		"ops.l1Note": "This action can be signed with Ledger or Trezor only.",
 		"ops.l1NoMetaMask": "MetaMask cannot sign this action",
-		"ops.leaderElsewhere": "The signer who sends this operation is not on this device. Export the operation to the device that has it.",
-		"ops.nonceUsedNote": "The Safe has already executed another transaction with this number. Reset signatures and sign again.",
+		"ops.leaderElsewhere":
+			"The signer who sends this operation is not on this device. Export the operation to the device that has it.",
+		"ops.nonceUsedNote":
+			"The Safe has already executed another transaction with this number. Reset signatures and sign again.",
 		"ops.nonceWaitingNote": "Earlier operations go first: the Safe is at #{nonce}.",
 		"ops.pick.first": "Who signs first?",
-		"ops.pick.firstHlHint": "The first signer also sends the operation to the exchange after all signatures are collected. Parameters are locked after the first signature.",
+		"ops.pick.firstHlHint":
+			"The first signer also sends the operation to the exchange after all signatures are collected. Parameters are locked after the first signature.",
 		"ops.pick.freezeHint": "Parameters are locked after the first signature.",
 		"ops.pick.next": "Who signs?",
 		"ops.pick.send": "Who sends?",
@@ -70,7 +73,8 @@ export default defineDict({
 		"ops.error.alreadySigned": "This signer has already signed.",
 		"ops.error.notEnough": "Not enough valid signatures.",
 		"ops.error.leaderRequired": "Only the first signer can send this operation.",
-		"ops.error.nonceUsed": "The Safe has already executed a transaction with this number. Reset signatures and sign again.",
+		"ops.error.nonceUsed":
+			"The Safe has already executed a transaction with this number. Reset signatures and sign again.",
 		"ops.error.nonceAhead": "Earlier operations must be sent first (the Safe is at #{nonce}).",
 		"ops.error.noGas": "The sender does not have enough funds for the network fee.",
 		"ops.error.simulation": "The transaction would fail: {detail}",
@@ -83,7 +87,8 @@ export default defineDict({
 		"import.action.merge_few": "{count} new signatures will be added to the operation.",
 		"import.action.merge_many": "{count} new signatures will be added to the operation.",
 		"import.action.merge_other": "{count} new signatures will be added to the operation.",
-		"import.action.replace": "This device has another version of this operation. It will be replaced, its signatures will be lost.",
+		"import.action.replace":
+			"This device has another version of this operation. It will be replaced, its signatures will be lost.",
 		"import.action.upToDate": "This device already has all these signatures.",
 		"import.action.alreadySent": "This operation has already been sent from this device.",
 		"import.error.invalid": "The code is damaged or is not a Multi Sig Vault operation.",
@@ -151,11 +156,13 @@ export default defineDict({
 		"ops.needAccountData": "Данные счёта ещё не загружены. Подключитесь к сети один раз, чтобы загрузить подписантов.",
 		"ops.l1Note": "Это действие можно подписать только на Ledger или Trezor.",
 		"ops.l1NoMetaMask": "MetaMask не может подписать это действие",
-		"ops.leaderElsewhere": "Подписанта, который отправляет эту операцию, нет на этом устройстве. Экспортируйте операцию на устройство, где он есть.",
+		"ops.leaderElsewhere":
+			"Подписанта, который отправляет эту операцию, нет на этом устройстве. Экспортируйте операцию на устройство, где он есть.",
 		"ops.nonceUsedNote": "Safe уже выполнил другую транзакцию с этим номером. Сбросьте подписи и подпишите заново.",
 		"ops.nonceWaitingNote": "Сначала отправьте предыдущие операции: Safe ожидает #{nonce}.",
 		"ops.pick.first": "Кто подписывает первым?",
-		"ops.pick.firstHlHint": "Первый подписант затем отправит операцию на биржу, когда все подписи будут собраны. После первой подписи параметры менять нельзя.",
+		"ops.pick.firstHlHint":
+			"Первый подписант затем отправит операцию на биржу, когда все подписи будут собраны. После первой подписи параметры менять нельзя.",
 		"ops.pick.freezeHint": "После первой подписи параметры менять нельзя.",
 		"ops.pick.next": "Кто подписывает?",
 		"ops.pick.send": "Кто отправляет?",
@@ -202,7 +209,8 @@ export default defineDict({
 		"import.action.merge_few": "К операции добавятся {count} новые подписи.",
 		"import.action.merge_many": "К операции добавится {count} новых подписей.",
 		"import.action.merge_other": "К операции добавится {count} новых подписей.",
-		"import.action.replace": "На этом устройстве другая версия этой операции. Она будет заменена, её подписи будут потеряны.",
+		"import.action.replace":
+			"На этом устройстве другая версия этой операции. Она будет заменена, её подписи будут потеряны.",
 		"import.action.upToDate": "На этом устройстве уже есть все эти подписи.",
 		"import.action.alreadySent": "Эта операция уже отправлена с этого устройства.",
 		"import.error.invalid": "Код повреждён или не является операцией Multi Sig Vault.",

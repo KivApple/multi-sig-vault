@@ -54,7 +54,10 @@ describe.skipIf(!enabled)("advanced Safe operations on a fork", () => {
 		expect(sim.success, sim.reason).toBe(true);
 		const typed = safeTxTypedData(CHAIN_ID, safe, tx);
 		const signature = await owner.signTypedData({ ...typed, message: typed.message } as never);
-		const hash = await wallet.sendTransaction({ to: safe, data: encodeExecTransaction(tx, [{ signer: owner.address, signature }]) });
+		const hash = await wallet.sendTransaction({
+			to: safe,
+			data: encodeExecTransaction(tx, [{ signer: owner.address, signature }]),
+		});
 		const receipt = await publicClient.waitForTransactionReceipt({ hash });
 		expect(receipt.status).toBe("success");
 		nonce += 1;
@@ -62,7 +65,9 @@ describe.skipIf(!enabled)("advanced Safe operations on a fork", () => {
 	};
 
 	beforeAll(async () => {
-		anvil = spawn("anvil", ["--fork-url", "https://mainnet.base.org", "--port", String(PORT), "--silent"], { stdio: "ignore" });
+		anvil = spawn("anvil", ["--fork-url", "https://mainnet.base.org", "--port", String(PORT), "--silent"], {
+			stdio: "ignore",
+		});
 		for (let i = 0; i < 100; i++) {
 			try {
 				await publicClient.getChainId();
@@ -81,7 +86,9 @@ describe.skipIf(!enabled)("advanced Safe operations on a fork", () => {
 			args: [creation.singleton, creation.initializer, BigInt(creation.saltNonce)],
 		});
 		await publicClient.waitForTransactionReceipt({ hash });
-		expect(await publicClient.readContract({ address: safe, abi: SAFE_ABI, functionName: "getOwners" })).toEqual([owner.address]);
+		expect(await publicClient.readContract({ address: safe, abi: SAFE_ABI, functionName: "getOwners" })).toEqual([
+			owner.address,
+		]);
 		await wallet.sendTransaction({ to: safe, value: parseEther("1") });
 	}, 60_000);
 
@@ -90,7 +97,16 @@ describe.skipIf(!enabled)("advanced Safe operations on a fork", () => {
 	});
 
 	it("deploys with CREATE through CreateCall and finds the ContractCreation event", async () => {
-		const params: DeployParams = { bytecodeText: BYTECODE, bytecode: BYTECODE, ctor: "", args: [], rawArgs: "", value: "", method: "create", salt: "" };
+		const params: DeployParams = {
+			bytecodeText: BYTECODE,
+			bytecode: BYTECODE,
+			ctor: "",
+			args: [],
+			rawArgs: "",
+			value: "",
+			method: "create",
+			salt: "",
+		};
 		const safeNonce = await publicClient.getTransactionCount({ address: safe });
 		const expected = getContractAddress({ opcode: "CREATE", from: safe, nonce: BigInt(safeNonce) });
 		const { receipt } = await exec(buildDeploy(params));
@@ -101,9 +117,20 @@ describe.skipIf(!enabled)("advanced Safe operations on a fork", () => {
 	}, 60_000);
 
 	it("deploys with CREATE2 at the predicted address, with value", async () => {
-		const params: DeployParams = { bytecodeText: BYTECODE, bytecode: BYTECODE, ctor: "", args: [], rawArgs: "", value: "0.01", method: "create2", salt: "vault" };
+		const params: DeployParams = {
+			bytecodeText: BYTECODE,
+			bytecode: BYTECODE,
+			ctor: "",
+			args: [],
+			rawArgs: "",
+			value: "0.01",
+			method: "create2",
+			salt: "vault",
+		};
 		const predicted = deployAddress(params, safe) as Address;
-		expect(predicted).toBe(getContractAddress({ opcode: "CREATE2", from: safe, salt: keccak256(stringToHex("vault")), bytecode: BYTECODE }));
+		expect(predicted).toBe(
+			getContractAddress({ opcode: "CREATE2", from: safe, salt: keccak256(stringToHex("vault")), bytecode: BYTECODE }),
+		);
 		const { receipt } = await exec(buildDeploy(params));
 		const logs = parseEventLogs({ abi: CREATE_CALL_ABI, eventName: "ContractCreation", logs: receipt.logs });
 		expect(logs[0].args.newContract).toBe(predicted);
@@ -116,19 +143,40 @@ describe.skipIf(!enabled)("advanced Safe operations on a fork", () => {
 
 	it("calls a payable function built from a human-readable ABI", async () => {
 		const fn = parseAbiText("function deposit() payable").functions[0];
-		const params: CallParams = { to: WETH, value: "0.05", mode: "abi", abiText: "", fragment: JSON.stringify(fn), args: [], data: "" };
+		const params: CallParams = {
+			to: WETH,
+			value: "0.05",
+			mode: "abi",
+			abiText: "",
+			fragment: JSON.stringify(fn),
+			args: [],
+			data: "",
+		};
 		await exec([{ to: WETH, value: callValueWei(params), data: callData(params) }]);
 		const erc20 = parseAbi(["function balanceOf(address) view returns (uint256)"]);
-		expect(await publicClient.readContract({ address: WETH, abi: erc20, functionName: "balanceOf", args: [safe] })).toBe(parseEther("0.05"));
+		expect(
+			await publicClient.readContract({ address: WETH, abi: erc20, functionName: "balanceOf", args: [safe] }),
+		).toBe(parseEther("0.05"));
 
 		const transfer = parseAbiText("transfer(address to, uint256 amount)").functions[0];
-		const send: CallParams = { ...params, value: "", fragment: JSON.stringify(transfer), args: [owner.address, "1000"] };
+		const send: CallParams = {
+			...params,
+			value: "",
+			fragment: JSON.stringify(transfer),
+			args: [owner.address, "1000"],
+		};
 		await exec([{ to: WETH, value: 0n, data: callData(send) }]);
-		expect(await publicClient.readContract({ address: WETH, abi: erc20, functionName: "balanceOf", args: [owner.address] })).toBeGreaterThanOrEqual(1000n);
+		expect(
+			await publicClient.readContract({ address: WETH, abi: erc20, functionName: "balanceOf", args: [owner.address] }),
+		).toBeGreaterThanOrEqual(1000n);
 
 		// A call that must revert is reported with its reason.
 		const tooMuch: CallParams = { ...send, args: [owner.address, parseEther("5").toString()] };
-		const sim = await simulateSafeTx(CHAIN_ID, safe, toSafeTx([{ to: WETH, value: 0n, data: callData(tooMuch) }], nonce));
+		const sim = await simulateSafeTx(
+			CHAIN_ID,
+			safe,
+			toSafeTx([{ to: WETH, value: 0n, data: callData(tooMuch) }], nonce),
+		);
 		expect(sim.success).toBe(false);
 	}, 60_000);
 
