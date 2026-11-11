@@ -20,8 +20,8 @@ export const formatUsd = (value: number, lang: string, compact = false): string 
     style: 'currency',
     currency: 'USD',
     notation: compact && abs >= 1e6 ? 'compact' : 'standard',
-    minimumFractionDigits: abs >= 1000 ? 0 : 2,
-    maximumFractionDigits: abs >= 1000 ? 0 : 2,
+    minimumFractionDigits: compact && abs >= 1e6 ? 2 : abs >= 1000 ? 0 : 2,
+    maximumFractionDigits: compact && abs >= 1e6 ? 2 : abs >= 1000 ? 0 : 2,
   }).format(value);
 };
 

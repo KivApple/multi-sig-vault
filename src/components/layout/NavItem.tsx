@@ -6,11 +6,13 @@ export interface NavItemProps {
   label: string;
   icon: ReactNode;
   variant: 'dock' | 'bar';
+  /** Highlight even when the route does not match (sub-pages of the section). */
+  forceActive?: boolean;
 }
 
-export const NavItem: React.FC<NavItemProps> = ({ to, label, icon, variant }) =>
+export const NavItem: React.FC<NavItemProps> = ({ to, label, icon, variant, forceActive }) =>
   variant === 'dock' ? (
-    <NavLink to={to} end={to === '/'} className={({ isActive }) => (isActive ? 'dock-active text-primary' : '')}>
+    <NavLink to={to} end={to === '/'} className={({ isActive }) => (isActive || forceActive ? 'dock-active text-primary' : '')}>
       {icon}
       <span className="dock-label">{label}</span>
     </NavLink>
@@ -18,7 +20,7 @@ export const NavItem: React.FC<NavItemProps> = ({ to, label, icon, variant }) =>
     <NavLink
       to={to}
       end={to === '/'}
-      className={({ isActive }) => `btn btn-sm gap-2 ${isActive ? 'btn-neutral' : 'btn-ghost'}`}
+      className={({ isActive }) => `btn btn-sm gap-2 ${isActive || forceActive ? 'btn-neutral' : 'btn-ghost'}`}
     >
       {icon}
       {label}

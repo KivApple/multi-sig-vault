@@ -63,13 +63,19 @@ const priceHoldings = async (chainId: number, holdings: Holding[]): Promise<void
     else if (STABLE_SYMBOLS.has(h.symbol.toUpperCase())) priced(h, 1);
   }
   if (pending.length === 0 || !usdc) return;
-  const quotes = await quoteMany(
-    chainId,
-    pending.map((h) => ({ tokenIn: h.token?.address ?? dexWeth(chain), tokenOut: usdc, amountIn: BigInt(h.balance) })),
-  ).catch(() => pending.map(() => null));
+  // Two quotes per token: the whole balance (what a sale would really return) and a 1/1000 probe
+  // scaled back up (spot price). The larger one is shown, so thin pools do not zero out a holding.
+  const PROBE = 1000n;
+  const tokenIn = (h: Holding): Address => h.token?.address ?? dexWeth(chain);
+  const quotes = await quoteMany(chainId, [
+    ...pending.map((h) => ({ tokenIn: tokenIn(h), tokenOut: usdc, amountIn: BigInt(h.balance) })),
+    ...pending.map((h) => ({ tokenIn: tokenIn(h), tokenOut: usdc, amountIn: BigInt(h.balance) / PROBE })),
+  ]).catch(() => [] as (Awaited<ReturnType<typeof quoteMany>>[number])[]);
   pending.forEach((h, i) => {
-    const q = quotes[i];
-    if (q) h.usd = Number(formatUnits(q.amountOut, 6));
+    const full = quotes[i]?.amountOut ?? 0n;
+    const spot = (quotes[i + pending.length]?.amountOut ?? 0n) * PROBE;
+    const best = full > spot ? full : spot;
+    if (best > 0n) h.usd = Number(formatUnits(best, 6));
     else if (STABLE_SYMBOLS.has(h.symbol.toUpperCase())) priced(h, 1);
   });
 };
@@ -79,28 +85,31 @@ export const fetchSafeAccount = async (chainId: number, address: Address): Promi
   const chain = getChain(chainId);
   const client = getPublicClient(chainId);
   const tokens = getTokens(chainId);
-  const [info, results] = await Promise.all([
+  // The native balance is read on its own so that a misbehaving token can never hide it;
+  // token balances go in moderate multicall chunks (a single huge call can exceed node gas caps).
+  const balanceCalls = (list: TokenInfo[]): ContractFunctionParameters[] =>
+    list.map((t) => ({ address: t.address, abi: ERC20_ABI, functionName: 'balanceOf', args: [address] })) as ContractFunctionParameters[];
+  const [info, nativeBalance, results] = await Promise.all([
     fetchSafeInfo(chainId, address),
-    client.multicall({
-      contracts: [
-        { address: MULTICALL3, abi: MULTICALL_ABI, functionName: 'getEthBalance', args: [address] },
-        ...tokens.map((t) => ({ address: t.address, abi: ERC20_ABI, functionName: 'balanceOf', args: [address] })),
-      ] as ContractFunctionParameters[],
-      allowFailure: true,
-      batchSize: 16_384,
-    }),
+    client.getBalance({ address }),
+    client.multicall({ contracts: balanceCalls(tokens), allowFailure: true, batchSize: 2048 }),
   ]);
+  // A whole chunk fails when the node chokes on it – ask again for those tokens in small chunks,
+  // so a flaky endpoint does not make balances silently disappear.
+  const failed = results.map((r, i) => (r.status === 'failure' ? i : -1)).filter((i) => i >= 0);
+  if (failed.length > 0) {
+    const retry = await client
+      .multicall({ contracts: balanceCalls(failed.map((i) => tokens[i])), allowFailure: true, batchSize: 256 })
+      .catch(() => []);
+    retry.forEach((r, k) => {
+      results[failed[k]] = r;
+    });
+  }
 
   const holdings: Holding[] = [];
-  const native = results[0];
-  holdings.push({
-    symbol: chain.nativeSymbol,
-    decimals: 18,
-    balance: (native.status === 'success' ? (native.result as bigint) : 0n).toString(),
-    usd: 0,
-  });
+  holdings.push({ symbol: chain.nativeSymbol, decimals: 18, balance: nativeBalance.toString(), usd: 0 });
   tokens.forEach((token, i) => {
-    const r = results[i + 1];
+    const r = results[i];
     if (r.status === 'success' && (r.result as bigint) > 0n) {
       holdings.push({ token, symbol: token.symbol, decimals: token.decimals, balance: (r.result as bigint).toString(), usd: 0 });
     }

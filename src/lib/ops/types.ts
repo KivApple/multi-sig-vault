@@ -38,6 +38,8 @@ export interface SummaryCtx {
 }
 
 export interface OpFormProps<P> {
+  /** Operation id – key for secrets the form may create (agent keys). */
+  opId: string;
   value: P;
   onChange: (patch: Partial<P>) => void;
   env: OpEnv;
@@ -73,6 +75,8 @@ export interface OpDefinition<P = any> {
   hlSigning?: 'user' | 'l1';
   available: (env: OpEnv) => boolean;
   defaults: (env: OpEnv) => P;
+  /** Async part of creation (e.g. generating an agent key); returns a params patch. */
+  init?: (opId: string, params: P) => Promise<Partial<P>>;
   Form: React.FC<OpFormProps<P>>;
   validate: (params: P, env: OpEnv, t: TFunc) => OpErrors;
   /** Resolves network-dependent values right before the first signature (quotes, current owners…). */

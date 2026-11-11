@@ -1,4 +1,4 @@
-import { encodePacked, parseAbi, type Address, type Hex } from 'viem';
+import { BaseError, encodePacked, HttpRequestError, parseAbi, RpcRequestError, TimeoutError, type Address, type Hex } from 'viem';
 import { getChain, type ChainConfig } from '@/config/chains';
 import { getPublicClient } from '@/lib/rpc';
 import { sameAddress } from '@/lib/format';
@@ -59,6 +59,17 @@ export const candidateRoutes = (chain: ChainConfig, tokenIn: Address, tokenOut: 
   return routes;
 };
 
+const isNetworkFailure = (e: unknown): boolean =>
+  e instanceof BaseError && !!e.walk((x) => x instanceof HttpRequestError || x instanceof TimeoutError);
+
+/** The request failed as a whole (network, node limits, out of gas) rather than the quoted pool reverting. */
+const isRequestFailure = (e: unknown): boolean => {
+  if (!(e instanceof BaseError)) return false;
+  if (isNetworkFailure(e)) return true;
+  const rpc = e.walk((x) => x instanceof RpcRequestError);
+  return rpc instanceof RpcRequestError && rpc.code !== 3 && !/revert/i.test(rpc.message);
+};
+
 export interface QuoteRequest {
   tokenIn: Address;
   tokenOut: Address;
@@ -87,10 +98,40 @@ export const quoteMany = async (chainId: number, requests: QuoteRequest[]): Prom
     allowFailure: true,
     batchSize: 2048,
   });
+  const client = getPublicClient(chainId);
+  const amounts: (bigint | undefined)[] = results.map((res) =>
+    res.status === 'success' ? (res.result as readonly [bigint, ...unknown[]])[0] : undefined,
+  );
+  // A missing pool reverts inside the batch – a normal "no quote". When the batch request itself fails
+  // (one gas-hungry pool can exhaust the whole eth_call, typical for HyperEVM's small gas limit),
+  // each of its quotes is asked again on its own so the healthy routes still answer.
+  const retry = results.flatMap((res, i) => (res.status !== 'success' && isRequestFailure(res.error) ? [i] : []));
+  if (retry.length > 0) {
+    const settled = await Promise.all(
+      retry.map((i) =>
+        client
+          .simulateContract({
+            address: quoter,
+            abi: QUOTER_ABI,
+            functionName: 'quoteExactInput',
+            args: [encodePath(flat[i].route), flat[i].amountIn],
+          })
+          .then(
+            (r) => r.result[0],
+            (e: unknown) => e,
+          ),
+      ),
+    );
+    settled.forEach((r, k) => {
+      if (typeof r === 'bigint') amounts[retry[k]] = r;
+    });
+    // Nothing answered and the network is the reason – say so instead of "no route".
+    const offline = settled.find((r) => typeof r !== 'bigint' && isNetworkFailure(r));
+    if (offline && amounts.every((a) => a === undefined)) throw offline;
+  }
   const best: (Quote | null)[] = requests.map(() => null);
-  results.forEach((res, i) => {
-    if (res.status !== 'success') return;
-    const amountOut = (res.result as readonly [bigint, ...unknown[]])[0];
+  amounts.forEach((amountOut, i) => {
+    if (amountOut === undefined) return;
     const { req, route } = flat[i];
     const current = best[req];
     if (amountOut > 0n && (!current || amountOut > current.amountOut)) best[req] = { ...route, amountOut };

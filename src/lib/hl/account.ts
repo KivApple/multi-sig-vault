@@ -78,6 +78,8 @@ export interface HlAccountData {
   /** USDC that can leave the perp account (standard mode) or the unified balance. */
   withdrawable: string;
   positions: HlPerpPosition[];
+  /** `USDC:0x…` – token identifier used by transfer actions. */
+  usdcToken: string;
 }
 
 const sub = (a: string, b: string): string => {
@@ -198,19 +200,29 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
     spot,
     withdrawable,
     positions,
+    usdcToken: `USDC:${tokenByIndex.get(0)?.tokenId ?? ''}`,
   };
 };
 
+export interface HlSubInfo {
+  name: string;
+  address: Address;
+  /** Perp USDC that can be moved out. */
+  withdrawable: string;
+  spot: { coin: string; token: number; tokenId: string; total: string }[];
+}
+
 export interface HlAccountExtras {
   agents: HlAgent[];
-  subAccounts: { name: string; address: Address }[];
+  subAccounts: HlSubInfo[];
   /** Lifetime traded volume, USD. */
   volume: number;
 }
 
 /** Rarely changing details used to decide which operations make sense. */
 export const fetchHlExtras = async (env: NetworkEnv, user: Address): Promise<HlAccountExtras> => {
-  const [agents, subs, portfolio] = await Promise.all([
+  const [market, agents, subs, portfolio] = await Promise.all([
+    fetchHlMarket(env),
     hlInfo<HlAgent[]>(env, { type: 'extraAgents', user }),
     hlInfo<HlSubAccount[] | null>(env, { type: 'subAccounts', user }),
     hlInfo<HlPortfolio>(env, { type: 'portfolio', user }).catch(() => [] as HlPortfolio),
@@ -218,7 +230,19 @@ export const fetchHlExtras = async (env: NetworkEnv, user: Address): Promise<HlA
   const allTime = portfolio.find(([period]) => period === 'allTime')?.[1];
   return {
     agents: agents ?? [],
-    subAccounts: (subs ?? []).map((s) => ({ name: s.name, address: s.subAccountUser })),
+    subAccounts: (subs ?? []).map((s) => ({
+      name: s.name,
+      address: s.subAccountUser,
+      withdrawable: s.clearinghouseState?.withdrawable ?? '0',
+      spot: (s.spotState?.balances ?? [])
+        .filter((b) => Number(b.total) > 0)
+        .map((b) => ({
+          coin: b.coin,
+          token: b.token,
+          tokenId: market.tokens.find((t) => t.index === b.token)?.tokenId ?? '',
+          total: b.total,
+        })),
+    })),
     volume: Number(allTime?.vlm ?? 0),
   };
 };

@@ -1,7 +1,7 @@
 import qrcode from 'qrcode-generator';
 
 // Encode text as UTF-8 (the library default keeps only the low byte of each char).
-qrcode.stringToBytes = qrcode.stringToBytesFuncs['UTF-8'];
+qrcode.stringToBytes = (text: string): number[] => Array.from(new TextEncoder().encode(text));
 
 export interface QrMatrix {
   size: number;

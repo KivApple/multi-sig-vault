@@ -85,3 +85,16 @@ export const fetchCached = async <T>(key: string, fetcher: () => Promise<T>, max
     throw e;
   }
 };
+
+const REFRESH_EVENT = 'msv-refresh';
+
+/** Asks every mounted query whose key starts with `prefix` to refetch now. */
+export const requestRefresh = (prefix: string): void => {
+  window.dispatchEvent(new CustomEvent(REFRESH_EVENT, { detail: prefix }));
+};
+
+export const onRefreshRequest = (handler: (prefix: string) => void): (() => void) => {
+  const listener = (e: Event): void => handler((e as CustomEvent<string>).detail);
+  window.addEventListener(REFRESH_EVENT, listener);
+  return () => window.removeEventListener(REFRESH_EVENT, listener);
+};

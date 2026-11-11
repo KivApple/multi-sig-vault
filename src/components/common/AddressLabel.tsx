@@ -2,7 +2,6 @@ import { useMemo } from 'react';
 import type { Address } from 'viem';
 import { AccountIcon } from '@/components/icons/AccountIcon';
 import { WalletIcon } from '@/components/icons/WalletIcon';
-import { useT } from '@/i18n';
 import { shortAddress } from '@/lib/format';
 import { resolveKnown, type AddressScope } from '@/lib/known';
 import { useAppStore } from '@/store/appStore';
@@ -22,7 +21,6 @@ export interface AddressLabelProps {
  * dimmed short address otherwise.
  */
 export const AddressLabel: React.FC<AddressLabelProps> = ({ address, scope, size = 28, compact, className }) => {
-  const t = useT();
   const signers = useAppStore((s) => s.signers);
   const accounts = useAppStore((s) => s.accounts);
   const known = useMemo(() => resolveKnown(address, signers, accounts, scope), [address, signers, accounts, scope]);
@@ -34,17 +32,21 @@ export const AddressLabel: React.FC<AddressLabelProps> = ({ address, scope, size
       </span>
     );
   }
-  const name = known.account ? known.account.name?.trim() || t('accounts.unnamed') : known.signer?.name;
+  // Without a scope the address is "who did it" – a signer; with a scope it is "where it goes" – an account.
+  const scoped = !!scope && Object.keys(scope).length > 0;
+  const account = scoped || !known.signer ? known.account : undefined;
+  const unnamed = !!account && !account.name?.trim();
+  const name = account ? account.name?.trim() || shortAddress(address) : known.signer?.name;
   return (
     <span className={`inline-flex min-w-0 items-center gap-2 ${className ?? ''}`} title={address}>
-      {known.account ? (
-        <AccountIcon kind={known.account.kind} env={known.account.env} chainId={known.account.chainId} size={size} />
+      {account ? (
+        <AccountIcon kind={account.kind} env={account.env} chainId={account.chainId} size={size} />
       ) : (
         known.signer && <WalletIcon kind={known.signer.wallet} size={size} />
       )}
       <span className="flex min-w-0 flex-col leading-tight">
-        <span className="truncate font-medium">{name}</span>
-        {!compact && <span className="mono text-base-content/60 text-xs">{shortAddress(address)}</span>}
+        <span className={`truncate font-medium ${unnamed ? 'mono' : ''}`}>{name}</span>
+        {!compact && !unnamed && <span className="mono text-base-content/60 text-xs">{shortAddress(address)}</span>}
       </span>
     </span>
   );

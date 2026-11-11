@@ -36,9 +36,9 @@ export const AppLayout: React.FC = () => {
               {t('common.offline')}
             </span>
           )}
-          <nav className={`ml-auto hidden gap-1 sm:flex ${accountsActive ? '[&>a:first-child]:btn-neutral' : ''}`}>
+          <nav className="ml-auto hidden gap-1 sm:flex">
             {items.map((i) => (
-              <NavItem key={i.to} {...i} variant="bar" />
+              <NavItem key={i.to} {...i} variant="bar" forceActive={i.to === "/" && accountsActive} />
             ))}
           </nav>
         </div>
@@ -47,13 +47,9 @@ export const AppLayout: React.FC = () => {
       <main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-5 pb-28 sm:pb-10">
         <Outlet />
       </main>
-      <nav
-        className={`dock dock-sm border-base-300 bg-base-100 z-20 border-t sm:hidden ${
-          accountsActive ? '[&>a:first-child]:text-primary' : ''
-        }`}
-      >
+      <nav className="dock dock-sm border-base-300 bg-base-100 z-20 border-t sm:hidden">
         {items.map((i) => (
-          <NavItem key={i.to} {...i} variant="dock" />
+          <NavItem key={i.to} {...i} variant="dock" forceActive={i.to === "/" && accountsActive} />
         ))}
       </nav>
     </div>

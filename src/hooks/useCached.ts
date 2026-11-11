@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { getCached, refreshCached, useCacheStore } from '@/lib/dataCache';
+import { getCached, onRefreshRequest, refreshCached, useCacheStore } from '@/lib/dataCache';
 
 export interface UseCachedResult<T> {
   data: T | undefined;
@@ -40,7 +40,11 @@ export const useCached = <T>(
     const timer = setInterval(tick, Math.min(interval, 10_000));
     document.addEventListener('visibilitychange', tick);
     window.addEventListener('online', tick);
+    const off = onRefreshRequest((prefix) => {
+      if (key.startsWith(prefix)) void refresh();
+    });
     return () => {
+      off();
       clearInterval(timer);
       document.removeEventListener('visibilitychange', tick);
       window.removeEventListener('online', tick);
