@@ -45,13 +45,11 @@ write("brand/safe.svg", recolor(await load("wallets/background/safe"), { "#049F6
 write("brand/metamask.svg", await load("wallets/background/metamask"));
 write("brand/ledger.svg", await load("wallets/background/ledger"));
 write("brand/trezor.svg", recolor(await load("wallets/background/trezor"), { "#000": "#0F6148" }));
-write("network/ethereum.svg", recolor(await load("networks/background/ethereum"), { "#000": "#EDF0FA" }));
-write("network/arbitrum.svg", await load("networks/background/arbitrum-one"));
-// Base: the official blue square, kept on white so it survives the circular crop.
-write(
-	"network/base.svg",
-	recolor(recolor(await load("networks/background/base"), { "#fff": "#0000FF" }), { "#00F": "#fff" }),
-);
+// Network logos are the networks' own official assets (scripts/tokens/official): the Ethereum mark on
+// its blue disc, the full-colour Arbitrum mark, the Base network logo from Base's brand kit.
+for (const name of ["ethereum", "arbitrum", "base"]) {
+	write(`network/${name}.svg`, readFileSync(new URL(`./official/${name}.svg`, import.meta.url), "utf8"));
+}
 write("network/hyperevm.svg", HYPERLIQUID);
 
 // --- Tokens ------------------------------------------------------------------------------
