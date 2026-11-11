@@ -1,6 +1,6 @@
 /**
  * End-to-end simulation of the swap/bridge operation on anvil forks of real networks.
- * Skipped by default (needs network + foundry): `MSV_FORK=1 npx vitest run tests/swap.fork.test.ts`.
+ * Skipped by default (needs network + foundry): `MSV_FORK=1 pnpm vitest run tests/swap.fork.test.ts`.
  * Optional `MSV_FORK_CHAINS=1,8453` limits the chains.
  */
 import "fake-indexeddb/auto";

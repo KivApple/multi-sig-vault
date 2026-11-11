@@ -8,6 +8,7 @@ import { safeOwnersOp } from "./safe/owners";
 import { safeSendOp } from "./safe/send";
 import { signMessageOp } from "./safe/signMessage";
 import { swapOp } from "./safe/swap";
+import { unitWithdrawOp } from "./hl/unit";
 import type { OpDefinition } from "./types";
 
 let cache: OpDefinition[] | undefined;
@@ -21,6 +22,7 @@ export const allOperations = (): OpDefinition[] => {
 		withdrawOp,
 		usdSendOp,
 		spotWithdrawOp,
+		unitWithdrawOp,
 		spotSendOp,
 		classTransferOp,
 		loginOp,

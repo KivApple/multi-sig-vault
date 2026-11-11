@@ -1,4 +1,4 @@
-// Renders the PNG app icons from public/icons/icon.svg. Usage: npm run icons:app
+// Renders the PNG app icons from public/icons/icon.svg. Usage: pnpm icons:app
 import { readFile } from "node:fs/promises";
 import sharp from "sharp";
 

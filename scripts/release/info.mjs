@@ -1,5 +1,5 @@
 // Prints what the developer multi-sig has to execute to approve the built release.
-// Usage: npm run build && npm run release:info [-- path/to/release.json]
+// Usage: pnpm build && pnpm release:info [-- path/to/release.json]
 import { readFile } from "node:fs/promises";
 import {
 	RELEASE_DIGEST_PREFIX,

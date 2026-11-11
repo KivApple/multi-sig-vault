@@ -1,8 +1,8 @@
 /**
  * End-to-end check of on-chain release verification against a forked chain.
  * Skipped unless a fork is provided:
- *   MSV_FORK_RPC=http://127.0.0.1:8599 MSV_FORK_CHAIN_ID=8453 MSV_FORK_SAFE=0x… MSV_FORK_SIGNED_ID=<release id> npx vitest run tests/update.fork.test.ts
- * where the Safe has executed the transaction printed by `npm run release:info` for that id.
+ *   MSV_FORK_RPC=http://127.0.0.1:8599 MSV_FORK_CHAIN_ID=8453 MSV_FORK_SAFE=0x… MSV_FORK_SIGNED_ID=<release id> pnpm vitest run tests/update.fork.test.ts
+ * where the Safe has executed the transaction printed by `pnpm release:info` for that id.
  */
 import type { Address } from "viem";
 import { describe, expect, it, vi } from "vitest";

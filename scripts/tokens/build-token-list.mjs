@@ -1,6 +1,6 @@
 // Generates the built-in token snapshot (src/lib/tokens/builtin.json) and the list of
 // Hyperliquid coin symbols used to pick built-in icons (scripts/tokens/hl-symbols.json).
-// Usage: npm run tokens:list   (needs network; Node >= 23.6 for TypeScript imports)
+// Usage: pnpm tokens:list   (needs network; Node >= 23.6 for TypeScript imports)
 import { writeFileSync } from "node:fs";
 import { CHAINS } from "../../src/config/chains.ts";
 import { deriveHyperEvmTokens, packTokens, parseTokenList, withEssentials } from "../../src/lib/tokens/sanitize.ts";

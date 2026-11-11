@@ -1,4 +1,4 @@
-// Pure release-manifest logic shared by the app, the build plugin and `npm run release:info`.
+// Pure release-manifest logic shared by the app, the build plugin and `pnpm release:info`.
 // Plain ESM (typed by releaseCore.d.mts) so Node can run it without a TypeScript loader.
 // `public/sw.js` re-implements `canonicalRelease` / `computeReleaseId` (a service worker cannot
 // import this file without getting a build hash); tests/update.test.ts keeps both in sync.

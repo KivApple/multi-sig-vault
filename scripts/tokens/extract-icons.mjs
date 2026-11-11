@@ -1,4 +1,4 @@
-// Copies official marks from @web3icons/core into src/assets/icons (run: npm run tokens:icons).
+// Copies official marks from @web3icons/core into src/assets/icons (run: pnpm tokens:icons).
 //  - brand/*.svg, network/*.svg  – wallet, account and network logos on their brand chip
 //  - token/*.svg                 – core token icons available synchronously
 //  - token-pack.json             – `SYMBOL → svg` for the lazily loaded built-in pack

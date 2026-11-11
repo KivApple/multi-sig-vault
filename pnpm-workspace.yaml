@@ -1,0 +1,21 @@
+# Optional native speed-ups of transitive dependencies: not built, their pure-JS fallbacks are used.
+allowBuilds:
+  bufferutil: false
+  keccak: false
+  utf-8-validate: false
+minimumReleaseAgeExclude:
+  - '@biomejs/biome@2.6.7'
+  - '@biomejs/cli-android-arm64@2.6.7'
+  - '@biomejs/cli-android-x64@2.6.7'
+  - '@biomejs/cli-darwin-arm64@2.6.7'
+  - '@biomejs/cli-darwin-x64@2.6.7'
+  - '@biomejs/cli-linux-arm64-musl@2.6.7'
+  - '@biomejs/cli-linux-arm64@2.6.7'
+  - '@biomejs/cli-linux-x64-musl@2.6.7'
+  - '@biomejs/cli-linux-x64@2.6.7'
+  - '@biomejs/cli-win32-arm64@2.6.7'
+  - '@biomejs/cli-win32-x64@2.6.7'
+  - lucide-react@1.72.0
+  - ox@0.14.65
+  - viem@2.57.18
+

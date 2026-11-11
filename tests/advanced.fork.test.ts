@@ -1,6 +1,6 @@
 /**
  * End-to-end check of the advanced Safe operations against a real Safe on a local fork.
- * Run: MSV_FORK=1 npx vitest run tests/advanced.fork.test.ts   (needs Foundry's `anvil` and network access)
+ * Run: MSV_FORK=1 pnpm vitest run tests/advanced.fork.test.ts   (needs Foundry's `anvil` and network access)
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import {

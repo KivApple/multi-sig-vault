@@ -320,7 +320,7 @@ describe("safe.deploy parameters", () => {
 describe("safe.signMessage", () => {
 	const digest = keccak256(stringToHex("MultiSigVault release v1\nabc"));
 
-	it("matches the calldata `npm run release:info` asks the developer Safe to execute", () => {
+	it("matches the calldata `pnpm release:info` asks the developer Safe to execute", () => {
 		expect(signMessageCalldata(digest)).toBe(releaseCalldata(digest));
 		expect(signMessageCalldata(digest).slice(0, 10)).toBe("0x85a5affe");
 		expect(SAFE_141.signMessageLib).toBe("0xd53cd0aB83D845Ac265BE939c57F53AD838012c9");
