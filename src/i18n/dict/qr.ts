@@ -3,8 +3,6 @@ import { defineDict } from "../define";
 export default defineDict({
 	en: {
 		"qr.tooLong": "Too much data for a QR code. Copy it as text instead.",
-		"qr.copyText": "Copy as text",
-		"qr.share": "Share",
 		"qr.frame": "Frame {index} of {total}",
 		"qr.framesHint": "Keep the camera on the code until all frames are read.",
 		"qr.scanTitle": "Scan QR",
@@ -25,8 +23,6 @@ export default defineDict({
 	},
 	ru: {
 		"qr.tooLong": "Слишком много данных для QR. Скопируйте текстом.",
-		"qr.copyText": "Скопировать текстом",
-		"qr.share": "Поделиться",
 		"qr.frame": "Кадр {index} из {total}",
 		"qr.framesHint": "Держите камеру на коде, пока не считаются все кадры.",
 		"qr.scanTitle": "Сканировать QR",

@@ -1,7 +1,5 @@
-import { Copy, Share2 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog } from "@/components/ui/Dialog";
-import { useCopy } from "@/hooks/useCopy";
 import { useT } from "@/i18n";
 import { splitFrames } from "@/lib/qr/frames";
 import { QrCode } from "./QrCode";
@@ -22,11 +20,12 @@ const SINGLE_MAX = 900;
 const FRAME_CHUNK = 360;
 const FRAME_MS = 250;
 
-const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
-
+/**
+ * QR only, on purpose: the payload may carry an agent private key, so it must not leave the screen
+ * through the clipboard or the system share sheet.
+ */
 export const TransferQrDialog: React.FC<TransferQrDialogProps> = ({ open, onClose, title, text, summary }) => {
 	const t = useT();
-	const copy = useCopy();
 	const frames = useMemo(() => splitFrames(text, text.length <= SINGLE_MAX ? SINGLE_MAX : FRAME_CHUNK), [text]);
 	const [index, setIndex] = useState(0);
 	const animated = frames.length > 1;
@@ -38,34 +37,10 @@ export const TransferQrDialog: React.FC<TransferQrDialogProps> = ({ open, onClos
 		return () => clearInterval(timer);
 	}, [open, animated, frames]);
 
-	const handleCopy = useCallback(() => void copy(text), [copy, text]);
-	const handleShare = useCallback(() => {
-		// Rejection = the user dismissed the share sheet.
-		void navigator.share({ text }).catch(() => undefined);
-	}, [text]);
-
-	const actions = useMemo(
-		() => (
-			<>
-				{canShare && (
-					<button type="button" className="btn btn-ghost" onClick={handleShare}>
-						<Share2 className="size-4" />
-						{t("qr.share")}
-					</button>
-				)}
-				<button type="button" className="btn btn-primary" onClick={handleCopy}>
-					<Copy className="size-4" />
-					{t("qr.copyText")}
-				</button>
-			</>
-		),
-		[handleCopy, handleShare, t],
-	);
-
 	const current = frames[Math.min(index, frames.length - 1)];
 
 	return (
-		<Dialog open={open} onClose={onClose} title={title} actions={actions}>
+		<Dialog open={open} onClose={onClose} title={title}>
 			<div className="flex flex-col items-center gap-3">
 				{summary && <div className="w-full text-sm">{summary}</div>}
 				<QrCode value={current} size={320} />
