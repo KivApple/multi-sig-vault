@@ -1,5 +1,5 @@
 import { CircleCheck, ExternalLink, RotateCcw, Trash2 } from "lucide-react";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AddressLabel } from "@/components/common/AddressLabel";
 import { Notice } from "@/components/common/Notice";
 import { IconButton } from "@/components/ui/IconButton";
@@ -21,6 +21,8 @@ export interface SentOperationProps {
 	def: OpDefinition;
 	account: Account;
 }
+
+const STUCK_AFTER_MS = 3 * 60_000;
 
 /** Submitted operation: what was done, on-chain status and operation-specific results. */
 export const SentOperation: React.FC<SentOperationProps> = ({ op, def, account }) => {
@@ -52,6 +54,23 @@ export const SentOperation: React.FC<SentOperationProps> = ({ op, def, account }
 	}, [confirm, def, op, t]);
 
 	const handleRetry = useCallback(() => retrySafeOperation(op.id), [op.id]);
+
+	// A transaction that is still not mined after a while most likely pays too little.
+	const sentAt = result?.sentAt;
+	const [stuck, setStuck] = useState(false);
+	useEffect(() => {
+		if (!pending || sentAt === undefined) {
+			setStuck(false);
+			return undefined;
+		}
+		const left = sentAt + STUCK_AFTER_MS - Date.now();
+		if (left <= 0) {
+			setStuck(true);
+			return undefined;
+		}
+		const timer = setTimeout(() => setStuck(true), left);
+		return () => clearTimeout(timer);
+	}, [pending, sentAt]);
 
 	return (
 		<OpCardFrame
@@ -98,6 +117,15 @@ export const SentOperation: React.FC<SentOperationProps> = ({ op, def, account }
 						</a>
 					)}
 				</div>
+			)}
+			{stuck && (
+				<Notice tone="warning">
+					<p>{t("ops.stuckNote")}</p>
+					<button type="button" className="btn btn-sm mt-2" onClick={handleRetry}>
+						<RotateCcw className="size-4" />
+						{t("ops.sendAgain")}
+					</button>
+				</Notice>
 			)}
 			{reverted && (
 				<Notice tone="error">

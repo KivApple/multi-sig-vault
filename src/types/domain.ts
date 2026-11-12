@@ -1,4 +1,5 @@
 import type { Address, Hex } from "viem";
+import type { FeeSpeed } from "@/lib/evm/fees";
 
 export type NetworkEnv = "mainnet" | "testnet";
 export type AccountKind = "hl" | "safe";
@@ -120,6 +121,8 @@ export interface Settings {
 	theme: ThemeSetting;
 	lang: LangSetting;
 	mevProtection: boolean;
+	/** Fee level of the transactions the app sends itself. */
+	feeSpeed: FeeSpeed;
 	tokenListAutoUpdate: boolean;
 	verifyUpdates: boolean;
 	/** Let hardware wallet SDKs fetch clear-signing descriptors from the vendor's servers. */

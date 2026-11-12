@@ -5,6 +5,7 @@ import { AddressLabel } from "@/components/common/AddressLabel";
 import { Notice } from "@/components/common/Notice";
 import { Dialog } from "@/components/ui/Dialog";
 import { Spinner } from "@/components/ui/Spinner";
+import { FeeChoice } from "./FeeChoice";
 import { getChain } from "@/config/chains";
 import { useCached } from "@/hooks/useCached";
 import { useLang, useT } from "@/i18n";
@@ -30,8 +31,8 @@ export interface SignerPickerDialogProps {
 	disabledReason?: (signer: Signer) => string | undefined;
 	/** Show each address' native coin balance on this chain (the picked signer pays gas). */
 	balanceChainId?: number;
-	/** Estimated network fee in wei; `null` – being estimated. */
-	feeWei?: bigint | null;
+	/** Gas the transaction is expected to use; `null` – being estimated. Shows the fee and the speed choice. */
+	feeGas?: bigint | null;
 	scope?: AddressScope;
 	/** Runs the wallet interaction; the dialog shows progress, closes on success and shows the error otherwise. */
 	onPick: (signer: Signer) => Promise<void>;
@@ -47,7 +48,7 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 	signed,
 	disabledReason,
 	balanceChainId,
-	feeWei,
+	feeGas,
 	scope,
 	onPick,
 }) => {
@@ -110,18 +111,7 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 	return (
 		<Dialog open={open} onClose={onClose} title={title}>
 			{hint && <div className="text-base-content/70 mb-3 text-sm">{hint}</div>}
-			{chain && feeWei !== undefined && (
-				<div className="bg-base-200 rounded-field mb-3 flex items-center justify-between px-3 py-2 text-sm">
-					<span className="text-base-content/70">{t("ops.networkFee")}</span>
-					{feeWei === null ? (
-						<Spinner size="xs" />
-					) : (
-						<span className="tabular font-medium">
-							≈ {formatAmount(formatUnits(feeWei, 18), lang, 6)} {chain.nativeSymbol}
-						</span>
-					)}
-				</div>
-			)}
+			{balanceChainId !== undefined && feeGas !== undefined && <FeeChoice chainId={balanceChainId} gas={feeGas} />}
 			<ul className="-mx-2 flex flex-col">
 				{rows.map(({ address, signer, done, reason }) => {
 					const disabled = !signer || done || !!reason || !!busy;

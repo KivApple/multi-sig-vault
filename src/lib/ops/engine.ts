@@ -293,8 +293,6 @@ export const sendHlOperation = async (op: Operation, account: Account, leaderSig
 export interface SafeSendPlan {
 	data: Hex;
 	gas: bigint;
-	/** Estimated cost in wei. */
-	fee: bigint;
 }
 
 /** Checks the Safe state, dry-runs `execTransaction` and estimates its cost for `from`. */
@@ -322,8 +320,7 @@ export const planSafeSend = async (op: Operation, account: Account, from: Addres
 	}
 	// Safe needs headroom: the inner call gets 63/64 of what is left.
 	gas = (gas * 13n) / 10n + 20_000n;
-	const gasPrice = await client.getGasPrice().catch(() => 0n);
-	return { data, gas, fee: gas * gasPrice };
+	return { data, gas };
 };
 
 /** Executes the Safe transaction from `executor` (any address may pay for gas). */

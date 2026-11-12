@@ -6,6 +6,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
 	lang: "system",
 	mevProtection: true,
+	feeSpeed: "fast",
 	tokenListAutoUpdate: true,
 	verifyUpdates: true,
 	clearSigning: true,

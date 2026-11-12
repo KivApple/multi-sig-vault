@@ -125,7 +125,7 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 		setFee(null);
 		planSafeSend(op, account, sendAddresses[0])
 			.then((plan) => {
-				if (!stale) setFee(plan.fee);
+				if (!stale) setFee(plan.gas);
 			})
 			.catch((e: unknown) => {
 				if (stale) return;
@@ -284,7 +284,7 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 				hint={account.kind === "hl" ? t("ops.pick.sendHlHint") : t("ops.pick.sendSafeHint")}
 				addresses={sendAddresses}
 				balanceChainId={account.kind === "safe" ? account.chainId : undefined}
-				feeWei={account.kind === "safe" ? fee : undefined}
+				feeGas={account.kind === "safe" ? fee : undefined}
 				scope={scope}
 				onPick={handleSendPick}
 			/>

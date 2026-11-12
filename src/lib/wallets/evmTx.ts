@@ -6,8 +6,8 @@ import {
 	type TransactionSerializable,
 	type TransactionSerialized,
 } from "viem";
-import { findChain } from "@/config/chains";
 import { errorText, WalletError } from "@/lib/errors";
+import { quoteFees } from "@/lib/evm/fees";
 import { sameAddress } from "@/lib/format";
 import { getBroadcastClient, getPublicClient } from "@/lib/rpc";
 import type { TxRequest } from "./types";
@@ -31,7 +31,7 @@ const GAS_BUFFER_DEN = 100n;
 const shortMessage = (e: unknown): string =>
 	(e as { shortMessage?: string }).shortMessage ?? (e as { details?: string }).details ?? errorText(e);
 
-/** Fills nonce, gas and fees. EIP-1559 when the chain supports it, legacy otherwise. */
+/** Fills nonce, gas and fees (see quoteFees). EIP-1559 when the chain supports it, legacy otherwise. */
 export const prepareTx = async (from: Address, tx: TxRequest): Promise<PreparedTx> => {
 	const client = getPublicClient(tx.chainId);
 	const value = tx.value ?? 0n;
@@ -45,21 +45,14 @@ export const prepareTx = async (from: Address, tx: TxRequest): Promise<PreparedT
 						.then((g) => (g * GAS_BUFFER_NUM) / GAS_BUFFER_DEN),
 		]);
 		const base = { chainId: tx.chainId, nonce, gas, to: tx.to, data: tx.data, value };
-		if (!findChain(tx.chainId)?.legacyTx) {
-			try {
-				const fees = await client.estimateFeesPerGas({ type: "eip1559" });
-				return {
-					...base,
-					type: "eip1559",
-					maxFeePerGas: fees.maxFeePerGas,
-					maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
-				};
-			} catch {
-				// Chain without EIP-1559 – fall back to a legacy transaction.
-			}
-		}
-		const gasPrice = await client.getGasPrice();
-		return { ...base, type: "legacy", gasPrice: (gasPrice * 110n) / 100n };
+		const fees = (await quoteFees(tx.chainId))[tx.speed ?? "fast"];
+		if (fees.type === "legacy") return { ...base, type: "legacy", gasPrice: fees.gasPrice };
+		return {
+			...base,
+			type: "eip1559",
+			maxFeePerGas: fees.maxFeePerGas,
+			maxPriorityFeePerGas: fees.maxPriorityFeePerGas,
+		};
 	} catch (e) {
 		if (e instanceof WalletError) throw e;
 		throw new WalletError("unknown", shortMessage(e));

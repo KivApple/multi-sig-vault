@@ -1,3 +1,4 @@
+import type { FeeSpeed } from "@/lib/evm/fees";
 import { getAddress, isAddress, isHex, size, type Address, type Hex } from "viem";
 import type { WalletErrorCode } from "@/lib/errors";
 import type { TxRequest, TypedDataPayload } from "@/lib/wallets/types";
@@ -15,6 +16,7 @@ export interface WireTx {
 	data: Hex;
 	value: string;
 	gas?: string;
+	speed?: FeeSpeed;
 }
 
 export type HandoffResponse = { ok: true; result: unknown } | { ok: false; code: WalletErrorCode; detail?: string };
@@ -25,6 +27,7 @@ export const toWireTx = (tx: TxRequest): WireTx => ({
 	data: tx.data,
 	value: (tx.value ?? 0n).toString(),
 	...(tx.gas !== undefined ? { gas: tx.gas.toString() } : {}),
+	...(tx.speed ? { speed: tx.speed } : {}),
 });
 
 export const fromWireTx = (tx: WireTx): TxRequest => ({
@@ -33,6 +36,7 @@ export const fromWireTx = (tx: WireTx): TxRequest => ({
 	data: tx.data,
 	value: BigInt(tx.value),
 	...(tx.gas !== undefined ? { gas: BigInt(tx.gas) } : {}),
+	...(tx.speed ? { speed: tx.speed } : {}),
 });
 
 const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null && !Array.isArray(v);
@@ -72,7 +76,8 @@ export const parseRequest = (value: unknown): HandoffRequest | undefined => {
 			!isAddress(tx.to) ||
 			!isHex(tx.data) ||
 			!isDecimal(tx.value) ||
-			(tx.gas !== undefined && !isDecimal(tx.gas))
+			(tx.gas !== undefined && !isDecimal(tx.gas)) ||
+			(tx.speed !== undefined && tx.speed !== "slow" && tx.speed !== "fast")
 		) {
 			return undefined;
 		}
@@ -80,7 +85,14 @@ export const parseRequest = (value: unknown): HandoffRequest | undefined => {
 			v: 1,
 			method: "sendTransaction",
 			address,
-			tx: { chainId: tx.chainId, to: getAddress(tx.to), data: tx.data, value: tx.value, gas: tx.gas as string },
+			tx: {
+				chainId: tx.chainId,
+				to: getAddress(tx.to),
+				data: tx.data,
+				value: tx.value,
+				gas: tx.gas as string,
+				speed: tx.speed as FeeSpeed | undefined,
+			},
 		};
 	}
 	return undefined;

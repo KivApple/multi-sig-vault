@@ -1,4 +1,5 @@
 import type { Address, Hex } from "viem";
+import type { FeeSpeed } from "@/lib/evm/fees";
 import type { Signer, WalletKind } from "@/types/domain";
 
 export interface TypedDataPayload {
@@ -15,6 +16,8 @@ export interface TxRequest {
 	data: Hex;
 	value?: bigint;
 	gas?: bigint;
+	/** Fee level; the sender's setting when absent. */
+	speed?: FeeSpeed;
 }
 
 export interface DiscoveredAccount {

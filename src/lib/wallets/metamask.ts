@@ -33,6 +33,7 @@
 import { getAddress, numberToHex, type Address, type Hex } from "viem";
 import { findChain } from "@/config/chains";
 import { WalletError } from "@/lib/errors";
+import { quoteFees } from "@/lib/evm/fees";
 import { sameAddress } from "@/lib/format";
 import { getPublicClient } from "@/lib/rpc";
 import type { Signer } from "@/types/domain";
@@ -419,14 +420,11 @@ const suggestedGas = async (from: Address, tx: TxRequest): Promise<Record<string
 			.catch(() => undefined));
 	if (gas !== undefined) out.gas = numberToHex(gas);
 	try {
-		if (findChain(tx.chainId)?.legacyTx) {
-			out.gasPrice = numberToHex(((await client.getGasPrice()) * 110n) / 100n);
+		const fees = (await quoteFees(tx.chainId))[tx.speed ?? "fast"];
+		if (fees.type === "legacy") {
+			out.gasPrice = numberToHex(fees.gasPrice);
 		} else {
-			const [fees, block] = await Promise.all([client.estimateFeesPerGas({ type: "eip1559" }), client.getBlock()]);
-			// The cap leaves room for the base fee to double while the user reads the request in the wallet;
-			// only base fee + tip is ever charged, so a higher cap costs nothing.
-			const roomy = (block.baseFeePerGas ?? 0n) * 2n + fees.maxPriorityFeePerGas;
-			out.maxFeePerGas = numberToHex(roomy > fees.maxFeePerGas ? roomy : fees.maxFeePerGas);
+			out.maxFeePerGas = numberToHex(fees.maxFeePerGas);
 			out.maxPriorityFeePerGas = numberToHex(fees.maxPriorityFeePerGas);
 		}
 	} catch {

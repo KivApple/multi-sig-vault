@@ -1,6 +1,7 @@
 import type { Hex } from "viem";
 import { WalletError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
+import { useAppStore } from "@/store/appStore";
 import type { Signer, WalletKind } from "@/types/domain";
 import { ledgerAdapter } from "./ledger";
 import { metamaskAdapter } from "./metamask";
@@ -40,7 +41,8 @@ export const signTypedDataWith = (signer: Signer, data: TypedDataPayload): Promi
 
 export const sendTransactionWith = async (signer: Signer, tx: TxRequest): Promise<Hex> => {
 	try {
-		const hash = await getWallet(signer.wallet).sendTransaction(signer, tx);
+		const speed = tx.speed ?? useAppStore.getState().settings.feeSpeed;
+		const hash = await getWallet(signer.wallet).sendTransaction(signer, { ...tx, speed });
 		if (!/^0x[0-9a-fA-F]{64}$/.test(hash)) throw new WalletError("unknown", `Unexpected response: ${String(hash)}`);
 		return hash;
 	} catch (e) {

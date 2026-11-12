@@ -59,7 +59,7 @@ export const CreateSafePage: React.FC = () => {
 	const [draft, setDraft] = useDraft(newSalt);
 	const deployment = useDeployment();
 	const [picking, setPicking] = useState(false);
-	const [feeWei, setFeeWei] = useState<bigint | null | undefined>(null);
+	const [feeGas, setFeeGas] = useState<bigint | null | undefined>(null);
 
 	const modeParam = params.get("mode");
 	const mode: CreateMode = modeParam === "copy" || modeParam === "vanity" ? modeParam : "new";
@@ -157,18 +157,16 @@ export const CreateSafePage: React.FC = () => {
 	useEffect(() => {
 		if (!picking || !plan || payerAddresses.length === 0) return undefined;
 		let cancelled = false;
-		setFeeWei(null);
+		setFeeGas(null);
 		const client = getPublicClient(plan.chainId);
-		Promise.all([
-			client.estimateGas({
+		client
+			.estimateGas({
 				account: payerAddresses[0],
 				to: plan.creation.factory,
 				data: encodeCreateProxy(plan.creation),
-			}),
-			client.getGasPrice(),
-		])
-			.then(([gas, price]) => !cancelled && setFeeWei(gas * price))
-			.catch(() => !cancelled && setFeeWei(undefined));
+			})
+			.then((gas) => !cancelled && setFeeGas(gas))
+			.catch(() => !cancelled && setFeeGas(undefined));
 		return () => {
 			cancelled = true;
 		};
@@ -321,7 +319,7 @@ export const CreateSafePage: React.FC = () => {
 				hint={t("createSafe.payer.hint", { network: chainConfig.name })}
 				addresses={payerAddresses}
 				balanceChainId={chainId}
-				feeWei={feeWei}
+				feeGas={feeGas}
 				onPick={handlePay}
 			/>
 		</>
