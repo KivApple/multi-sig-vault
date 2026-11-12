@@ -29,6 +29,10 @@ jobs:
         run: pnpm test
       - name: Build
         run: pnpm build
+        env:
+          # The Safe that approves releases (README, "Offline use and updates"); clients offer only approved ones
+          PUBLIC_RELEASE_SAFE: "0x22222222e8d995EA51841abc49022Fb5eb7C62b4"
+          PUBLIC_RELEASE_CHAIN_ID: "1"
       - name: Deploy
         # The website bucket in Garage is declared in infra-config (apps/garage/app.yaml).
         # rclone, not the AWS CLI: its DELETE requests sign Content-Length, which the proxy in front of Garage drops.
