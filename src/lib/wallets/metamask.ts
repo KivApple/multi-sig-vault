@@ -22,6 +22,11 @@
  *   - typed-data signatures are deterministic, so the caller may simply ask again ('timeout');
  *   - a transaction is NOT repeated automatically – its fate is unknown, and the error tells the
  *     user to check MetaMask's activity first ('txUnknown').
+ * One more Android rule: every request deeplinks into MetaMask, and Chrome lets a page open another
+ * app only from a user gesture. A request that follows another one (connect -> switch chain -> sign)
+ * has no gesture left, so its deeplink is dropped and MetaMask shows nothing. Hence after each
+ * preparatory step that sent the user to the app the adapter stops with 'continue', and the next
+ * tap starts the next step.
  * Signing needs no network on the injected path. The SDK relay needs a connection; offline on
  * Android the app should be opened inside MetaMask's browser instead.
  */
@@ -119,6 +124,7 @@ const findInjected = async (): Promise<Eip1193Provider | undefined> => {
 };
 
 let sdkSession: Promise<Session> | undefined;
+let appSession = false;
 
 const loadSdkSession = (): Promise<Session> => {
 	sdkSession ??= (async (): Promise<Session> => {
@@ -135,7 +141,8 @@ const loadSdkSession = (): Promise<Session> => {
 		await sdk.init();
 		const provider = sdk.getProvider() as unknown as Eip1193Provider | undefined;
 		if (!provider) throw new WalletError("unavailable");
-		return { provider, remote: !sdk.isExtensionActive(), connect: () => sdk.connect() };
+		appSession = !sdk.isExtensionActive();
+		return { provider, remote: appSession, connect: () => sdk.connect() };
 	})().catch((e: unknown) => {
 		sdkSession = undefined;
 		throw e instanceof WalletError ? e : new WalletError("unavailable", (e as Error).message);
@@ -257,14 +264,19 @@ const requestAccounts = async (session: Session, reselect: boolean): Promise<Add
 	return (accounts ?? []).map((a) => getAddress(a));
 };
 
+/** The mobile app was opened for a preparatory step: the next request needs a new user gesture. */
+const stepDone = (session: Session): void => {
+	if (session.remote) throw new WalletError("continue");
+};
+
 /** Makes sure the app may use `address`; asks for access again when it was revoked. */
 const ensureAccount = async (session: Session, address: Address): Promise<void> => {
 	const has = (list: Address[]): boolean => list.some((a) => sameAddress(a, address));
 	let accounts = await readAccounts(session).catch(() => [] as Address[]);
 	if (has(accounts)) return;
 	accounts = await requestAccounts(session, accounts.length > 0);
-	if (has(accounts)) return;
-	throw new WalletError("wrong-account", undefined, { address });
+	if (!has(accounts)) throw new WalletError("wrong-account", undefined, { address });
+	stepDone(session);
 };
 
 /** MetaMask only signs typed data / sends transactions for its active chain. */
@@ -302,7 +314,13 @@ const ensureChain = async (session: Session, chainId: number): Promise<void> => 
 			throw e instanceof WalletError && e.code === "rejected" ? e : new WalletError("chain", undefined, { chainId });
 		}
 	}
+	stepDone(session);
 };
+
+/** Requests go (or are about to go) to the MetaMask mobile app: nothing is injected on a phone. */
+export const metamaskUsesApp = (): boolean =>
+	appSession ||
+	(/Android|iPhone|iPad/i.test(navigator.userAgent) && !(window as unknown as { ethereum?: unknown }).ethereum);
 
 export const metamaskAdapter: WalletAdapter = {
 	kind: "metamask",

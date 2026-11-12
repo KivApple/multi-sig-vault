@@ -80,9 +80,9 @@ export const Dialog: React.FC<DialogProps> = ({
 							</button>
 						)}
 					</div>
-					<div className="min-h-0 flex-1 overflow-y-auto px-5 pb-5">{children}</div>
+					<div className={`min-h-0 flex-1 overflow-y-auto px-5 ${actions ? "pb-5" : "pb-safe"}`}>{children}</div>
 					{actions && (
-						<div className="border-base-300 pb-safe flex flex-wrap justify-end gap-2 border-t px-5 py-3">{actions}</div>
+						<div className="border-base-300 pb-safe flex flex-wrap justify-end gap-2 border-t px-5 pt-3">{actions}</div>
 					)}
 				</div>
 			)}

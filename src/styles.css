@@ -95,8 +95,9 @@
 	@apply bg-base-100 border-base-300 rounded-box border;
 }
 
+/* Bottom padding of a sheet: its own gap plus the system inset (which is 0 on most Android phones). */
 @utility pb-safe {
-	padding-bottom: env(safe-area-inset-bottom);
+	padding-bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
 @utility field-label {

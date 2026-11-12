@@ -23,6 +23,8 @@ export type WalletErrorCode =
 	| "app-closed"
 	| "blind-signing"
 	| "timeout"
+	/** A preparatory step was confirmed in the wallet; the user has to start the next one. */
+	| "continue"
 	| "unknown";
 
 export class WalletError extends AppError {

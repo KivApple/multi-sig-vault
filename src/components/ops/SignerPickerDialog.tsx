@@ -9,9 +9,11 @@ import { getChain } from "@/config/chains";
 import { useCached } from "@/hooks/useCached";
 import { useLang, useT } from "@/i18n";
 import { describeError } from "@/lib/describeError";
+import { WalletError } from "@/lib/errors";
 import { formatAmount, sameAddress } from "@/lib/format";
 import type { AddressScope } from "@/lib/known";
 import { fetchNativeBalances } from "@/lib/safe/account";
+import { metamaskUsesApp } from "@/lib/wallets/metamask";
 import { useAppStore } from "@/store/appStore";
 import type { Signer } from "@/types/domain";
 
@@ -54,11 +56,13 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 	const signers = useAppStore((s) => s.signers);
 	const [busy, setBusy] = useState<string>();
 	const [error, setError] = useState<string>();
+	const [nextStep, setNextStep] = useState<string>();
 
 	useEffect(() => {
 		if (open) {
 			setBusy(undefined);
 			setError(undefined);
+			setNextStep(undefined);
 		}
 	}, [open]);
 
@@ -86,11 +90,14 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 		async (signer: Signer) => {
 			setBusy(signer.id);
 			setError(undefined);
+			setNextStep(undefined);
 			try {
 				await onPick(signer);
 				onClose();
 			} catch (e) {
-				setError(describeError(e, t));
+				// Not a failure: the wallet finished one step and the next needs another tap.
+				if (e instanceof WalletError && e.code === "continue") setNextStep(describeError(e, t));
+				else setError(describeError(e, t));
 			} finally {
 				setBusy(undefined);
 			}
@@ -142,7 +149,7 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 											: `${formatAmount(formatUnits(BigInt(balance), 18), lang, 5)} ${chain.nativeSymbol}`}
 									</span>
 								)}
-								{busy === signer?.id ? (
+								{signer && busy === signer.id ? (
 									<Spinner />
 								) : done ? (
 									<Check className="text-success size-5 shrink-0" aria-label={t("ops.signed")} />
@@ -155,7 +162,20 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 				})}
 			</ul>
 			{rows.length === 0 && <p className="text-base-content/60 py-4 text-center text-sm">{t("ops.noSigners")}</p>}
-			{busySigner && <Notice className="mt-3">{t(`ops.confirmIn.${busySigner.wallet}`)}</Notice>}
+			{busySigner && (
+				<Notice className="mt-3">
+					{t(`ops.confirmIn.${busySigner.wallet}`)}
+					{busySigner.wallet === "metamask" && metamaskUsesApp() && (
+						<>
+							{" "}
+							<a className="link font-medium" href="metamask://">
+								{t("wallets.openMetaMask")}
+							</a>
+						</>
+					)}
+				</Notice>
+			)}
+			{nextStep && <Notice className="mt-3">{nextStep}</Notice>}
 			{error && (
 				<Notice tone="error" className="mt-3">
 					{error}

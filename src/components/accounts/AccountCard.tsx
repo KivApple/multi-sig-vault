@@ -44,57 +44,65 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, editing }) =>
 		if (ok) useAppStore.getState().removeAccount(account.id);
 	}, [confirm, account.id, title, t]);
 
-	const body = (
+	const text = (
 		<>
-			<AccountIcon kind={account.kind} env={account.env} chainId={account.chainId} size={44} />
-			<div className="min-w-0 flex-1 leading-tight">
-				<div className="truncate font-semibold">{title}</div>
-				<div className="text-base-content/60 truncate text-xs">
-					{accountNetworkName(account)}
-					{mode && ` · ${mode}`}
-				</div>
-			</div>
-			<div className="tabular shrink-0 text-right font-semibold">
-				{data ? (
-					formatUsd(data.totalUsd, lang, true)
-				) : error ? (
-					<span className="text-base-content/40">—</span>
-				) : (
-					<span className="skeleton inline-block h-5 w-16" />
-				)}
-			</div>
+			<div className="text-base-content/60 truncate text-xs">{accountNetworkName(account)}</div>
+			{mode && <div className="text-base-content/60 truncate text-xs">{mode}</div>}
 		</>
 	);
 
+	// Three short lines on the left, balance over the actions on the right: nothing competes for one row on a phone.
 	return (
-		<div className={`card-surface flex items-center gap-1 pr-1 ${account.hidden ? "opacity-50" : ""}`}>
-			{editing ? (
-				<div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-3">{body}</div>
-			) : (
-				<Link
-					to={`/account/${encodeURIComponent(account.id)}`}
-					className="hover:bg-base-200/60 rounded-box flex min-w-0 flex-1 items-center gap-3 px-3 py-3"
-				>
-					{body}
-				</Link>
-			)}
-			{editing ? (
-				<>
-					<IconButton label={t(account.hidden ? "common.show" : "common.hide")} onClick={toggleHidden}>
-						{account.hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
-					</IconButton>
-					<IconButton label={t("common.delete")} onClick={() => void handleDelete()} className="text-error">
-						<Trash2 className="size-4" />
-					</IconButton>
-				</>
-			) : (
-				<>
-					<CopyButton value={account.address} label={t("common.copyAddress")} />
-					<IconButton label={t("common.showQr")} onClick={() => setQr(true)}>
-						<QrCode className="size-4" />
-					</IconButton>
-				</>
-			)}
+		<div
+			className={`card-surface relative flex items-center gap-3 py-2.5 pr-1.5 pl-3 ${
+				editing ? "" : "hover:bg-base-200/60"
+			} ${account.hidden ? "opacity-50" : ""}`}
+		>
+			<AccountIcon kind={account.kind} env={account.env} chainId={account.chainId} size={44} />
+			<div className="min-w-0 flex-1 leading-tight">
+				{editing ? (
+					<div className="truncate font-semibold">{title}</div>
+				) : (
+					// The link's ::after covers the whole card; the action buttons sit above it.
+					<Link
+						to={`/account/${encodeURIComponent(account.id)}`}
+						className="after:rounded-box block truncate font-semibold after:absolute after:inset-0"
+					>
+						{title}
+					</Link>
+				)}
+				{text}
+			</div>
+			<div className="flex shrink-0 flex-col items-end gap-0.5">
+				<div className="tabular pr-1.5 font-semibold">
+					{data ? (
+						formatUsd(data.totalUsd, lang, true)
+					) : error ? (
+						<span className="text-base-content/40">—</span>
+					) : (
+						<span className="skeleton inline-block h-5 w-16" />
+					)}
+				</div>
+				<div className="relative z-10 flex">
+					{editing ? (
+						<>
+							<IconButton label={t(account.hidden ? "common.show" : "common.hide")} onClick={toggleHidden}>
+								{account.hidden ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+							</IconButton>
+							<IconButton label={t("common.delete")} onClick={() => void handleDelete()} className="text-error">
+								<Trash2 className="size-4" />
+							</IconButton>
+						</>
+					) : (
+						<>
+							<CopyButton value={account.address} label={t("common.copyAddress")} />
+							<IconButton label={t("common.showQr")} onClick={() => setQr(true)}>
+								<QrCode className="size-4" />
+							</IconButton>
+						</>
+					)}
+				</div>
+			</div>
 			<QrDialog
 				open={qr}
 				onClose={() => setQr(false)}
