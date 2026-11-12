@@ -1,6 +1,6 @@
-import { Pencil, QrCode, RefreshCw } from "lucide-react";
+import { History, Pencil, QrCode, RefreshCw } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
-import { Navigate, useParams } from "react-router";
+import { Link, Navigate, useParams } from "react-router";
 import { AssetsCard } from "@/components/accounts/AssetsCard";
 import { multiSigLabel } from "@/components/accounts/multiSigLabel";
 import { SignersCard } from "@/components/accounts/SignersCard";
@@ -106,6 +106,10 @@ export const AccountPage: React.FC = () => {
 				{owners && mode && <SignersCard mode={mode} owners={owners.owners} scope={scope} />}
 
 				<OperationsSection env={env} />
+				<Link className="btn btn-ghost btn-sm self-center" to={`/account/${encodeURIComponent(account.id)}/history`}>
+					<History className="size-4" />
+					{t("history.open")}
+				</Link>
 			</div>
 
 			<RenameDialog

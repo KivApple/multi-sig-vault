@@ -5,6 +5,7 @@ import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { Toaster } from "@/components/ui/Toaster";
 import { useTheme } from "@/hooks/useTheme";
 import { AccountPage } from "@/pages/AccountPage";
+import { HistoryPage } from "@/pages/HistoryPage";
 import { AccountsPage } from "@/pages/AccountsPage";
 import { AddAccountPage } from "@/pages/AddAccountPage";
 import { CreateSafePage } from "@/pages/CreateSafePage";
@@ -26,6 +27,7 @@ export const App: React.FC = () => {
 						<Route path="accounts/create-safe" element={<CreateSafePage />} />
 						<Route path="link" element={<LinkPage />} />
 						<Route path="account/:id" element={<AccountPage />} />
+						<Route path="account/:id/history" element={<HistoryPage />} />
 						<Route path="signers" element={<SignersPage />} />
 						<Route path="settings" element={<SettingsPage />} />
 						<Route path="*" element={<Navigate to="/" replace />} />

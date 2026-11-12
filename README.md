@@ -19,6 +19,8 @@ This app builds the payloads your wallets sign, so a backdoor in it could drain 
 - Hyperliquid: plain and multi-sig accounts in standard, unified and portfolio margin modes.
 - Safe 1.3.0, 1.4.1 and 1.5.0.
 - Balances refresh every 30 seconds and stay visible offline from cache.
+- History on its own page, newest first, loading older entries as you scroll. A Safe shows executed transactions with the owners that confirmed them, plus incoming transfers. A Hyperliquid account shows its ledger (deposits, withdrawals, transfers) and its own key's actions such as agent approvals and multi-sig changes; orders and trades are left out. For a multi-sig account the signers of each action are recovered from its signatures.
+- The total on the home screen counts visible accounts, mainnet and testnet separately.
 
 **Signers**
 
@@ -156,6 +158,7 @@ MSV_FORK=1 pnpm vitest run tests/*.fork.test.ts
 
 - **Hyperliquid L1 actions** (creating and renaming a sub-account) are signed in a domain with chainId 1337, which MetaMask refuses. They need a Ledger or Trezor, and they are signed as a hash.
 - **Spot withdrawal to HyperEVM** always arrives at the same address. For a multi-sig account, that address on HyperEVM is controlled by the original key. The app warns about this.
+- **Hyperliquid history** of actions that move no funds (agent approvals, multi-sig changes) comes from the explorer, which returns only an account's latest few hundred transactions, trading included. On an account that trades heavily through an agent, older actions of this kind cannot be listed. Money movements are complete.
 - **Unit minimum amounts** are taken from the Unit documentation, not from an API.
 - **Trezor** opens a Trezor Connect window, which needs either network access or a running Trezor Suite. **Ledger** connects directly and works offline.
 - **MetaMask on a phone** signs in MetaMask's built-in browser, reached through the relay described above, and needs network access. To work fully offline, open the whole app in MetaMask's browser and move operations by QR.
@@ -175,6 +178,7 @@ src/lib/wallets   MetaMask, Trezor and Ledger adapters
 src/lib/qr        QR: addresses, packing, frames
 src/lib/tokens    token lists and icons
 src/lib/update    offline releases and signature check
+src/lib/history   account history: Hyperliquid ledger and explorer, Safe Transaction Service
 src/lib/handoff   encrypted hand-off to MetaMask's browser
 relay             the blind relay server for it
 src/components    one component per file

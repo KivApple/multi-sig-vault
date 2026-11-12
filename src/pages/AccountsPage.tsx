@@ -35,19 +35,24 @@ export const AccountsPage: React.FC = () => {
 
 	const visible = useMemo(() => (editing ? accounts : accounts.filter((a) => !a.hidden)), [accounts, editing]);
 	const ids = useMemo(() => visible.map((a) => a.id), [visible]);
-	const shown = useMemo(() => accounts.filter((a) => !a.hidden), [accounts]);
-	const total = useCacheStore((s) => {
-		let sum = 0;
-		let known = false;
-		for (const a of shown) {
+	// Mainnet and testnet are never added up: testnet money is not money. Hidden accounts count only while editing.
+	const totals = useCacheStore((s) => {
+		const sums = { mainnet: 0, testnet: 0 };
+		const known = { mainnet: false, testnet: false };
+		for (const a of visible) {
 			const entry = s.entries[accountCacheKey(a)]?.data as { totalUsd?: number } | undefined;
 			if (entry?.totalUsd !== undefined) {
-				sum += entry.totalUsd;
-				known = true;
+				sums[a.env] += entry.totalUsd;
+				known[a.env] = true;
 			}
 		}
-		return known ? sum : undefined;
+		// A primitive, so the selector's result is stable between unrelated store updates.
+		return `${known.mainnet ? sums.mainnet : ""}|${known.testnet ? sums.testnet : ""}`;
 	});
+	const [mainnetTotal, testnetTotal] = totals.split("|").map((v) => (v === "" ? undefined : Number(v)));
+	// A testnet line appears only when there is something on testnet.
+	const showTestnet = testnetTotal !== undefined && testnetTotal > 0;
+	const showMainnet = mainnetTotal !== undefined && visible.some((a) => a.env === "mainnet");
 
 	const handleReorder = useCallback((next: string[]) => useAppStore.getState().reorderAccounts(next), []);
 
@@ -157,10 +162,20 @@ export const AccountsPage: React.FC = () => {
 				/>
 			) : (
 				<>
-					{total !== undefined && shown.length > 1 && !editing && (
-						<p className="text-base-content/60 mb-3 px-1 text-sm">
-							{t("accounts.total")}{" "}
-							<span className="text-base-content tabular font-semibold">{formatUsd(total, lang)}</span>
+					{visible.length > 1 && (showMainnet || showTestnet) && (
+						<p className="text-base-content/60 mb-3 flex flex-wrap gap-x-4 px-1 text-sm">
+							{showMainnet && (
+								<span>
+									{t("accounts.total")}{" "}
+									<span className="text-base-content tabular font-semibold">{formatUsd(mainnetTotal, lang)}</span>
+								</span>
+							)}
+							{showTestnet && (
+								<span>
+									Testnet{" "}
+									<span className="text-base-content tabular font-semibold">{formatUsd(testnetTotal, lang)}</span>
+								</span>
+							)}
 						</p>
 					)}
 					<SortableList ids={ids} onReorder={handleReorder}>

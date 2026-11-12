@@ -272,6 +272,12 @@ export const HL_API: Record<NetworkEnv, string> = {
 	testnet: "https://api.hyperliquid-testnet.xyz",
 };
 
+/** Explorer RPC: transaction details by hash (who sent it, the signed action). */
+export const HL_EXPLORER_API: Record<NetworkEnv, string> = {
+	mainnet: "https://rpc.hyperliquid.xyz/explorer",
+	testnet: "https://rpc.hyperliquid-testnet.xyz/explorer",
+};
+
 export const HL_APP: Record<NetworkEnv, string> = {
 	mainnet: "https://app.hyperliquid.xyz",
 	testnet: "https://app.hyperliquid-testnet.xyz",
