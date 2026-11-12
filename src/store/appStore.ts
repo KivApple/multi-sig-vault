@@ -83,6 +83,12 @@ export const useAppStore = create<AppState>()((set) => ({
 const STATE_KEY = "app";
 const channel = typeof BroadcastChannel === "undefined" ? undefined : new BroadcastChannel("msv-state");
 
+/**
+ * Revision of the stored state this tab last wrote or read. Every save gets a new one, so a tab can
+ * tell whether what is stored is newer than what it shows without comparing the data itself.
+ */
+let seenRev: string | undefined;
+
 const snapshot = (s: AppState): Persisted => ({
 	version: 1,
 	accounts: s.accounts,
@@ -98,11 +104,20 @@ const flush = (): void => {
 	if (saveTimer === undefined) return;
 	clearTimeout(saveTimer);
 	saveTimer = undefined;
-	void idbSet("state", STATE_KEY, snapshot(useAppStore.getState())).then(() => channel?.postMessage("changed"));
+	const rev = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+	seenRev = rev;
+	void idbSet("state", STATE_KEY, { ...snapshot(useAppStore.getState()), rev }).then(() =>
+		channel?.postMessage("changed"),
+	);
 };
 
 const load = async (): Promise<void> => {
-	const saved = await idbGet<Persisted>("state", STATE_KEY).catch(() => undefined);
+	const saved = await idbGet<Persisted & { rev?: string }>("state", STATE_KEY).catch(() => undefined);
+	// Nothing new since this tab last looked: leave the state (and everything rendered from it) alone.
+	if (useAppStore.getState().ready && saved?.rev !== undefined && saved.rev === seenRev) return;
+	// A change made here while the read was on its way is newer than what was read; it gets saved next.
+	if (saveTimer !== undefined) return;
+	seenRev = saved?.rev;
 	applyingRemote = true;
 	useAppStore.setState({
 		ready: true,
@@ -139,9 +154,18 @@ export const initAppStore = async (): Promise<void> => {
 	});
 	window.addEventListener("pagehide", flush);
 	// Another tab saved the state – pick it up so tabs never overwrite each other with stale data.
-	channel?.addEventListener("message", () => {
+	const refresh = (): void => {
 		if (saveTimer === undefined) void load();
+	};
+	channel?.addEventListener("message", refresh);
+	// A tab that was in the background may have been frozen and missed the message: whenever it comes
+	// back to the user it reads the stored state before anything can be changed in it.
+	document.addEventListener("visibilitychange", () => {
+		if (document.visibilityState === "visible") refresh();
 	});
+	window.addEventListener("pageshow", refresh);
+	window.addEventListener("focus", refresh);
+	document.addEventListener("resume", refresh);
 	void navigator.storage?.persist?.();
 };
 
