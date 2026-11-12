@@ -422,8 +422,11 @@ const suggestedGas = async (from: Address, tx: TxRequest): Promise<Record<string
 		if (findChain(tx.chainId)?.legacyTx) {
 			out.gasPrice = numberToHex(((await client.getGasPrice()) * 110n) / 100n);
 		} else {
-			const fees = await client.estimateFeesPerGas({ type: "eip1559" });
-			out.maxFeePerGas = numberToHex(fees.maxFeePerGas);
+			const [fees, block] = await Promise.all([client.estimateFeesPerGas({ type: "eip1559" }), client.getBlock()]);
+			// The cap leaves room for the base fee to double while the user reads the request in the wallet;
+			// only base fee + tip is ever charged, so a higher cap costs nothing.
+			const roomy = (block.baseFeePerGas ?? 0n) * 2n + fees.maxPriorityFeePerGas;
+			out.maxFeePerGas = numberToHex(roomy > fees.maxFeePerGas ? roomy : fees.maxFeePerGas);
 			out.maxPriorityFeePerGas = numberToHex(fees.maxPriorityFeePerGas);
 		}
 	} catch {
