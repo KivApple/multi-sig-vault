@@ -28,6 +28,8 @@ export default defineDict({
 		"update.verify.verified": "Version {version}: signature confirmed",
 		"update.verify.pending": "Version {version}: could not reach the network to verify, will retry",
 		"update.verify.notConfigured": "On-chain verification is not included in this build",
+		"update.source": "Source code",
+		"update.sourceHint": "Read it, or have your own AI agent audit it, before trusting the app with signatures.",
 		"update.error.offline": "No connection to the update server",
 		"update.error.integrity": "Downloaded files are damaged. Check again.",
 	},
@@ -58,6 +60,9 @@ export default defineDict({
 		"update.verify.verified": "Версия {version}: подпись подтверждена",
 		"update.verify.pending": "Версия {version}: нет связи с сетью для проверки, повторим позже",
 		"update.verify.notConfigured": "Проверка в блокчейне не включена в эту сборку",
+		"update.source": "Исходный код",
+		"update.sourceHint":
+			"Прочитайте его или отдайте на проверку своему ИИ-агенту, прежде чем доверять приложению подписи.",
 		"update.error.offline": "Нет связи с сервером обновлений",
 		"update.error.integrity": "Загруженные файлы повреждены. Проверьте ещё раз.",
 	},

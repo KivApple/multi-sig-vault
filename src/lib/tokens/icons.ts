@@ -1,5 +1,6 @@
 import { idbDel, idbGet, idbGetAll, idbSet } from "@/lib/idb";
 import type { TokenInfo } from "@/types/domain";
+import { isHlIconKey } from "./hlIcons";
 import { mirrorLogoUrl } from "./sanitize";
 import { bumpIconEpoch, useTokenStore } from "./store";
 
@@ -34,7 +35,8 @@ const persist = (): Promise<unknown> =>
 export const initIcons = async (): Promise<void> => {
 	try {
 		const [stored, state] = await Promise.all([idbGetAll<Blob>("icons"), idbGet<IconState>("meta", STATE_KEY)]);
-		for (const [url, blob] of stored) if (blob instanceof Blob) blobs.set(url, blob);
+		// Exchange coin icons share the store and are managed by hlIcons.ts.
+		for (const [url, blob] of stored) if (blob instanceof Blob && !isHlIconKey(url)) blobs.set(url, blob);
 		index = state?.index ?? {};
 		failed = new Set(state?.failed ?? []);
 		useTokenStore.setState({ iconCount: blobs.size });

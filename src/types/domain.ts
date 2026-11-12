@@ -156,7 +156,7 @@ export interface AssetRow {
 	/** Icon lookup hints. */
 	icon: { chainId?: number; address?: Address; symbol: string; hl?: boolean };
 	/** Perp position: its current value and the margin it holds, in USD. */
-	position?: { notional: number; margin: number };
+	position?: { notional: number; margin: number; isolated: boolean };
 	/** Extra caption, e.g. "Long 5x" / "PnL +12$". */
 	note?: string;
 }

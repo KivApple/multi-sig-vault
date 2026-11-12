@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type CSSProperties } from "react";
 import type { Address } from "viem";
 import { builtinIconUrl } from "@/lib/tokens/builtinPack";
+import { hlIconUrl } from "@/lib/tokens/hlIcons";
 import { downloadedIconUrl } from "@/lib/tokens/icons";
 import { useTokenStore } from "@/lib/tokens/store";
 import { iconSymbol } from "@/lib/tokens/symbols";
@@ -18,7 +19,8 @@ export interface TokenIconProps {
 
 /**
  * Token icon from local sources only: the bulk-downloaded icon for this exact token,
- * then the built-in pack by symbol, then a letter avatar. Nothing is requested per token.
+ * then the built-in pack by symbol, then (exchange coins) the icon fetched in bulk through the relay,
+ * then a letter avatar. Nothing is requested per token.
  */
 export const TokenIcon: React.FC<TokenIconProps> = ({ symbol, chainId, address, hl, size = 24, className }) => {
 	const epoch = useTokenStore((s) => s.iconEpoch);
@@ -27,7 +29,8 @@ export const TokenIcon: React.FC<TokenIconProps> = ({ symbol, chainId, address, 
 	const src = useMemo(
 		() =>
 			(chainId !== undefined && address ? downloadedIconUrl(chainId, address) : undefined) ??
-			builtinIconUrl(iconSymbol(symbol, hl)),
+			builtinIconUrl(iconSymbol(symbol, hl)) ??
+			(hl ? hlIconUrl(iconSymbol(symbol, true)) : undefined),
 		// `epoch` changes when new icons arrive.
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 		[symbol, chainId, address, hl, epoch],

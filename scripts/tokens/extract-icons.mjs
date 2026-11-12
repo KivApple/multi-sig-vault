@@ -110,5 +110,16 @@ for (const symbol of [...wanted].sort()) {
 	pack[symbol] = min;
 	bytes += min.length;
 }
+// Hyperliquid coins the pack knows nothing about (stocks and indices of builder dexes, exchange-only
+// tokens) get the exchange's own icon, fetched by fetch-hl-icons.mjs.
+const hlIcons = JSON.parse(readFileSync(new URL("./hl-icons.json", import.meta.url), "utf8"));
+let fromExchange = 0;
+for (const [symbol, svg] of Object.entries(hlIcons)) {
+	if (pack[symbol] || CORE.includes(symbol) || !/^[A-Z0-9]+$/.test(symbol)) continue;
+	pack[symbol] = svg;
+	bytes += svg.length;
+	fromExchange++;
+}
+console.log(`from the exchange: ${fromExchange} icons`);
 writeFileSync(join(OUT, "token-pack.json"), `${JSON.stringify(pack)}\n`);
 console.log(`token pack: ${Object.keys(pack).length} icons, ${(bytes / 1024).toFixed(0)} KB`);

@@ -1,3 +1,5 @@
+import { relayAvailable, relayUrl } from "@/lib/handoff/client";
+import { initHlIcons, syncHlIcons } from "./hlIcons";
 import { CHAINS, HL_API } from "@/config/chains";
 import { TOKEN_LIST_UPDATE_INTERVAL_MS } from "@/config/constants";
 import { errorText } from "@/lib/errors";
@@ -123,6 +125,8 @@ export const updateTokenLists = (): Promise<void> => {
 const autoUpdateIfDue = (): void => {
 	if (!useAppStore.getState().settings.tokenListAutoUpdate || !navigator.onLine) return;
 	if (document.visibilityState !== "visible") return;
+	// Icons of exchange coins listed after this build; the module itself keeps to one pass a week.
+	void syncHlIcons(relayUrl, relayAvailable);
 	const { updatedAt, updating: busy } = useTokenStore.getState();
 	if (!busy && (!updatedAt || Date.now() - updatedAt >= TOKEN_LIST_UPDATE_INTERVAL_MS)) void updateTokenLists();
 };
@@ -148,6 +152,7 @@ export const initTokens = async (): Promise<void> => {
 		// Built-in snapshot stays in use.
 	}
 	await initIcons();
+	await initHlIcons();
 	setTimeout(() => {
 		autoUpdateIfDue();
 		// Resume an interrupted icon download (no-op when everything is cached).

@@ -1,8 +1,9 @@
-import { RefreshCw, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
+import { ExternalLink, RefreshCw, ShieldAlert, ShieldCheck, ShieldQuestion } from "lucide-react";
 import { useCallback, useMemo, type ChangeEvent } from "react";
 import { SettingRow } from "@/components/ui/SettingRow";
 import { SettingsSection } from "@/components/ui/SettingsSection";
 import { findChain } from "@/config/chains";
+import { SOURCE_URL } from "@/config/constants";
 import { useLang, useT } from "@/i18n";
 import { formatRelative, shortAddress } from "@/lib/format";
 import { RELEASE_SIGNER, applyUpdate, checkForUpdate, useUpdate } from "@/lib/update";
@@ -127,6 +128,22 @@ export const UpdateSettingsSection: React.FC = () => {
 					<span>{verificationLine.text}</span>
 				</div>
 			)}
+			<SettingRow
+				label={t("update.source")}
+				hint={t("update.sourceHint")}
+				control={
+					<a
+						className="btn btn-ghost btn-sm"
+						href={SOURCE_URL}
+						target="_blank"
+						rel="noopener noreferrer"
+						aria-label={t("update.source")}
+					>
+						GitHub
+						<ExternalLink className="size-4" />
+					</a>
+				}
+			/>
 		</SettingsSection>
 	);
 };

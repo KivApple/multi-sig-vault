@@ -47,7 +47,11 @@ export const AccountCard: React.FC<AccountCardProps> = ({ account, editing }) =>
 	const text = (
 		<>
 			<div className="text-base-content/60 truncate text-xs">{accountNetworkName(account)}</div>
-			{mode && <div className="text-base-content/60 truncate text-xs">{mode}</div>}
+			{mode && (
+				<div className="mt-1">
+					<span className="badge badge-ghost badge-xs text-base-content/70 whitespace-nowrap">{mode}</span>
+				</div>
+			)}
 		</>
 	);
 

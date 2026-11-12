@@ -63,6 +63,8 @@ export interface HlPerpPosition {
 	notional: number;
 	/** Margin the position holds. */
 	margin: number;
+	/** Isolated margin; otherwise the position shares the cross margin of the account. */
+	isolated: boolean;
 	pnl: number;
 	leverage: number;
 }
@@ -130,6 +132,7 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 				size: p.szi,
 				notional: Number(p.positionValue),
 				margin: Number(p.marginUsed) || 0,
+				isolated: p.leverage.type === "isolated",
 				pnl,
 				leverage: p.leverage.value,
 			});
@@ -197,7 +200,7 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 			symbol: p.coin,
 			amount: p.size,
 			usd: p.pnl,
-			position: { notional: p.notional, margin: p.margin },
+			position: { notional: p.notional, margin: p.margin, isolated: p.isolated },
 			kind: "perp",
 			icon: { symbol: p.coin, hl: true },
 			note: `${p.leverage}x`,

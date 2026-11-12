@@ -26,7 +26,9 @@ Almost nothing leaves your device except requests to public APIs: chain RPC endp
 - Every signature is checked against the signer's address after it comes back.
 - What the server side does see is metadata: your IP address, the time and the random id of the exchange. The relay itself writes no logs, but the web server in front of it and Cloudflare keep ordinary access logs with exactly that metadata.
 
-Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/server.mjs`, about a hundred lines with no dependencies; a copy of the app hosted without it falls back to MetaMask SDK.
+Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/server.mjs`, one file with no dependencies; a copy of the app hosted without it falls back to MetaMask SDK.
+
+**Icons of exchange coins come through the same relay, without telling it what you hold.** Hyperliquid serves its coin icons in a way a browser app cannot fetch, so the relay re-serves them from a disk cache (30 days by default, `ICON_CACHE_DAYS`). The app never asks for the icon of a coin on your account. Once a week it downloads the icons of every listed coin that is not already built in, in the exchange's own listing order, so every user sends the relay the same requests and it cannot tell which coins anybody holds. The icons the app starts with are part of the build; turning off "Update weekly" for token lists stops these downloads too. Token logos on EVM networks follow the same rule: whole lists, never per holding.
 
 **Stable updates are signed on-chain.** The installed app offers an update only after the developer's Safe [`0x22222222e8d995EA51841abc49022Fb5eb7C62b4`](https://etherscan.io/address/0x22222222e8d995EA51841abc49022Fb5eb7C62b4) on Ethereum (2 of 3 signers) has approved that exact release: its id commits to the SHA-256 of every file, and the app asks two independent RPC endpoints whether the Safe signed it. Unsigned test builds are installed only if you turn on "Test versions" in settings. The check protects installed copies; a first visit, and the service worker file itself, are served as the site has them. Details are in [Offline use and updates](#offline-use-and-updates).
 
@@ -213,7 +215,7 @@ src/lib/tokens    token lists and icons
 src/lib/update    offline releases and signature check
 src/lib/history   account history: Hyperliquid ledger and explorer, Safe Transaction Service
 src/lib/handoff   encrypted hand-off to MetaMask's browser
-relay             the blind relay server for it
+relay             the relay server: blind mailbox for the hand-off, cached exchange icons
 src/components    one component per file
 src/i18n          en and ru
 scripts           icons, token lists, dictionaries, release.json

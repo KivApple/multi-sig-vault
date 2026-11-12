@@ -21,7 +21,7 @@ import { parseResult, type HandoffRequest, type HandoffResponse } from "./protoc
  * browser and waits for the encrypted answer. See relay/server.mjs and ./crypto.ts.
  */
 
-const relayUrl = (path: string): string => new URL(`relay/${path}`, document.baseURI).href;
+export const relayUrl = (path: string): string => new URL(`relay/${path}`, document.baseURI).href;
 
 /** How long the signing page may take. The relay keeps a session for 10 minutes. */
 const SESSION_MS = 9 * 60_000;

@@ -1,6 +1,6 @@
 {
 	"name": "multi-sig-vault",
-	"version": "1.5.3",
+	"version": "1.5.4",
 	"private": true,
 	"license": "MIT",
 	"type": "module",
@@ -14,6 +14,7 @@
 		"i18n": "node scripts/i18n/generate.mjs && node scripts/i18n-check.mjs",
 		"tokens:list": "node scripts/tokens/build-token-list.mjs",
 		"tokens:icons": "node scripts/tokens/extract-icons.mjs",
+		"tokens:hl-icons": "node scripts/tokens/fetch-hl-icons.mjs",
 		"release:info": "node scripts/release/info.mjs",
 		"icons:app": "node scripts/icons-app/render.mjs"
 	},

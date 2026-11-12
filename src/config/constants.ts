@@ -9,4 +9,7 @@ export const REFRESH_INTERVAL_MS = 30_000;
 export const DUST_USD = 1;
 export const TOKEN_LIST_UPDATE_INTERVAL_MS = 7 * 24 * 3600 * 1000;
 
+/** Where the source lives: every release can be rebuilt from it and compared by id. */
+export const SOURCE_URL = "https://github.com/KivApple/multi-sig-vault";
+
 export const APP_VERSION: string = import.meta.env.PUBLIC_APP_VERSION ?? "dev";

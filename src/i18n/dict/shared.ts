@@ -32,6 +32,10 @@ export default defineDict({
 		"link.off.text": "This link wanted to fill in a form. Links that fill in forms are turned off in settings.",
 		"link.bad.title": "Unknown link",
 		"link.bad.text": "The app does not know what this link asks for. It may be damaged or made for a newer version.",
+		"owners.keys_one": "{m} of {count} key",
+		"owners.keys_few": "{m} of {count} keys",
+		"owners.keys_many": "{m} of {count} keys",
+		"owners.keys_other": "{m} of {count} keys",
 	},
 	ru: {
 		"common.search": "Поиск",
@@ -64,5 +68,9 @@ export default defineDict({
 		"link.bad.title": "Ссылка не распознана",
 		"link.bad.text":
 			"Приложение не понимает, что просит эта ссылка. Возможно, она повреждена или рассчитана на более новую версию.",
+		"owners.keys_one": "{m} из {count} ключа",
+		"owners.keys_few": "{m} из {count} ключей",
+		"owners.keys_many": "{m} из {count} ключей",
+		"owners.keys_other": "{m} из {count} ключей",
 	},
 });
