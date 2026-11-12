@@ -378,6 +378,27 @@ export const metamaskUsesApp = (): boolean =>
 	appSession ||
 	(/Android|iPhone|iPad/i.test(navigator.userAgent) && !(window as unknown as { ethereum?: unknown }).ethereum);
 
+/**
+ * MetaMask Mobile answers "must provide an Ethereum address" when the sender is not an account it
+ * currently lets this site use – also when `eth_accounts` has just listed it. Ask the user to pick the
+ * accounts again and repeat the request once; if that does not help, say which account is needed.
+ */
+const withAccountAccess = async <T>(session: Session, address: Address, run: () => Promise<T>): Promise<T> => {
+	const refused = (e: unknown): boolean =>
+		/must provide an? (permitted )?Ethereum address/i.test((e as Error)?.message ?? "");
+	try {
+		return await run();
+	} catch (e) {
+		if (!refused(e)) throw e;
+	}
+	await requestAccounts(session, true).catch(() => undefined);
+	try {
+		return await run();
+	} catch (e) {
+		throw refused(e) ? new WalletError("wrong-account", undefined, { address }) : e;
+	}
+};
+
 /** Talks to MetaMask from this page: the extension, the in-app browser, or the SDK relay as a last resort. */
 export const metamaskDirect: WalletAdapter = {
 	kind: "metamask",
@@ -395,10 +416,9 @@ export const metamaskDirect: WalletAdapter = {
 		await ensureAccount(session, signer.address);
 		if (data.domain.chainId !== undefined) await ensureChain(session, data.domain.chainId);
 		try {
-			return await request<Hex>(session, "eth_signTypedData_v4", [
-				signer.address,
-				JSON.stringify(toFullTypedData(data)),
-			]);
+			return await withAccountAccess(session, signer.address, () =>
+				request<Hex>(session, "eth_signTypedData_v4", [signer.address, JSON.stringify(toFullTypedData(data))]),
+			);
 		} catch (e) {
 			throw chainMoved(session, e);
 		}
@@ -409,21 +429,23 @@ export const metamaskDirect: WalletAdapter = {
 		await ensureAccount(session, signer.address);
 		await ensureChain(session, tx.chainId, true);
 		try {
-			return await request<Hex>(
-				session,
-				"eth_sendTransaction",
-				[
-					{
-						from: signer.address,
-						to: tx.to,
-						data: tx.data,
-						value: numberToHex(tx.value ?? 0n),
-						// MetaMask rejects a transaction whose chain is not its active one.
-						chainId: numberToHex(tx.chainId),
-						...(tx.gas !== undefined ? { gas: numberToHex(tx.gas) } : {}),
-					},
-				],
-				() => new TxOutcomeUnknownError(),
+			return await withAccountAccess(session, signer.address, () =>
+				request<Hex>(
+					session,
+					"eth_sendTransaction",
+					[
+						{
+							from: signer.address,
+							to: tx.to,
+							data: tx.data,
+							value: numberToHex(tx.value ?? 0n),
+							// MetaMask rejects a transaction whose chain is not its active one.
+							chainId: numberToHex(tx.chainId),
+							...(tx.gas !== undefined ? { gas: numberToHex(tx.gas) } : {}),
+						},
+					],
+					() => new TxOutcomeUnknownError(),
+				),
 			);
 		} catch (e) {
 			throw chainMoved(session, e);
