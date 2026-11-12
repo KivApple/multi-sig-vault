@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router";
 import type { Address, Hex } from "viem";
 import { getChain } from "@/config/chains";
 import { useT } from "@/i18n";
 import { describeError } from "@/lib/describeError";
+import { useStackNav } from "@/lib/navStack";
 import { AppError } from "@/lib/errors";
 import { getPublicClient } from "@/lib/rpc";
 import { encodeCreateProxy } from "@/lib/safe/deploy";
@@ -66,7 +66,7 @@ export interface UseDeploymentResult {
  */
 export const useDeployment = (): UseDeploymentResult => {
 	const t = useT();
-	const navigate = useNavigate();
+	const { finishAt } = useStackNav();
 	const [pending, setPending] = useState<PendingDeployment | undefined>(loadPending);
 	const [waiting, setWaiting] = useState(false);
 	const [error, setError] = useState<string>();
@@ -92,9 +92,9 @@ export const useDeployment = (): UseDeploymentResult => {
 			});
 			storePending(undefined);
 			clearDraft();
-			if (alive.current) navigate(`/account/${encodeURIComponent(id)}`, { replace: true });
+			if (alive.current) finishAt(`/account/${encodeURIComponent(id)}`);
 		},
-		[navigate],
+		[finishAt],
 	);
 
 	const finalize = useCallback(

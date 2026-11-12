@@ -1,8 +1,9 @@
 import { Link2Off } from "lucide-react";
 import { useEffect, useMemo } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import { seedDraft } from "@/components/createSafe/useDraft";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { SectionLink } from "@/components/ui/SectionLink";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { useT } from "@/i18n";
 import { parseDeepLink } from "@/lib/deepLink";
@@ -33,9 +34,9 @@ export const LinkPage: React.FC = () => {
 				text={t(enabled ? "link.bad.text" : "link.off.text")}
 				action={
 					!enabled && (
-						<Link className="btn btn-primary btn-sm" to="/settings">
+						<SectionLink className="btn btn-primary btn-sm" to="/settings">
 							{t("nav.settings")}
-						</Link>
+						</SectionLink>
 					)
 				}
 			/>

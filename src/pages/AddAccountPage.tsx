@@ -1,6 +1,6 @@
 import { Plus } from "lucide-react";
 import { useCallback, useMemo } from "react";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { CheckResult } from "@/components/addAccount/CheckResult";
 import { ChoiceCard } from "@/components/addAccount/ChoiceCard";
 import { NetworkFields } from "@/components/addAccount/NetworkFields";
@@ -15,6 +15,7 @@ import { PageHeader } from "@/components/ui/PageHeader";
 import { chainFor, type ChainKey } from "@/config/chains";
 import { useT } from "@/i18n";
 import { parseAddress, sameAddress } from "@/lib/format";
+import { useStackNav } from "@/lib/navStack";
 import type { KnownAddress } from "@/lib/known";
 import { accountId, useAppStore } from "@/store/appStore";
 import type { AccountKind, NetworkEnv } from "@/types/domain";
@@ -25,7 +26,7 @@ import type { AccountKind, NetworkEnv } from "@/types/domain";
  */
 export const AddAccountPage: React.FC = () => {
 	const t = useT();
-	const navigate = useNavigate();
+	const { finishAt } = useStackNav();
 	const { params, patch, env, chain } = useUrlState();
 	const accounts = useAppStore((s) => s.accounts);
 	const addAccount = useAppStore((s) => s.addAccount);
@@ -92,8 +93,8 @@ export const AddAccountPage: React.FC = () => {
 			hideDust: false,
 			addedAt: Date.now(),
 		});
-		navigate(`/account/${encodeURIComponent(id)}`, { replace: true });
-	}, [canAdd, id, address, kind, env, chainConfig.id, name, addAccount, navigate]);
+		finishAt(`/account/${encodeURIComponent(id)}`);
+	}, [canAdd, id, address, kind, env, chainConfig.id, name, addAccount, finishAt]);
 
 	const addressError = addressInput && !address ? t("error.invalidAddress") : undefined;
 

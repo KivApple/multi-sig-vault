@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
-import { NavLink } from "react-router";
+import { useMatch } from "react-router";
+import { SectionLink } from "@/components/ui/SectionLink";
 
 export interface NavItemProps {
 	to: string;
@@ -10,23 +11,18 @@ export interface NavItemProps {
 	forceActive?: boolean;
 }
 
-export const NavItem: React.FC<NavItemProps> = ({ to, label, icon, variant, forceActive }) =>
-	variant === "dock" ? (
-		<NavLink
-			to={to}
-			end={to === "/"}
-			className={({ isActive }) => (isActive || forceActive ? "dock-active text-primary" : "")}
-		>
+export const NavItem: React.FC<NavItemProps> = ({ to, label, icon, variant, forceActive }) => {
+	const active = !!useMatch({ path: to, end: to === "/" }) || !!forceActive;
+	const current = active ? "page" : undefined;
+	return variant === "dock" ? (
+		<SectionLink to={to} className={active ? "dock-active text-primary" : ""} aria-current={current}>
 			{icon}
 			<span className="dock-label">{label}</span>
-		</NavLink>
+		</SectionLink>
 	) : (
-		<NavLink
-			to={to}
-			end={to === "/"}
-			className={({ isActive }) => `btn btn-sm gap-2 ${isActive || forceActive ? "btn-neutral" : "btn-ghost"}`}
-		>
+		<SectionLink to={to} className={`btn btn-sm gap-2 ${active ? "btn-neutral" : "btn-ghost"}`} aria-current={current}>
 			{icon}
 			{label}
-		</NavLink>
+		</SectionLink>
 	);
+};

@@ -1,3 +1,4 @@
+import { SectionLink } from "@/components/ui/SectionLink";
 import { Check, KeyRound, Pencil, Plus, RefreshCw, ScanLine, Wallet } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
@@ -136,9 +137,9 @@ export const AccountsPage: React.FC = () => {
 						<p className="font-medium">{t("accounts.noSigners.title")}</p>
 						<p className="text-base-content/60 text-sm">{t("accounts.noSigners.text")}</p>
 					</div>
-					<Link to="/signers" className="btn btn-primary btn-sm">
+					<SectionLink to="/signers" className="btn btn-primary btn-sm">
 						{t("accounts.noSigners.action")}
-					</Link>
+					</SectionLink>
 				</div>
 			)}
 
