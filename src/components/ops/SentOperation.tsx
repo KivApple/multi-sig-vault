@@ -35,6 +35,8 @@ export const SentOperation: React.FC<SentOperationProps> = ({ op, def, account }
 	const isSafe = account.kind === "safe";
 	const pending = isSafe && !txStatus;
 	const reverted = txStatus === "reverted";
+	// Mined, but not finished: the funds of a bridge are still on their way.
+	const underway = !pending && !reverted && !!def.unfinished?.(op);
 	const { Result } = def;
 
 	const handleDelete = useCallback(async () => {
@@ -74,14 +76,19 @@ export const SentOperation: React.FC<SentOperationProps> = ({ op, def, account }
 
 	return (
 		<OpCardFrame
-			icon={reverted ? def.icon : CircleCheck}
-			tone={reverted || pending ? "default" : "success"}
+			icon={reverted || underway ? def.icon : CircleCheck}
+			tone={reverted || pending || underway ? "default" : "success"}
 			title={t(opTitleKey(op.type))}
 			badges={
 				pending ? (
 					<span className="badge badge-ghost badge-sm gap-1">
 						<Spinner size="xs" />
 						{t("ops.status.pending")}
+					</span>
+				) : underway ? (
+					<span className="badge badge-ghost badge-sm gap-1">
+						<Spinner size="xs" />
+						{t("ops.status.underway")}
 					</span>
 				) : reverted ? (
 					<span className="badge badge-error badge-sm">{t("ops.status.reverted")}</span>

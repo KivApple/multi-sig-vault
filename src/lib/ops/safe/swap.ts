@@ -149,6 +149,10 @@ export const swapOp: OpDefinition<SwapParams> = {
 		return rows;
 	},
 	Result: SwapResult,
+	unfinished: (op) => {
+		const p = op.params as unknown as SwapParams;
+		return !!p.resolved?.bridge && bridgeProgressOf(op)?.stage !== "credited";
+	},
 	deleteWarning: (op) => {
 		const p = op.params as unknown as SwapParams;
 		if (!p.resolved?.bridge) return undefined;

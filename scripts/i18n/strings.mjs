@@ -279,6 +279,7 @@ export const STRINGS = [
 	["ops.delete.signing", "Collected signatures will be lost.", "Собранные подписи будут потеряны."],
 	["ops.status.pending", "Confirming", "Подтверждается"],
 	["ops.status.done", "Done", "Выполнено"],
+	["ops.status.underway", "In progress", "В процессе"],
 	["ops.status.reverted", "Failed", "Не выполнено"],
 	[
 		"ops.revertedNote",

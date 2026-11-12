@@ -6,6 +6,8 @@ export interface HistoryAmount {
 	/** Decimal string. */
 	value: string;
 	symbol: string;
+	/** The amount went into a bridge: it left this network, not the owner. */
+	bridged?: boolean;
 }
 
 export interface HistoryItem {

@@ -407,4 +407,52 @@ describe("Safe history", () => {
 		]);
 		expect(row?.counterparty).toBeUndefined();
 	});
+
+	it("lists the bridge leg apart from what a swap brought", () => {
+		const router = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E";
+		const messenger = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA";
+		const row = describeSafeRecord(
+			{
+				txType: "MULTISIG_TRANSACTION",
+				executionDate: "2026-10-07T15:00:00Z",
+				isExecuted: true,
+				isSuccessful: true,
+				to: "0x40A2aCCbd92BCA938b02010E17A5b8929b49130D",
+				value: "0",
+				data: "0x8d80ff0a00",
+				dataDecoded: {
+					method: "multiSend",
+					parameters: [{ name: "transactions", valueDecoded: [{ to: router }, { to: TOKEN }, { to: messenger }] }],
+				},
+				safeTxHash: HASH,
+				transfers: [
+					{ type: "ETHER_TRANSFER", from: SAFE, to: router, value: "10000000000000000" },
+					{
+						type: "ERC20_TRANSFER",
+						from: OTHER,
+						to: SAFE,
+						value: "289500000",
+						tokenAddress: TOKEN,
+						tokenInfo: { symbol: "USDC", decimals: 6 },
+					},
+					{
+						type: "ERC20_TRANSFER",
+						from: SAFE,
+						to: OTHER,
+						value: "286700000",
+						tokenAddress: TOKEN,
+						tokenInfo: { symbol: "USDC", decimals: 6 },
+					},
+				],
+			},
+			SAFE,
+			11155111,
+		);
+		expect(row?.title).toEqual({ key: "history.safe.swapBridge" });
+		expect(row?.amounts).toEqual([
+			{ sign: -1, value: "0.01", symbol: "ETH" },
+			{ sign: -1, value: "286.7", symbol: "USDC", bridged: true },
+			{ sign: 1, value: "289.5", symbol: "USDC" },
+		]);
+	});
 });

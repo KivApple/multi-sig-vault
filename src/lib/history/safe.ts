@@ -34,7 +34,14 @@ interface RawTransfer {
  * In somebody else's transaction a token counts only when the app knows it or the service vouches
  * for it: anybody can send a Safe a worthless token named like a real one.
  */
-export const transferAmounts = (transfers: unknown, safe: Address, chainId: number, own: boolean): HistoryAmount[] => {
+export const transferAmounts = (
+	transfers: unknown,
+	safe: Address,
+	chainId: number,
+	own: boolean,
+	/** Token whose outgoing transfers are the bridge leg: listed apart instead of being netted with a swap's proceeds. */
+	bridgeToken?: Address,
+): HistoryAmount[] => {
 	if (!Array.isArray(transfers)) return [];
 	const net = new Map<string, { value: bigint; symbol: string; decimals: number }>();
 	for (const t of transfers.slice(0, 200) as RawTransfer[]) {
@@ -62,14 +69,20 @@ export const transferAmounts = (transfers: unknown, safe: Address, chainId: numb
 		const incoming = sameAddress(t.to as string, safe);
 		const outgoing = sameAddress(t.from as string, safe);
 		if (incoming === outgoing) continue;
+		if (outgoing && bridgeToken && key === bridgeToken.toLowerCase()) key = "bridge";
 		const entry = net.get(key) ?? { value: 0n, symbol, decimals };
 		entry.value += incoming ? BigInt(t.value) : -BigInt(t.value);
 		net.set(key, entry);
 	}
 	const out: HistoryAmount[] = [];
-	for (const { value, symbol, decimals } of net.values()) {
+	for (const [key, { value, symbol, decimals }] of net) {
 		if (value === 0n) continue;
-		out.push({ sign: value > 0n ? 1 : -1, value: formatUnits(value > 0n ? value : -value, decimals), symbol });
+		out.push({
+			sign: value > 0n ? 1 : -1,
+			value: formatUnits(value > 0n ? value : -value, decimals),
+			symbol,
+			...(key === "bridge" ? { bridged: true } : {}),
+		});
 	}
 	// What left the Safe reads first: "−0.01 ETH, +28 USDC".
 	return out.sort((a, b) => a.sign - b.sign);
@@ -111,7 +124,14 @@ export const describeSafeRecord = (raw: unknown, safe: Address, chainId: number)
 	const txHash =
 		typeof r.transactionHash === "string" ? r.transactionHash : typeof r.txHash === "string" ? r.txHash : undefined;
 	const hash = txHash && /^0x[0-9a-f]{64}$/i.test(txHash) ? txHash : undefined;
-	const amounts = transferAmounts(r.transfers, safe, chainId, r.txType === "MULTISIG_TRANSACTION");
+	const own = r.txType === "MULTISIG_TRANSACTION";
+	const chain = getChain(chainId);
+	// Calls to the contracts the app itself uses for swaps and the USDC bridge are named as such.
+	const called = own ? calledAddresses(r) : [];
+	const calls = (target: Address | undefined): boolean => !!target && called.some((a) => sameAddress(a, target));
+	const swapped = calls(chain.dex?.router);
+	const bridged = calls(chain.cctp?.tokenMessenger);
+	const amounts = transferAmounts(r.transfers, safe, chainId, own, bridged ? chain.usdc : undefined);
 	const base = { time, amounts, link: hash ? explorerTx(chainId, hash) : undefined, txHash: hash };
 	const key = (name: string): HistoryItem["title"] => ({ key: `history.safe.${name}` });
 
@@ -120,14 +140,8 @@ export const describeSafeRecord = (raw: unknown, safe: Address, chainId: number)
 		const method = (r.dataDecoded as { method?: unknown } | null)?.method;
 		const hasData = typeof r.data === "string" && r.data.length > 2;
 		const to = addressOf(r.to);
-		// Calls to the contracts the app itself uses for swaps and the USDC bridge are named as such.
-		const chain = getChain(chainId);
-		const called = calledAddresses(r);
-		const calls = (target: Address | undefined): boolean => !!target && called.some((a) => sameAddress(a, target));
-		const swapped = calls(chain.dex?.router);
-		const bridged = calls(chain.cctp?.tokenMessenger);
 		let title: HistoryItem["title"];
-		if (bridged) title = key("bridge");
+		if (bridged) title = key(swapped ? "swapBridge" : "bridge");
 		else if (swapped) title = key("swap");
 		else if (!hasData) title = key(r.value === "0" || !r.value ? "empty" : "send");
 		else if (method === "transfer") title = key("send");

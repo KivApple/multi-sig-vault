@@ -86,6 +86,8 @@ export interface OpDefinition<P = any> {
 	summary: (params: P, ctx: SummaryCtx) => SummaryRow[];
 	/** Extra content of the "sent" card (login link, bridge progress…). */
 	Result?: React.FC<OpResultProps>;
+	/** The transaction is mined, but the operation still has a leg to finish (a bridge delivery). */
+	unfinished?: (op: Operation) => boolean;
 	/** Translation key of the warning shown before deleting a sent card; `undefined` – delete silently. */
 	deleteWarning?: (op: Operation) => string | undefined;
 	/** The operation owns an agent key in the secure store (travels with exports). */

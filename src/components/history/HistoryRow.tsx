@@ -47,7 +47,7 @@ export const HistoryRow: React.FC<HistoryRowProps> = ({ item, scope, ownTitle, l
 	const looked = useHlSigners(lookupSigners, item.hlHash);
 	const signers = item.signers ?? looked?.signers ?? [];
 	const sender = item.sender ?? looked?.sender;
-	const shown = item.amounts.slice(0, 2);
+	const shown = item.amounts.slice(0, 3);
 
 	return (
 		<li className="flex flex-col gap-1 px-4 py-2.5">
@@ -58,9 +58,10 @@ export const HistoryRow: React.FC<HistoryRowProps> = ({ item, scope, ownTitle, l
 				</span>
 				<span className="tabular flex shrink-0 flex-col items-end text-sm">
 					{shown.map((a) => (
-						<span key={a.symbol} className={a.sign > 0 ? "text-success" : ""}>
+						<span key={`${a.symbol}${a.sign}${a.bridged ? "b" : ""}`} className={a.sign > 0 ? "text-success" : ""}>
 							{SIGN[a.sign]}
 							{formatAmount(a.value, lang, 6)} {a.symbol}
+							{a.bridged && <span className="text-base-content/60 text-xs"> · {t("history.bridged")}</span>}
 						</span>
 					))}
 					{item.amounts.length > shown.length && (

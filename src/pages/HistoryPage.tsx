@@ -23,6 +23,10 @@ interface Loaded {
 
 const EMPTY: Loaded = { items: [], done: false };
 
+/** A row the chain data could not name better than "a call": the app's own name for the operation is used instead. */
+const isGeneric = (item: HistoryItem): boolean =>
+	"raw" in item.title || item.title.key === "history.safe.call" || item.title.key === "history.safe.batch";
+
 /**
  * Exchange actions this app sent for the account and still remembers, as history rows with their
  * signers. Only those that leave no ledger entry: the rest are in the ledger already.
@@ -156,7 +160,7 @@ export const HistoryPage: React.FC = () => {
 									key={item.id}
 									item={item}
 									scope={scope}
-									ownTitle={item.txHash ? ownTitles.get(item.txHash.toLowerCase()) : undefined}
+									ownTitle={item.txHash && isGeneric(item) ? ownTitles.get(item.txHash.toLowerCase()) : undefined}
 									lookupSigners={multiSig ? account.env : undefined}
 								/>
 							))}
