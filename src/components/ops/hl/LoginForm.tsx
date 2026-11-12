@@ -2,9 +2,10 @@ import { useEffect } from "react";
 import { Notice } from "@/components/common/Notice";
 import { TextField } from "@/components/common/TextField";
 import { useT } from "@/i18n";
-import type { LoginParams } from "@/lib/ops/hl/agents";
+import { agentDays, type LoginParams } from "@/lib/ops/hl/agents";
 import { ensureAgentKey } from "@/lib/ops/hl/common";
 import type { OpFormProps } from "@/lib/ops/types";
+import { ValidityField } from "./ValidityField";
 
 export const LoginForm: React.FC<OpFormProps<LoginParams>> = ({ opId, value, onChange, env, errors }) => {
 	const t = useT();
@@ -32,6 +33,7 @@ export const LoginForm: React.FC<OpFormProps<LoginParams>> = ({ opId, value, onC
 				error={errors.name ?? errors.agentAddress}
 				hint={replaces ? t("hl.agent.replaces") : agents.length >= 3 ? t("hl.agent.limit") : undefined}
 			/>
+			<ValidityField days={agentDays(value)} onChange={(days) => onChange({ days })} error={errors.days} />
 		</div>
 	);
 };

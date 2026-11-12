@@ -4,9 +4,10 @@ import { TextField } from "@/components/common/TextField";
 import { Field } from "@/components/ui/Field";
 import { Segmented } from "@/components/ui/Segmented";
 import { useT } from "@/i18n";
-import type { AgentParams } from "@/lib/ops/hl/agents";
+import { agentDays, type AgentParams } from "@/lib/ops/hl/agents";
 import { ensureAgentKey } from "@/lib/ops/hl/common";
 import type { OpFormProps } from "@/lib/ops/types";
+import { ValidityField } from "./ValidityField";
 
 export const ApproveAgentForm: React.FC<OpFormProps<AgentParams>> = ({ opId, value, onChange, errors }) => {
 	const t = useT();
@@ -36,6 +37,7 @@ export const ApproveAgentForm: React.FC<OpFormProps<AgentParams>> = ({ opId, val
 				error={errors.name}
 				hint={t("hl.agent.nameHint")}
 			/>
+			<ValidityField days={agentDays(value)} onChange={(days) => onChange({ days })} error={errors.days} />
 			<Field label={t("hl.agent.key")}>
 				<Segmented
 					value={value.mode}

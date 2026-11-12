@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { Notice } from "@/components/common/Notice";
 import { RequestView } from "@/components/handoff/RequestView";
@@ -103,9 +103,14 @@ export const SignRequestPage: React.FC = () => {
 		}
 	}, [phase, token, code]);
 
+	/** Number of the latest wallet request; the outcome of an older one no longer changes the page. */
+	const attempt = useRef(0);
+	const answered = useRef(false);
+
 	const answer = useCallback(
 		async (pairKey: Bytes, response: HandoffResponse, doneKey: string) => {
-			if (!token) return;
+			if (!token || answered.current) return;
+			answered.current = true;
 			const body = await seal(await sessionKey(pairKey, token.id), token.id, "res", response);
 			const delivered = await putHandoffResponse(token.id, body).catch(() => false);
 			setPhase({ step: "finished", key: delivered ? doneKey : "handoff.page.lost" });
@@ -114,9 +119,14 @@ export const SignRequestPage: React.FC = () => {
 		[token],
 	);
 
+	/**
+	 * Asks the wallet. It may be called again while an earlier request is still open: MetaMask does not
+	 * always report that its prompt was dismissed, and the user must not be left without a way forward.
+	 */
 	const handleConfirm = useCallback(async () => {
-		if (phase.step !== "ready") return;
+		if (phase.step !== "ready" && phase.step !== "working") return;
 		const { request, pairKey } = phase;
+		const mine = ++attempt.current;
 		setPhase({ step: "working", request, pairKey });
 		try {
 			let result: unknown;
@@ -127,21 +137,24 @@ export const SignRequestPage: React.FC = () => {
 			} else {
 				result = await metamaskDirect.sendTransaction(signerOf(request.address), fromWireTx(request.tx));
 			}
+			// Any confirmed request is a valid answer, also one the user had asked for earlier.
 			await answer(pairKey, { ok: true, result }, "handoff.page.done");
 		} catch (e) {
-			// Stay on the request: the user may fix the cause (wrong account, locked wallet) and try again.
+			if (attempt.current !== mine || answered.current) return;
 			setPhase({ step: "ready", request, pairKey, asked: true, error: describeError(e, t) });
 		}
 	}, [phase, answer, t]);
 
 	// A request that got this far is known to come from the user's own app, so MetaMask is asked right
-	// away – the button below is for trying again after an error.
+	// away – the button below is for asking again.
 	useEffect(() => {
 		if (phase.step === "ready" && !phase.asked) void handleConfirm();
 	}, [phase, handleConfirm]);
 
 	const handleDecline = useCallback(() => {
-		if (phase.step === "ready") void answer(phase.pairKey, { ok: false, code: "rejected" }, "handoff.page.declined");
+		if (phase.step !== "ready" && phase.step !== "working") return;
+		attempt.current += 1;
+		void answer(phase.pairKey, { ok: false, code: "rejected" }, "handoff.page.declined");
 	}, [phase, answer]);
 
 	return (
@@ -192,16 +205,20 @@ export const SignRequestPage: React.FC = () => {
 						<RequestView request={phase.request} />
 					</div>
 					{phase.step === "ready" && phase.error && <Notice tone="error">{phase.error}</Notice>}
+					{phase.step === "working" && (
+						<div className="text-base-content/70 flex items-center gap-2 text-sm">
+							<Spinner size="xs" />
+							{t("handoff.page.waiting")}
+						</div>
+					)}
 					<button
 						type="button"
-						className="btn btn-primary"
-						disabled={phase.step === "working"}
+						className={`btn ${phase.step === "working" ? "" : "btn-primary"}`}
 						onClick={() => void handleConfirm()}
 					>
-						{phase.step === "working" && <Spinner size="xs" />}
-						{t("handoff.page.confirm")}
+						{t(phase.step === "working" ? "handoff.page.again" : "handoff.page.confirm")}
 					</button>
-					<button type="button" className="btn btn-ghost" disabled={phase.step === "working"} onClick={handleDecline}>
+					<button type="button" className="btn btn-ghost" onClick={handleDecline}>
 						{t("handoff.page.decline")}
 					</button>
 				</>

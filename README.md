@@ -30,7 +30,7 @@ This app builds the payloads your wallets sign, so a backdoor in it could drain 
 
 - Withdraw and send USDC, send spot tokens, move funds between perps and spot.
 - Withdraw spot assets to their native chain through Unit (BTC, ETH, SOL and others) or to HyperEVM.
-- Approve and revoke agent keys, and log in to the exchange web UI by link or QR.
+- Approve and revoke agent keys, and log in to the exchange web UI by link or QR. A key is valid for a chosen term: 1, 7, 30, 90 (default) or 180 days, or any number of days up to the 180 the exchange allows.
 - Create and manage sub-accounts.
 - Convert an account to multi-sig, change its signers, or convert it back.
 
