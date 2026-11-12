@@ -4,6 +4,8 @@ A PWA for operating Hyperliquid multi-sig accounts and Safe wallets on Ethereum,
 
 It is built for signers who are never in the same place. You sign with the first key, carry the operation to the second device as a QR code, sign there, and broadcast from wherever you end up. Keys stay on MetaMask, Trezor and Ledger; the network is needed only to read balances and to send.
 
+The code was written with AI, directed and reviewed by a developer with many years of hands-on programming experience.
+
 ## Don't trust, verify
 
 This app builds the payloads your wallets sign, so a backdoor in it could drain every account it touches. Do not take the author's word that there is none: before using it, point your own AI agent at this repository and have it audit the code and dependencies for swapped recipients, altered payloads, key exfiltration and unexpected network calls. Then build from the commit you reviewed instead of using a copy somebody else hosts.
