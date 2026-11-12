@@ -34,6 +34,7 @@ import { getAddress, numberToHex, type Address, type Hex } from "viem";
 import { findChain } from "@/config/chains";
 import { WalletError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
+import { getPublicClient } from "@/lib/rpc";
 import type { Signer } from "@/types/domain";
 import { relayAvailable, requestInMetaMaskBrowser } from "@/lib/handoff/client";
 import { toWireTx } from "@/lib/handoff/protocol";
@@ -401,6 +402,36 @@ const withAccountAccess = async <T>(session: Session, address: Address, run: () 
 	}
 };
 
+/**
+ * Gas limit and fee from our own node, as hex fields of the transaction. MetaMask Mobile's own
+ * estimates are unreliable on some networks: it has offered a zero fee and warned about a fee it could
+ * not work out. With these it shows them as suggested by the site, and the user can still change them.
+ * Anything our node cannot tell is left to the wallet.
+ */
+const suggestedGas = async (from: Address, tx: TxRequest): Promise<Record<string, Hex>> => {
+	const client = getPublicClient(tx.chainId);
+	const out: Record<string, Hex> = {};
+	const gas =
+		tx.gas ??
+		(await client
+			.estimateGas({ account: from, to: tx.to, data: tx.data, value: tx.value ?? 0n })
+			.then((g) => (g * 13n) / 10n)
+			.catch(() => undefined));
+	if (gas !== undefined) out.gas = numberToHex(gas);
+	try {
+		if (findChain(tx.chainId)?.legacyTx) {
+			out.gasPrice = numberToHex(((await client.getGasPrice()) * 110n) / 100n);
+		} else {
+			const fees = await client.estimateFeesPerGas({ type: "eip1559" });
+			out.maxFeePerGas = numberToHex(fees.maxFeePerGas);
+			out.maxPriorityFeePerGas = numberToHex(fees.maxPriorityFeePerGas);
+		}
+	} catch {
+		// The wallet estimates the fee itself.
+	}
+	return out;
+};
+
 /** Talks to MetaMask from this page: the extension, the in-app browser, or the SDK relay as a last resort. */
 export const metamaskDirect: WalletAdapter = {
 	kind: "metamask",
@@ -430,6 +461,7 @@ export const metamaskDirect: WalletAdapter = {
 		const session = await getSession();
 		await ensureAccount(session, signer.address);
 		await ensureChain(session, tx.chainId, true);
+		const gasFields = await suggestedGas(signer.address, tx);
 		try {
 			return await withAccountAccess(session, signer.address, () =>
 				request<Hex>(
@@ -443,7 +475,7 @@ export const metamaskDirect: WalletAdapter = {
 							value: numberToHex(tx.value ?? 0n),
 							// MetaMask rejects a transaction whose chain is not its active one.
 							chainId: numberToHex(tx.chainId),
-							...(tx.gas !== undefined ? { gas: numberToHex(tx.gas) } : {}),
+							...gasFields,
 						},
 					],
 					() => new TxOutcomeUnknownError(),

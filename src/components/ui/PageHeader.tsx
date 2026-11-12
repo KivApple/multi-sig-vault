@@ -25,7 +25,10 @@ export const PageHeader: React.FC<PageHeaderProps> = ({ title, back, actions }) 
 					<ArrowLeft className="size-5" />
 				</button>
 			)}
-			<h1 className="min-w-0 flex-1 truncate text-2xl font-bold tracking-tight">{title}</h1>
+			{/* Only plain text is clipped here: a title with an icon must not lose the icon's badge. */}
+			<h1 className="min-w-0 flex-1 text-2xl font-bold tracking-tight">
+				{typeof title === "string" ? <span className="block truncate">{title}</span> : title}
+			</h1>
 			{actions && <div className="flex shrink-0 items-center gap-1">{actions}</div>}
 		</header>
 	);

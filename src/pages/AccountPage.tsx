@@ -52,9 +52,9 @@ export const AccountPage: React.FC = () => {
 			<PageHeader
 				back="/"
 				title={
-					<span className="flex items-center gap-3">
+					<span className="flex min-w-0 items-center gap-3">
 						<AccountIcon kind={account.kind} env={account.env} chainId={account.chainId} size={36} />
-						<span className="truncate">{title}</span>
+						<span className="min-w-0 truncate">{title}</span>
 					</span>
 				}
 				actions={

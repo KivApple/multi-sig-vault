@@ -137,17 +137,7 @@ export const useDeployment = (): UseDeploymentResult => {
 	const deploy = useCallback(
 		async (signer: Signer, plan: DeploymentPlan) => {
 			const data = encodeCreateProxy(plan.creation);
-			// Give the wallet a gas limit from our own node: its own estimate fails on some networks,
-			// and then it warns about the fee or refuses. Without an estimate the wallet decides itself.
-			const estimate = await getPublicClient(plan.chainId)
-				.estimateGas({ account: signer.address, to: plan.creation.factory, data })
-				.catch(() => undefined);
-			const txHash = await sendTransactionWith(signer, {
-				chainId: plan.chainId,
-				to: plan.creation.factory,
-				data,
-				...(estimate ? { gas: (estimate * 13n) / 10n } : {}),
-			});
+			const txHash = await sendTransactionWith(signer, { chainId: plan.chainId, to: plan.creation.factory, data });
 			const next: PendingDeployment = { ...plan, txHash };
 			storePending(next);
 			setPending(next);
