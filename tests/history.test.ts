@@ -408,7 +408,7 @@ describe("Safe history", () => {
 		expect(row?.counterparty).toBeUndefined();
 	});
 
-	it("lists the bridge leg apart from what a swap brought", () => {
+	it("states what crossed the bridge next to what stayed", () => {
 		const router = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E";
 		const messenger = "0x8FE6B999Dc680CcFDD5Bf7EB0974218be2542DAA";
 		const row = describeSafeRecord(
@@ -451,8 +451,26 @@ describe("Safe history", () => {
 		expect(row?.title).toEqual({ key: "history.safe.swapBridge" });
 		expect(row?.amounts).toEqual([
 			{ sign: -1, value: "0.01", symbol: "ETH" },
-			{ sign: -1, value: "286.7", symbol: "USDC", bridged: true },
-			{ sign: 1, value: "289.5", symbol: "USDC" },
+			{ sign: 0, value: "286.7", symbol: "USDC", bridged: true },
+			{ sign: 1, value: "2.8", symbol: "USDC" },
 		]);
+		// A bridge alone is one line.
+		const alone = transferAmounts(
+			[
+				{
+					type: "ERC20_TRANSFER",
+					from: SAFE,
+					to: OTHER,
+					value: "5000000",
+					tokenAddress: TOKEN,
+					tokenInfo: { symbol: "USDC", decimals: 6 },
+				},
+			],
+			SAFE,
+			11155111,
+			true,
+			TOKEN,
+		);
+		expect(alone).toEqual([{ sign: -1, value: "5", symbol: "USDC", bridged: true }]);
 	});
 });

@@ -39,11 +39,13 @@ export const transferAmounts = (
 	safe: Address,
 	chainId: number,
 	own: boolean,
-	/** Token whose outgoing transfers are the bridge leg: listed apart instead of being netted with a swap's proceeds. */
+	/** Token whose outgoing transfers are the bridge leg: stated next to the token's net change. */
 	bridgeToken?: Address,
 ): HistoryAmount[] => {
 	if (!Array.isArray(transfers)) return [];
 	const net = new Map<string, { value: bigint; symbol: string; decimals: number }>();
+	let bridged = 0n;
+	let bridgedAs: { symbol: string; decimals: number } | undefined;
 	for (const t of transfers.slice(0, 200) as RawTransfer[]) {
 		if (!t || typeof t.value !== "string" || !/^\d{1,78}$/.test(t.value)) continue;
 		let key: string;
@@ -69,20 +71,32 @@ export const transferAmounts = (
 		const incoming = sameAddress(t.to as string, safe);
 		const outgoing = sameAddress(t.from as string, safe);
 		if (incoming === outgoing) continue;
-		if (outgoing && bridgeToken && key === bridgeToken.toLowerCase()) key = "bridge";
+		if (outgoing && bridgeToken && key === bridgeToken.toLowerCase()) {
+			bridged += BigInt(t.value);
+			bridgedAs = { symbol, decimals };
+		}
 		const entry = net.get(key) ?? { value: 0n, symbol, decimals };
 		entry.value += incoming ? BigInt(t.value) : -BigInt(t.value);
 		net.set(key, entry);
 	}
 	const out: HistoryAmount[] = [];
+	const bridgeKey = bridgeToken?.toLowerCase();
 	for (const [key, { value, symbol, decimals }] of net) {
 		if (value === 0n) continue;
+		// Nothing but the bridge moved this token: one line says it all.
+		const onlyBridge = key === bridgeKey && bridged > 0n && value === -bridged;
 		out.push({
 			sign: value > 0n ? 1 : -1,
 			value: formatUnits(value > 0n ? value : -value, decimals),
 			symbol,
-			...(key === "bridge" ? { bridged: true } : {}),
+			...(onlyBridge ? { bridged: true } : {}),
 		});
+		if (onlyBridge) bridged = 0n;
+	}
+	// A swap fed the bridge: the token's own line is what stayed behind (or was added from the balance),
+	// and what crossed is stated next to it, not as a loss.
+	if (bridged > 0n && bridgedAs) {
+		out.push({ sign: 0, value: formatUnits(bridged, bridgedAs.decimals), symbol: bridgedAs.symbol, bridged: true });
 	}
 	// What left the Safe reads first: "−0.01 ETH, +28 USDC".
 	return out.sort((a, b) => a.sign - b.sign);
