@@ -32,6 +32,9 @@ export default defineDict({
 		"wallets.scheme.trezorSuite": "Trezor Suite",
 		"wallets.scheme.ledgerLiveStyle": "Ledger Live style",
 		"wallets.openMetaMask": "Open MetaMask",
+		"wallets.mmBrowser.text":
+			"From Chrome, requests to the MetaMask app can get lost: Android pauses this page while MetaMask is open. It is reliable inside MetaMask's own browser – open the app there and sign from it.",
+		"wallets.mmBrowser.open": "Open in MetaMask's browser",
 		"walletError.rejected": "Request was declined in the wallet",
 		"walletError.unavailable": "Wallet not found. Check that it is connected and unlocked. {detail}",
 		"walletError.wrong-account":
@@ -87,6 +90,9 @@ export default defineDict({
 		"wallets.scheme.trezorSuite": "Trezor Suite",
 		"wallets.scheme.ledgerLiveStyle": "Как в Ledger Live",
 		"wallets.openMetaMask": "Открыть MetaMask",
+		"wallets.mmBrowser.text":
+			"Из Chrome запросы к приложению MetaMask могут теряться: Android приостанавливает эту страницу, пока открыт MetaMask. Во встроенном браузере MetaMask всё работает надёжно – откройте приложение там и подписывайте оттуда.",
+		"wallets.mmBrowser.open": "Открыть в браузере MetaMask",
 		"walletError.rejected": "Запрос отклонён в кошельке",
 		"walletError.unavailable": "Кошелёк не найден. Проверьте, что он подключён и разблокирован. {detail}",
 		"walletError.wrong-account":

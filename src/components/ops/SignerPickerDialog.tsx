@@ -4,6 +4,7 @@ import { formatUnits, type Address } from "viem";
 import { AddressLabel } from "@/components/common/AddressLabel";
 import { Notice } from "@/components/common/Notice";
 import { Dialog } from "@/components/ui/Dialog";
+import { MetaMaskBrowserHint } from "@/components/wallets/MetaMaskBrowserHint";
 import { Spinner } from "@/components/ui/Spinner";
 import { getChain } from "@/config/chains";
 import { useCached } from "@/hooks/useCached";
@@ -176,6 +177,7 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 				</Notice>
 			)}
 			{nextStep && <Notice className="mt-3">{nextStep}</Notice>}
+			{rows.some((r) => r.signer?.wallet === "metamask") && <MetaMaskBrowserHint />}
 			{error && (
 				<Notice tone="error" className="mt-3">
 					{error}

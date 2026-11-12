@@ -76,9 +76,9 @@ const IMPOSTOR_FLAGS = [
 ];
 const DISCOVERY_WAIT_MS = 250;
 /** Time the answer may take after the user returns to the tab. */
-const RESUME_GRACE_MS = 25_000;
+const RESUME_GRACE_MS = 15_000;
 /** Visible-time budget when the user never left the tab (deeplink did not open, QR pairing). */
-const VISIBLE_BUDGET_MS = 180_000;
+const VISIBLE_BUDGET_MS = 60_000;
 
 /** The outcome of a transaction request is unknown – it must not be blindly repeated. */
 export class TxOutcomeUnknownError extends WalletError {
