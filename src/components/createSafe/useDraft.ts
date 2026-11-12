@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useState } from "react";
-import { useAppStore } from "@/store/appStore";
 import type { SafeCreation } from "@/types/domain";
 
 export type CreateMode = "new" | "copy" | "vanity";
@@ -49,21 +48,15 @@ export const clearDraft = (): void => {
 	}
 };
 
-/** A new draft starts with all known signers and a majority threshold. */
-const initial = (newSalt: () => string): CreateSafeDraft => {
-	const owners = useAppStore
-		.getState()
-		.signers.slice(0, 10)
-		.map((s) => s.address as string);
-	return {
-		name: "",
-		owners: owners.length > 0 ? owners : [""],
-		threshold: owners.length > 1 ? Math.floor(owners.length / 2) + 1 : 1,
-		saltNonce: newSalt(),
-		prefix: "",
-		minerOutput: "",
-	};
-};
+/** A new draft starts with one empty signer row: who owns the Safe is the user's choice, never a guess. */
+const initial = (newSalt: () => string): CreateSafeDraft => ({
+	name: "",
+	owners: [""],
+	threshold: 1,
+	saltNonce: newSalt(),
+	prefix: "",
+	minerOutput: "",
+});
 
 const save = (draft: CreateSafeDraft): void => {
 	try {
