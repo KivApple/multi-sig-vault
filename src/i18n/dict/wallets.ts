@@ -35,7 +35,7 @@ export default defineDict({
 		"walletError.rejected": "Request was declined in the wallet",
 		"walletError.unavailable": "Wallet not found. Check that it is connected and unlocked. {detail}",
 		"walletError.wrong-account":
-			"MetaMask does not let this site use {address}. In MetaMask switch to this account, allow it for the site and try again. {detail}",
+			"MetaMask does not let this site use {address} or this network. In MetaMask switch to this account, allow the account and the network for the site and try again. {detail}",
 		"walletError.wrong-device":
 			"This device does not hold {address}. Connect the right device, or check the passphrase.",
 		"walletError.chain":
@@ -90,7 +90,7 @@ export default defineDict({
 		"walletError.rejected": "Запрос отклонён в кошельке",
 		"walletError.unavailable": "Кошелёк не найден. Проверьте, что он подключён и разблокирован. {detail}",
 		"walletError.wrong-account":
-			"MetaMask не даёт сайту использовать {address}. Переключитесь в MetaMask на этот счёт, разрешите его для сайта и повторите. {detail}",
+			"MetaMask не даёт сайту использовать {address} или эту сеть. Переключитесь в MetaMask на этот счёт, разрешите сайту счёт и сеть и повторите. {detail}",
 		"walletError.wrong-device":
 			"На этом устройстве нет адреса {address}. Подключите нужное устройство или проверьте passphrase.",
 		"walletError.chain":

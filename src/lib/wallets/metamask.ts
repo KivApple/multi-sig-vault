@@ -386,8 +386,11 @@ export const metamaskUsesApp = (): boolean =>
  * accounts again and repeat the request once; if that does not help, say which account is needed.
  */
 const withAccountAccess = async <T>(session: Session, address: Address, run: () => Promise<T>): Promise<T> => {
+	// The extension says the same with error 4100 ("The requested account and/or method has not been
+	// authorized by the user"), also for a network the site was not given access to.
 	const refused = (e: unknown): boolean =>
-		/must provide an? (permitted )?Ethereum address/i.test((e as Error)?.message ?? "");
+		(e instanceof WalletError && e.code === "wrong-account") ||
+		/must provide an? (permitted )?Ethereum address|not been authorized/i.test((e as Error)?.message ?? "");
 	try {
 		return await run();
 	} catch (e) {
@@ -399,7 +402,10 @@ const withAccountAccess = async <T>(session: Session, address: Address, run: () 
 	} catch (e) {
 		if (!refused(e)) throw e;
 		const listed = await readAccounts(session).catch(() => [] as Address[]);
-		throw new WalletError("wrong-account", `MetaMask lists: ${listed.join(", ") || "no accounts"}.`, { address });
+		const said = (e as Error)?.message ? `${(e as Error).message} ` : "";
+		throw new WalletError("wrong-account", `${said}MetaMask lists: ${listed.join(", ") || "no accounts"}.`, {
+			address,
+		});
 	}
 };
 
@@ -448,11 +454,12 @@ export const metamaskDirect: WalletAdapter = {
 	signTypedData: async (signer: Signer, data: TypedDataPayload): Promise<Hex> => {
 		const session = await getSession();
 		await ensureAccount(session, signer.address);
-		if (data.domain.chainId !== undefined) await ensureChain(session, data.domain.chainId);
+		const chainId = data.domain.chainId;
 		try {
-			return await withAccountAccess(session, signer.address, () =>
-				request<Hex>(session, "eth_signTypedData_v4", [signer.address, JSON.stringify(toFullTypedData(data))]),
-			);
+			return await withAccountAccess(session, signer.address, async () => {
+				if (chainId !== undefined) await ensureChain(session, chainId);
+				return request<Hex>(session, "eth_signTypedData_v4", [signer.address, JSON.stringify(toFullTypedData(data))]);
+			});
 		} catch (e) {
 			throw chainMoved(session, e);
 		}
@@ -461,11 +468,11 @@ export const metamaskDirect: WalletAdapter = {
 	sendTransaction: async (signer: Signer, tx: TxRequest): Promise<Hex> => {
 		const session = await getSession();
 		await ensureAccount(session, signer.address);
-		await ensureChain(session, tx.chainId, true);
 		const gasFields = await suggestedGas(signer.address, tx);
 		try {
-			return await withAccountAccess(session, signer.address, () =>
-				request<Hex>(
+			return await withAccountAccess(session, signer.address, async () => {
+				await ensureChain(session, tx.chainId, true);
+				return request<Hex>(
 					session,
 					"eth_sendTransaction",
 					[
@@ -480,8 +487,8 @@ export const metamaskDirect: WalletAdapter = {
 						},
 					],
 					() => new TxOutcomeUnknownError(),
-				),
-			);
+				);
+			});
 		} catch (e) {
 			throw chainMoved(session, e);
 		}
