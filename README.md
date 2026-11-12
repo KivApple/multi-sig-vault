@@ -14,6 +14,22 @@ The code was written with AI, directed and reviewed by a developer with many yea
 
 This app builds the payloads your wallets sign, so a backdoor in it could drain every account it touches. Do not take the author's word that there is none: before using it, point your own AI agent at this repository and have it audit the code and dependencies for swapped recipients, altered payloads, key exfiltration and unexpected network calls. Then build from the commit you reviewed instead of using a copy somebody else hosts.
 
+## What goes through a server, and what is signed
+
+Almost nothing leaves your device except requests to public APIs: chain RPC endpoints, Hyperliquid, Unit, Circle and the Safe Transaction Service. Two things are worth knowing before you rely on the hosted copy.
+
+**MetaMask on a phone goes through our relay.** On Android and iOS, a request for MetaMask (a signature, a transaction, the list of accounts) and its answer pass through a small server of ours on the way between the app and MetaMask's built-in browser. Desktop MetaMask, Trezor and Ledger never use it. What protects you there:
+
+- The request and the answer are encrypted on your device with AES-256-GCM. The key is shared between your app and your MetaMask browser on first use, by a six-digit code you type yourself, and never reaches the server.
+- The relay stores ciphertext under a random one-time id, in memory only, for ten minutes at most. It cannot read a message, and it cannot alter one unnoticed: a changed message fails authentication.
+- A link sent by somebody else cannot make the signing page ask for a signature, because it cannot be decrypted with your key.
+- Every signature is checked against the signer's address after it comes back.
+- What the server side does see is metadata: your IP address, the time and the random id of the exchange. The relay itself writes no logs, but the web server in front of it and Cloudflare keep ordinary access logs with exactly that metadata.
+
+Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/server.mjs`, about a hundred lines with no dependencies; a copy of the app hosted without it falls back to MetaMask SDK.
+
+**Stable updates are signed on-chain.** The installed app offers an update only after the developer's Safe [`0x22222222e8d995EA51841abc49022Fb5eb7C62b4`](https://etherscan.io/address/0x22222222e8d995EA51841abc49022Fb5eb7C62b4) on Ethereum (2 of 3 signers) has approved that exact release: its id commits to the SHA-256 of every file, and the app asks two independent RPC endpoints whether the Safe signed it. Unsigned test builds are installed only if you turn on "Test versions" in settings. The check protects installed copies; a first visit, and the service worker file itself, are served as the site has them. Details are in [Offline use and updates](#offline-use-and-updates).
+
 ## What it does
 
 **Accounts**
@@ -123,7 +139,7 @@ In Chrome on a phone the app cannot talk to the MetaMask app directly, and Andro
 
 The key belongs to the connection between your app and your MetaMask browser. On first use the app shows a six-digit code that you type into the signing page; from then on both sides hold a shared key, and each request is encrypted with a key derived from it for that one request. The signing page shows only what it can decrypt with that key, so a link somebody sends you cannot ask you to sign anything: it ends in an error.
 
-The relay is a blind mailbox. It sees ciphertext only, cannot read or change a request or an answer without failing authentication, keeps a session in memory for ten minutes and logs nothing. The worst it can do is lose a message. Every signature is still verified against the signer's address. The desktop extension and MetaMask's own browser need no relay; a copy of the app hosted without one falls back to MetaMask SDK.
+The relay is a blind mailbox. It sees ciphertext only, cannot read or change a request or an answer without failing authentication, keeps a session in memory for ten minutes and writes no logs of its own (the proxy in front of the hosted one keeps access logs: IP address, time, the random session id). The worst it can do is lose a message. Every signature is still verified against the signer's address. The desktop extension and MetaMask's own browser need no relay; a copy of the app hosted without one falls back to MetaMask SDK.
 
 ## Offline use and updates
 
