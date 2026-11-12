@@ -29,13 +29,16 @@ jobs:
       - name: Build
         run: pnpm build
       - name: Deploy
-        # The website bucket in Garage is declared in infra-config (apps/garage/app.yaml)
+        # The website bucket in Garage is declared in infra-config (apps/garage/app.yaml).
+        # rclone, not the AWS CLI: its DELETE requests sign Content-Length, which the proxy in front of Garage drops.
         run: >
           docker run --rm -v "$PWD/dist:/dist:ro"
-          -e AWS_ENDPOINT_URL -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY
-          amazon/aws-cli:2.40.1 s3 sync --delete /dist s3://multi-sig.quoi.dev
+          -e RCLONE_S3_PROVIDER -e RCLONE_S3_ENDPOINT -e RCLONE_S3_REGION
+          -e RCLONE_S3_ACCESS_KEY_ID -e RCLONE_S3_SECRET_ACCESS_KEY
+          rclone/rclone:1.76.0 sync --checksum -v /dist :s3:multi-sig.quoi.dev
         env:
-          AWS_ENDPOINT_URL: https://s3.quoi.dev
-          AWS_REGION: garage
-          AWS_ACCESS_KEY_ID: GK1f3d8356f8e5792545429824
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_KEY }}
+          RCLONE_S3_PROVIDER: Other
+          RCLONE_S3_ENDPOINT: https://s3.quoi.dev
+          RCLONE_S3_REGION: garage
+          RCLONE_S3_ACCESS_KEY_ID: GK1f3d8356f8e5792545429824
+          RCLONE_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_KEY }}
