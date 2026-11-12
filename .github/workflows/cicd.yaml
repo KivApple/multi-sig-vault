@@ -1,0 +1,41 @@
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: read
+
+concurrency: deploy
+
+jobs:
+  deploy:
+    runs-on: teapot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Test
+        run: pnpm test
+      - name: Build
+        run: pnpm build
+      - name: Deploy
+        # The website bucket in Garage is declared in infra-config (apps/garage/app.yaml)
+        run: >
+          docker run --rm -v "$PWD/dist:/dist:ro"
+          -e AWS_ENDPOINT_URL -e AWS_REGION -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY
+          amazon/aws-cli:2.40.1 s3 sync --delete /dist s3://multi-sig.quoi.dev
+        env:
+          AWS_ENDPOINT_URL: https://s3.quoi.dev
+          AWS_REGION: garage
+          AWS_ACCESS_KEY_ID: GK1f3d8356f8e5792545429824
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_KEY }}
