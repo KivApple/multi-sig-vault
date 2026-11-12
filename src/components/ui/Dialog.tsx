@@ -67,7 +67,7 @@ export const Dialog: React.FC<DialogProps> = ({
 		>
 			{open && (
 				<div className={`modal-box flex max-h-[92dvh] flex-col p-0 ${WIDTH[size]}`}>
-					<div className="flex items-center gap-2 px-5 pt-4 pb-2">
+					<div className="flex items-center gap-2 px-5 pt-4 pb-0.5">
 						<h2 className="min-w-0 flex-1 truncate text-lg font-semibold">{title}</h2>
 						{dismissable && (
 							<button
@@ -80,7 +80,8 @@ export const Dialog: React.FC<DialogProps> = ({
 							</button>
 						)}
 					</div>
-					<div className={`min-h-0 flex-1 overflow-y-auto px-5 ${actions ? "pb-5" : "pb-safe"}`}>{children}</div>
+					{/* The scrolling body clips whatever touches its edge: the top padding keeps the focus ring of a first field whole. */}
+					<div className={`min-h-0 flex-1 overflow-y-auto px-5 pt-1.5 ${actions ? "pb-5" : "pb-safe"}`}>{children}</div>
 					{actions && (
 						<div className="border-base-300 pb-safe flex flex-wrap justify-end gap-2 border-t px-5 pt-3">{actions}</div>
 					)}
