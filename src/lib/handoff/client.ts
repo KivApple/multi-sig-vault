@@ -99,11 +99,21 @@ const attempt = async (
 	if (!put.ok) throw new WalletError("unavailable", `relay: HTTP ${put.status}`);
 
 	let stop: "cancel" | "repair" | undefined;
-	const abort = new AbortController();
+	let poll: AbortController | undefined;
 	const end = (reason: "cancel" | "repair") => (): void => {
 		stop = reason;
-		abort.abort();
+		poll?.abort();
 	};
+	// Android freezes this tab while MetaMask is in front, and the connection of a poll that was in flight
+	// is dead afterwards without the request ever failing. So a poll never outlives its own deadline, and
+	// coming back to the tab drops it and asks again on a fresh connection.
+	const refresh = (): void => {
+		if (document.visibilityState === "visible") poll?.abort();
+	};
+	document.addEventListener("visibilitychange", refresh);
+	window.addEventListener("pageshow", refresh);
+	window.addEventListener("focus", refresh);
+	window.addEventListener("online", refresh);
 	useHandoffStore.setState({
 		pending: {
 			method: request.method,
@@ -119,12 +129,17 @@ const attempt = async (
 			if (stop === "repair") return { kind: "repair" };
 			if (stop === "cancel") throw new WalletError("rejected");
 			let res: Response | undefined;
+			const current = new AbortController();
+			poll = current;
+			const overdue = setTimeout(() => current.abort(), (POLL_WAIT_S + 8) * 1000);
 			try {
-				// Android freezes this tab while MetaMask is in front; the loop simply resumes afterwards.
-				res = await fetch(relayUrl(`v1/${id}/res?wait=${POLL_WAIT_S}`), { cache: "no-store", signal: abort.signal });
+				res = await fetch(relayUrl(`v1/${id}/res?wait=${POLL_WAIT_S}`), { cache: "no-store", signal: current.signal });
 			} catch {
-				if (!stop) await sleep(1500);
+				// Dropped on purpose (see `refresh`) – ask again at once; a real network error – after a pause.
+				if (!stop && !current.signal.aborted) await sleep(1500);
 				continue;
+			} finally {
+				clearTimeout(overdue);
 			}
 			if (!res.ok) {
 				await sleep(res.status === 404 ? 300 : 1500);
@@ -146,6 +161,10 @@ const attempt = async (
 		}
 		throw onExpire();
 	} finally {
+		document.removeEventListener("visibilitychange", refresh);
+		window.removeEventListener("pageshow", refresh);
+		window.removeEventListener("focus", refresh);
+		window.removeEventListener("online", refresh);
 		useHandoffStore.setState({ pending: undefined });
 	}
 };

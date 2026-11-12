@@ -25,7 +25,7 @@ type Phase =
 	| { step: "loading" }
 	| { step: "problem"; key: string }
 	| { step: "code"; body: Bytes; wrong?: boolean }
-	| ({ step: "ready"; error?: string } & Verified)
+	| ({ step: "ready"; error?: string; asked?: boolean } & Verified)
 	| ({ step: "working" } & Verified)
 	| { step: "finished"; key: string };
 
@@ -130,9 +130,15 @@ export const SignRequestPage: React.FC = () => {
 			await answer(pairKey, { ok: true, result }, "handoff.page.done");
 		} catch (e) {
 			// Stay on the request: the user may fix the cause (wrong account, locked wallet) and try again.
-			setPhase({ step: "ready", request, pairKey, error: describeError(e, t) });
+			setPhase({ step: "ready", request, pairKey, asked: true, error: describeError(e, t) });
 		}
 	}, [phase, answer, t]);
+
+	// A request that got this far is known to come from the user's own app, so MetaMask is asked right
+	// away – the button below is for trying again after an error.
+	useEffect(() => {
+		if (phase.step === "ready" && !phase.asked) void handleConfirm();
+	}, [phase, handleConfirm]);
 
 	const handleDecline = useCallback(() => {
 		if (phase.step === "ready") void answer(phase.pairKey, { ok: false, code: "rejected" }, "handoff.page.declined");
