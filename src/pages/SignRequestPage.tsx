@@ -32,6 +32,18 @@ type Phase =
 /** A wallet account is all the direct adapter needs from a signer. */
 const signerOf = (address: string): Signer => ({ address }) as Signer;
 
+/** The address a finished page moves to, so that reloading or going back never reopens the request. */
+const CLOSED = "closed";
+
+/**
+ * Leaves nothing of the request behind and asks the browser to close the tab. A page may only close a
+ * tab it opened itself, so MetaMask's browser can ignore this – then the "done" note stays on screen.
+ */
+const closePage = (): void => {
+	window.history.replaceState(null, "", `${window.location.pathname}#/sign/${CLOSED}`);
+	window.close();
+};
+
 const requestOf = (value: unknown): HandoffRequest | undefined =>
 	typeof value === "object" && value !== null ? parseRequest((value as { request?: unknown }).request) : undefined;
 
@@ -51,6 +63,7 @@ export const SignRequestPage: React.FC = () => {
 	useEffect(() => {
 		let cancelled = false;
 		const load = async (): Promise<Phase> => {
+			if (raw === CLOSED) return { step: "finished", key: "handoff.page.closed" };
 			if (!token) return { step: "problem", key: "handoff.page.badLink" };
 			if (!(await hasInjectedMetaMask())) return { step: "problem", key: "handoff.page.noWallet" };
 			const body = await fetchHandoffRequest(token.id);
@@ -72,7 +85,7 @@ export const SignRequestPage: React.FC = () => {
 		return () => {
 			cancelled = true;
 		};
-	}, [token]);
+	}, [token, raw]);
 
 	const handleCode = useCallback(async () => {
 		if (phase.step !== "code" || !token?.linkKey) return;
@@ -96,6 +109,7 @@ export const SignRequestPage: React.FC = () => {
 			const body = await seal(await sessionKey(pairKey, token.id), token.id, "res", response);
 			const delivered = await putHandoffResponse(token.id, body).catch(() => false);
 			setPhase({ step: "finished", key: delivered ? doneKey : "handoff.page.lost" });
+			closePage();
 		},
 		[token],
 	);
