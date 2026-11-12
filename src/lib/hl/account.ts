@@ -120,13 +120,14 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 
 	const positions: HlPerpPosition[] = [];
 	let perpValue = 0;
-	let pnlSum = 0;
+	/** Collateral the open positions hold: money that is in the account but sits in positions. */
+	let marginSum = 0;
 	for (const state of perps) {
 		if (!state) continue;
 		perpValue += Number(state.marginSummary.accountValue);
 		for (const { position: p } of state.assetPositions) {
 			const pnl = Number(p.unrealizedPnl);
-			pnlSum += pnl;
+			marginSum += Number(p.marginUsed) || 0;
 			positions.push({
 				coin: p.coin,
 				size: p.szi,
@@ -165,30 +166,36 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 			usd,
 			evm: !!token?.evmContract || b.coin === "HYPE",
 		});
-		// In unified mode the USDC balance already contains unrealised PnL – positions carry it instead.
-		const rowUsd = unified && b.token === 0 ? usd - pnlSum : usd;
+		// Unified modes: USDC is the collateral of every position, and the balance the exchange reports
+		// already includes their margin and unrealised PnL. The part held by positions is shown on their own
+		// rows, so this row is only what is left over – otherwise the same money would be listed twice.
+		const inPositions = unified && b.token === 0 ? Math.min(total, marginSum) : 0;
+		const rowUnits = total - inPositions;
+		if (inPositions > 0 && rowUnits < 0.005) continue;
 		assets.push({
 			key: `spot:${b.token}`,
 			symbol: b.coin,
 			name: token?.fullName ?? undefined,
-			amount: b.total,
-			available: String(freeUnits),
-			usd: rowUsd,
+			amount: inPositions > 0 ? String(Math.round(rowUnits * 1e6) / 1e6) : b.total,
+			available: String(Math.min(freeUnits, rowUnits)),
+			usd: usd - inPositions,
 			kind: "spot",
 			icon: { symbol: b.coin, hl: true },
 		});
 	}
 
-	// Standard mode: the perp account is a balance of its own, and the exchange says how much of it is free.
+	// Standard mode: the perp account is a balance of its own. What positions hold is on their rows;
+	// this row is the rest of it, and the exchange says how much of that is free.
 	const perpFree = unified ? 0 : Math.max(0, Number(perps[0]?.withdrawable ?? 0) || 0);
 	availableUsd += perpFree;
-	if (!unified && Math.abs(perpValue - pnlSum) > 0.005) {
+	const perpCash = perpValue - marginSum;
+	if (!unified && perpCash > 0.005) {
 		assets.push({
 			key: "perp:usdc",
 			symbol: "USDC",
-			amount: String(Math.round((perpValue - pnlSum) * 1e6) / 1e6),
-			available: String(perpFree),
-			usd: perpValue - pnlSum,
+			amount: String(Math.round(perpCash * 1e6) / 1e6),
+			available: String(Math.min(perpFree, perpCash)),
+			usd: perpCash,
 			kind: "spot",
 			icon: { symbol: "USDC", hl: true },
 			note: "perps",
@@ -199,8 +206,9 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 			key: `perp:${p.coin}`,
 			symbol: p.coin,
 			amount: p.size,
-			usd: p.pnl,
-			position: { notional: p.notional, margin: p.margin, isolated: p.isolated },
+			// A position's share of the account is the margin behind it (an isolated one carries its PnL in it).
+			usd: p.margin,
+			position: { notional: p.notional, margin: p.margin, isolated: p.isolated, pnl: p.pnl },
 			kind: "perp",
 			icon: { symbol: p.coin, hl: true },
 			note: `${p.leverage}x`,

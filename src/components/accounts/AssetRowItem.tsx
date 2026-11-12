@@ -65,22 +65,18 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 						{caption && <span className="min-w-0 truncate">{caption}</span>}
 					</div>
 				)}
-				{perp && pos && (
-					<div className="text-base-content/60 mt-0.5 truncate text-xs">
-						{t("accounts.margin", { amount: formatUsd(pos.margin, lang) })}
-					</div>
-				)}
 			</div>
-			{/* Every row reads the same way: value, then units. A position adds its result in colour; its margin sits
-			    under the badge on the left, so both columns stay short enough for a narrow phone. */}
+			{/* Every row reads the same way: how much of the account sits here, then units. For a position the first
+			    is its margin, the second line adds its notional value, the third its result in colour. */}
 			<div className="tabular shrink-0 text-right leading-tight">
-				<div className="font-medium">{formatUsd(perp && pos ? pos.notional : asset.usd, lang)}</div>
+				<div className="font-medium">{formatUsd(asset.usd, lang)}</div>
 				<div className="text-base-content/60 text-xs">
 					{formatAmount(perp ? Math.abs(size) : asset.amount, lang, 6)}
+					{perp && pos ? ` · ${formatUsd(pos.notional, lang)}` : ""}
 				</div>
-				{perp && (
-					<div className={`text-xs ${asset.usd >= 0 ? "text-success" : "text-error"}`}>
-						{t("accounts.pnl", { amount: `${asset.usd > 0 ? "+" : ""}${formatUsd(asset.usd, lang)}` })}
+				{perp && pos && (
+					<div className={`text-xs ${pos.pnl >= 0 ? "text-success" : "text-error"}`}>
+						{t("accounts.pnl", { amount: `${pos.pnl > 0 ? "+" : ""}${formatUsd(pos.pnl, lang)}` })}
 					</div>
 				)}
 				{held && free !== undefined && (
