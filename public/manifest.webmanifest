@@ -1,6 +1,6 @@
 {
   "name": "Multi Sig Vault",
-  "short_name": "MS Vault",
+  "short_name": "Multi-Sig",
   "description": "Collect multi-sig signatures for Hyperliquid and Safe accounts, device by device.",
   "id": "./",
   "start_url": "./",
