@@ -5,7 +5,14 @@ import { hlInfo } from "@/lib/hl/api";
 import { hlSignerTypedData, USER_SIGNED } from "@/lib/hl/signing";
 import { toFullTypedData } from "@/lib/wallets/typedData";
 import type { NetworkEnv } from "@/types/domain";
-import { cleanDecimal, cleanSymbol, type HistoryAmount, type HistoryItem, type HistoryLoader } from "./types";
+import {
+	cleanDecimal,
+	cleanSymbol,
+	type HistoryAmount,
+	type HistoryItem,
+	type HistoryLoader,
+	type HistoryPage,
+} from "./types";
 
 /**
  * Hyperliquid history from two sources.
@@ -172,10 +179,11 @@ type Cursor = { mode: "all"; offset: number } | { mode: "window"; end: number; s
  * walking back from now: a window that comes back full was cut at its newest end, so it is halved
  * and asked again; a sparse one doubles the next window.
  */
-export const hlHistoryLoader = (env: NetworkEnv, user: Address): HistoryLoader => {
+export const hlHistoryLoader = (env: NetworkEnv, user: Address, remembered: HistoryItem[] = []): HistoryLoader => {
 	let all: LedgerEntry[] | undefined;
 	/** Actions without a ledger entry, newest first; each is handed out with the page its time falls into. */
 	let extras: HistoryItem[] = [];
+	let actionsSince: number | null | undefined;
 	const toItems = (entries: LedgerEntry[], last: boolean): HistoryItem[] => {
 		const items = entries.map((e) => describeLedgerEntry(e, user, env));
 		const oldest = items.at(-1)?.time;
@@ -185,15 +193,21 @@ export const hlHistoryLoader = (env: NetworkEnv, user: Address): HistoryLoader =
 		return [...items, ...take].sort((a, b) => b.time - a.time);
 	};
 
-	return async (raw) => {
+	const load = async (raw: unknown): Promise<HistoryPage> => {
 		let cursor = raw as Cursor | undefined;
 		if (!cursor) {
 			const [first, recent] = await Promise.all([
 				fetchLedger(env, user, 0),
 				// The explorer is a second source: without it the ledger alone is still shown.
-				fetchExplorerActions(env, user).catch(() => []),
+				fetchExplorerActions(env, user).catch(() => undefined),
 			]);
-			extras = recent;
+			// Operations sent from this app fill what the explorer no longer returns; one it does return wins.
+			const seen = recent?.items ?? [];
+			const own = remembered.filter(
+				(r) => !seen.some((x) => x.hlAction === r.hlAction && Math.abs(x.time - r.time) < 10 * 60_000),
+			);
+			extras = [...seen, ...own].sort((a, b) => b.time - a.time);
+			actionsSince = recent ? recent.since : null;
 			if (first.length < API_LIMIT) {
 				all = first.sort((a, b) => b.time - a.time);
 				cursor = { mode: "all", offset: 0 };
@@ -239,6 +253,10 @@ export const hlHistoryLoader = (env: NetworkEnv, user: Address): HistoryLoader =
 			};
 		}
 		return { items: [], next: { mode: "window", end, span } satisfies Cursor };
+	};
+	return async (raw) => {
+		const page = await load(raw);
+		return raw === undefined ? { ...page, actionsSince } : page;
 	};
 };
 
@@ -333,6 +351,8 @@ const IN_LEDGER = new Set([
 	"cWithdraw",
 	"claimRewards",
 ]);
+
+export const hlActionInLedger = (type: string): boolean => IN_LEDGER.has(type);
 
 /** L1 actions (an agent could sign them too) that are account management, not trading. */
 const L1_SHOWN = new Set(["createSubAccount", "subAccountModify", "createVault", "setReferrer", "setDisplayName"]);
@@ -439,6 +459,7 @@ export const describeExplorerTx = async (
 	return {
 		id: `x:${tx.time}:${hash ?? ""}`,
 		time: tx.time,
+		hlAction: String(action.type),
 		amounts: [],
 		...described,
 		failed: tx.error !== null && tx.error !== undefined,
@@ -448,7 +469,13 @@ export const describeExplorerTx = async (
 	};
 };
 
-const fetchExplorerActions = async (env: NetworkEnv, user: Address): Promise<HistoryItem[]> => {
+/** The explorer returns this many of an account's latest transactions and no more. */
+const EXPLORER_LIMIT = 300;
+
+const fetchExplorerActions = async (
+	env: NetworkEnv,
+	user: Address,
+): Promise<{ items: HistoryItem[]; since?: number }> => {
 	const res = await fetch(HL_EXPLORER_API[env], {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
@@ -459,5 +486,10 @@ const fetchExplorerActions = async (env: NetworkEnv, user: Address): Promise<His
 	const body = (await res.json()) as { txs?: unknown };
 	const txs = Array.isArray(body.txs) ? (body.txs.slice(0, 1000) as ExplorerTx[]) : [];
 	const items = await Promise.all(txs.map((tx) => describeExplorerTx(tx, user, env).catch(() => undefined)));
-	return items.filter((i): i is HistoryItem => !!i).sort((a, b) => b.time - a.time);
+	// A full answer was cut: whatever is older than its oldest transaction is not known from here.
+	const times = txs.map((tx) => tx.time).filter((v): v is number => typeof v === "number");
+	return {
+		items: items.filter((i): i is HistoryItem => !!i).sort((a, b) => b.time - a.time),
+		since: txs.length >= EXPLORER_LIMIT && times.length > 0 ? Math.min(...times) : undefined,
+	};
 };

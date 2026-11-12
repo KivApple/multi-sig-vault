@@ -24,12 +24,19 @@ export interface HistoryItem {
 	sender?: Address;
 	/** Hyperliquid: hash to look the signers up by (multi-sig accounts). */
 	hlHash?: string;
+	/** Hyperliquid action type, to tell an explorer row from the same operation remembered by the app. */
+	hlAction?: string;
 	/** EVM transaction hash, to match the item with an operation made in this app. */
 	txHash?: string;
 }
 
 export interface HistoryPage {
 	items: HistoryItem[];
+	/**
+	 * First page of a Hyperliquid account: actions that move no funds are known from the exchange only
+	 * since this time (`null` – its explorer did not answer at all). Absent when nothing is cut off.
+	 */
+	actionsSince?: number | null;
 	/** Opaque cursor of the next (older) page; absent on the last one. */
 	next?: unknown;
 }

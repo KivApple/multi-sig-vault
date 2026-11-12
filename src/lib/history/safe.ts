@@ -146,6 +146,43 @@ export const describeSafeRecord = (raw: unknown, safe: Address, chainId: number)
 	return undefined;
 };
 
+/** The creation of the Safe as a history row: when, by whom, with which signers. */
+export const describeCreation = (raw: unknown, chainId: number): HistoryItem | undefined => {
+	const r = raw as Record<string, unknown> | null;
+	if (!r || typeof r !== "object") return undefined;
+	const time = Date.parse(String(r.created ?? ""));
+	if (!Number.isFinite(time)) return undefined;
+	const hash =
+		typeof r.transactionHash === "string" && /^0x[0-9a-f]{64}$/i.test(r.transactionHash)
+			? r.transactionHash
+			: undefined;
+	const params = (r.dataDecoded as { parameters?: unknown } | null)?.parameters;
+	const param = (name: string): unknown =>
+		Array.isArray(params)
+			? (params as { name?: unknown; value?: unknown }[]).find((p) => p?.name === name)?.value
+			: undefined;
+	const owners = param("_owners");
+	const signers = Array.isArray(owners) ? owners.slice(0, 50).flatMap((o) => addressOf(o) ?? []) : [];
+	const threshold = Number(param("_threshold"));
+	const known = signers.length > 0 && Number.isInteger(threshold) && threshold > 0 && threshold <= signers.length;
+	return {
+		id: "created",
+		time,
+		title: known
+			? { key: "history.safe.createdWith", vars: { m: String(threshold), n: String(signers.length) } }
+			: { key: "history.safe.created" },
+		amounts: [],
+		link: hash ? explorerTx(chainId, hash) : undefined,
+		txHash: hash,
+		sender: addressOf(r.creator),
+	};
+};
+
+const fetchCreation = async (base: string, safe: Address, chainId: number): Promise<HistoryItem | undefined> => {
+	const res = await fetch(`${base}/api/v1/safes/${getAddress(safe)}/creation/`, { referrerPolicy: "no-referrer" });
+	return res.ok ? describeCreation(await res.json(), chainId) : undefined;
+};
+
 /** `undefined` when the chain has no transaction service (no history source). */
 export const safeHistoryLoader = (chainId: number, safe: Address): HistoryLoader | undefined => {
 	const base = findChain(chainId)?.safeTxService;
@@ -163,7 +200,12 @@ export const safeHistoryLoader = (chainId: number, safe: Address): HistoryLoader
 			const items = results.flatMap((r) => describeSafeRecord(r, safe, chainId) ?? []);
 			offset += PAGE;
 			const more = typeof body.next === "string" && results.length > 0;
-			if (items.length > 0 || !more) return { items, next: more ? offset : undefined };
+			if (!more) {
+				// The oldest entry of every Safe is its creation, which the list above does not contain.
+				const created = await fetchCreation(base, safe, chainId).catch(() => undefined);
+				return { items: created ? [...items, created] : items };
+			}
+			if (items.length > 0) return { items, next: offset };
 		}
 		return { items: [], next: offset };
 	};

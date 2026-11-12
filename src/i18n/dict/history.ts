@@ -9,7 +9,7 @@ export default defineDict({
 		"history.end": "That is the whole history",
 		"history.noSource": "There is no history service for this network.",
 		"history.hlNote":
-			"Deposits, withdrawals and transfers for the whole life of the account. Agent approvals, multi-sig changes and other actions without a money movement are known only among the account's latest exchange transactions. Orders and trades are not listed.",
+			"Deposits, withdrawals, transfers and actions of the account's own key. Orders and trades are not listed.",
 		"history.safeNote":
 			"Executed Safe transactions and incoming transfers, as reported by the Safe Transaction Service.",
 		"history.failed": "Failed",
@@ -51,6 +51,12 @@ export default defineDict({
 		"history.safe.call": "Contract call",
 		"history.safe.module": "Module transaction",
 		"history.safe.received": "Received",
+		"history.safe.created": "Safe created",
+		"history.safe.createdWith": "Safe created: {m} of {n}",
+		"history.hlCut":
+			"The exchange returns only an account's latest 300 transactions, trading included. For this account they start on {date}. Earlier agent approvals, multi-sig changes and similar actions are listed only if they were sent from this app on this device.",
+		"history.hlNoExplorer":
+			"The exchange explorer did not answer: agent approvals, multi-sig changes and similar actions are listed only if they were sent from this app on this device.",
 		"history.safe.moved": "Funds moved",
 	},
 	ru: {
@@ -60,8 +66,7 @@ export default defineDict({
 		"history.more": "Показать ещё",
 		"history.end": "Это вся история",
 		"history.noSource": "Для этой сети нет сервиса истории.",
-		"history.hlNote":
-			"Пополнения, выводы и переводы за всё время. Одобрения агентов, смена multi-sig и другие действия без движения средств известны только среди последних транзакций счёта на бирже. Ордера и сделки не показаны.",
+		"history.hlNote": "Пополнения, выводы, переводы и действия ключом самого счёта. Ордера и сделки не показаны.",
 		"history.safeNote": "Исполненные транзакции Safe и входящие переводы по данным Safe Transaction Service.",
 		"history.failed": "Не выполнена",
 		"history.signedBy": "Подписали",
@@ -102,6 +107,12 @@ export default defineDict({
 		"history.safe.call": "Вызов контракта",
 		"history.safe.module": "Транзакция модуля",
 		"history.safe.received": "Поступление",
+		"history.safe.created": "Safe создан",
+		"history.safe.createdWith": "Safe создан: {m} из {n}",
+		"history.hlCut":
+			"Биржа отдаёт только последние 300 транзакций счёта, включая сделки. У этого счёта они начинаются {date}. Более ранние одобрения агентов, смены multi-sig и подобные действия показаны, только если были отправлены из этого приложения на этом устройстве.",
+		"history.hlNoExplorer":
+			"Обозреватель биржи не ответил: одобрения агентов, смены multi-sig и подобные действия показаны, только если были отправлены из этого приложения на этом устройстве.",
 		"history.safe.moved": "Движение средств",
 	},
 });

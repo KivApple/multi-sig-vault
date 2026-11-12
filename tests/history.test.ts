@@ -1,7 +1,7 @@
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { describe, expect, it } from "vitest";
 import { describeExplorerTx, describeLedgerEntry, recoverMultiSigSigners } from "@/lib/history/hl";
-import { describeSafeRecord, transferAmounts } from "@/lib/history/safe";
+import { describeCreation, describeSafeRecord, transferAmounts } from "@/lib/history/safe";
 import { hlMultiSigWrapper, hlSignerTypedData } from "@/lib/hl/signing";
 import { toFullTypedData } from "@/lib/wallets/typedData";
 import type { HlPayload } from "@/types/domain";
@@ -296,5 +296,38 @@ describe("Safe history", () => {
 			key: "history.safe.call",
 		});
 		expect(describeSafeRecord({ ...base, dataDecoded: null }, SAFE, 1)?.title).toEqual({ key: "history.safe.call" });
+	});
+
+	it("shows the creation of the Safe with its first signers", () => {
+		const row = describeCreation(
+			{
+				created: "2026-10-05T09:15:00Z",
+				creator: "0xA0952F1ad801e7ca0256d0979a29180335bA9DEC",
+				transactionHash: HASH,
+				dataDecoded: {
+					method: "setup",
+					parameters: [
+						{
+							name: "_owners",
+							value: [
+								"0xA0952F1ad801e7ca0256d0979a29180335bA9DEC",
+								"0x03D0D9a257CCd8262654E0c4Baa4A2c63bF79812",
+								"0xe6960ad4aA297396069CE001D7fc586767b5F423",
+							],
+						},
+						{ name: "_threshold", value: "2" },
+					],
+				},
+			},
+			1,
+		);
+		expect(row?.title).toEqual({ key: "history.safe.createdWith", vars: { m: "2", n: "3" } });
+		expect(row?.sender).toBe("0xA0952F1ad801e7ca0256d0979a29180335bA9DEC");
+		expect(row?.time).toBe(Date.parse("2026-10-05T09:15:00Z"));
+		// Without readable parameters it is still a row, just without the numbers.
+		expect(describeCreation({ created: "2026-10-05T09:15:00Z", dataDecoded: null }, 1)?.title).toEqual({
+			key: "history.safe.created",
+		});
+		expect(describeCreation({ created: "nonsense" }, 1)).toBeUndefined();
 	});
 });

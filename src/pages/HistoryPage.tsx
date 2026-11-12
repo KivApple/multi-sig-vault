@@ -4,10 +4,10 @@ import { Notice } from "@/components/common/Notice";
 import { HistoryRow } from "@/components/history/HistoryRow";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { Spinner } from "@/components/ui/Spinner";
-import { useT } from "@/i18n";
+import { useLang, useT } from "@/i18n";
 import { describeError } from "@/lib/describeError";
-import { shortAddress } from "@/lib/format";
-import { hlHistoryLoader } from "@/lib/history/hl";
+import { formatDateTime, shortAddress } from "@/lib/format";
+import { hlActionInLedger, hlHistoryLoader } from "@/lib/history/hl";
 import { safeHistoryLoader } from "@/lib/history/safe";
 import type { HistoryItem } from "@/lib/history/types";
 import { opTitleKey } from "@/lib/ops/registry";
@@ -16,6 +16,7 @@ import { useAppStore } from "@/store/appStore";
 
 interface Loaded {
 	items: HistoryItem[];
+	actionsSince?: number | null;
 	cursor?: unknown;
 	done: boolean;
 }
@@ -23,11 +24,34 @@ interface Loaded {
 const EMPTY: Loaded = { items: [], done: false };
 
 /**
+ * Exchange actions this app sent for the account and still remembers, as history rows with their
+ * signers. Only those that leave no ledger entry: the rest are in the ledger already.
+ */
+const rememberedHlActions = (accountId: string): HistoryItem[] =>
+	useAppStore.getState().operations.flatMap((op): HistoryItem[] => {
+		if (op.accountId !== accountId || op.status !== "sent" || !op.result || op.payload?.kind !== "hl") return [];
+		const type = String(op.payload.action.type);
+		if (hlActionInLedger(type)) return [];
+		return [
+			{
+				id: `op:${op.id}`,
+				time: op.result.sentAt,
+				title: { key: opTitleKey(op.type) },
+				amounts: [],
+				hlAction: type,
+				signers: op.signatures.map((s) => s.signer),
+				sender: op.result.sender,
+			},
+		];
+	});
+
+/**
  * History of one account, newest first. Opened on demand from the account page; older pages load
  * as the list is scrolled to its end.
  */
 export const HistoryPage: React.FC = () => {
 	const t = useT();
+	const lang = useLang();
 	const { id } = useParams();
 	const ready = useAppStore((s) => s.ready);
 	const account = useAppStore((s) => s.accounts.find((a) => a.id === id));
@@ -36,9 +60,8 @@ export const HistoryPage: React.FC = () => {
 
 	const loader = useMemo(() => {
 		if (!account) return undefined;
-		return account.kind === "hl"
-			? hlHistoryLoader(account.env, account.address)
-			: safeHistoryLoader(account.chainId as number, account.address);
+		if (account.kind === "safe") return safeHistoryLoader(account.chainId as number, account.address);
+		return hlHistoryLoader(account.env, account.address, rememberedHlActions(account.id));
 	}, [account?.kind, account?.env, account?.chainId, account?.address]);
 
 	const [state, setState] = useState<Loaded>(EMPTY);
@@ -61,6 +84,7 @@ export const HistoryPage: React.FC = () => {
 			const seen = new Set(before.items.map((i) => i.id));
 			setState({
 				items: [...before.items, ...page.items.filter((i) => !seen.has(i.id))],
+				actionsSince: before.cursor === undefined ? page.actionsSince : before.actionsSince,
 				cursor: page.next,
 				done: page.next === undefined,
 			});
@@ -118,6 +142,13 @@ export const HistoryPage: React.FC = () => {
 					<p className="text-base-content/60 text-xs">
 						{t(account.kind === "hl" ? "history.hlNote" : "history.safeNote")}
 					</p>
+					{state.actionsSince !== undefined && (
+						<Notice>
+							{state.actionsSince === null
+								? t("history.hlNoExplorer")
+								: t("history.hlCut", { date: formatDateTime(state.actionsSince, lang) })}
+						</Notice>
+					)}
 					{state.items.length > 0 && (
 						<ul className="card-surface divide-base-300 flex flex-col divide-y">
 							{state.items.map((item) => (
