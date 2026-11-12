@@ -233,7 +233,7 @@ export const CHAINS: ChainConfig[] = [
 		usdc: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
 		dex: {
 			name: "Uniswap V3",
-			router: "0x94cC0AaC535CCDB3C01d6787D6413C739ae12bC4",
+			router: "0x94cC0AaC535CCDB3C01d6787D6413C739ae12bc4",
 			quoter: "0xC5290058841028F1614F3A6F0F5816cAd0df5E27",
 			factory: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24",
 			feeTiers: UNI_TIERS,
