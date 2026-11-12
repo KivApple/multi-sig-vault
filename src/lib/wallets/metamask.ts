@@ -35,6 +35,8 @@ import { findChain } from "@/config/chains";
 import { WalletError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
 import type { Signer } from "@/types/domain";
+import { relayAvailable, requestInMetaMaskBrowser } from "@/lib/handoff/client";
+import { toWireTx } from "@/lib/handoff/protocol";
 import { toFullTypedData } from "./typedData";
 import type { DiscoveredAccount, ListAccountsOptions, TxRequest, TypedDataPayload, WalletAdapter } from "./types";
 
@@ -376,7 +378,8 @@ export const metamaskUsesApp = (): boolean =>
 	appSession ||
 	(/Android|iPhone|iPad/i.test(navigator.userAgent) && !(window as unknown as { ethereum?: unknown }).ethereum);
 
-export const metamaskAdapter: WalletAdapter = {
+/** Talks to MetaMask from this page: the extension, the in-app browser, or the SDK relay as a last resort. */
+export const metamaskDirect: WalletAdapter = {
 	kind: "metamask",
 	schemes: [],
 
@@ -425,5 +428,39 @@ export const metamaskAdapter: WalletAdapter = {
 		} catch (e) {
 			throw chainMoved(session, e);
 		}
+	},
+};
+
+export const hasInjectedMetaMask = async (): Promise<boolean> => !!(await findInjected());
+
+/**
+ * On a phone outside MetaMask's browser, requests are handed to the app's signing page inside that
+ * browser through the encrypted relay (src/lib/handoff): the SDK's own channel loses answers when
+ * Android freezes the tab. Without a relay (a self-hosted copy) the SDK is still used.
+ */
+const viaBrowserHandoff = async (): Promise<boolean> =>
+	/Android|iPhone|iPad/i.test(navigator.userAgent) && !(await findInjected()) && (await relayAvailable());
+
+export const metamaskAdapter: WalletAdapter = {
+	kind: "metamask",
+	schemes: [],
+
+	listAccounts: async (opts: ListAccountsOptions): Promise<DiscoveredAccount[]> => {
+		if (!(await viaBrowserHandoff())) return metamaskDirect.listAccounts(opts);
+		const accounts = (await requestInMetaMaskBrowser({ v: 1, method: "accounts" })) as Address[];
+		return accounts.map((address) => ({ address }));
+	},
+
+	signTypedData: async (signer: Signer, data: TypedDataPayload): Promise<Hex> => {
+		if (!(await viaBrowserHandoff())) return metamaskDirect.signTypedData(signer, data);
+		return (await requestInMetaMaskBrowser({ v: 1, method: "signTypedData", address: signer.address, data })) as Hex;
+	},
+
+	sendTransaction: async (signer: Signer, tx: TxRequest): Promise<Hex> => {
+		if (!(await viaBrowserHandoff())) return metamaskDirect.sendTransaction(signer, tx);
+		return (await requestInMetaMaskBrowser(
+			{ v: 1, method: "sendTransaction", address: signer.address, tx: toWireTx(tx) },
+			() => new TxOutcomeUnknownError(),
+		)) as Hex;
 	},
 };

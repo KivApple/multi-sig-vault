@@ -93,6 +93,17 @@ Wherever the wallet supports it, operations are signed as structured EIP-712 dat
 
 The production build ships a strict CSP with no inline or third-party scripts. External data (token lists, API responses, QR contents) is validated, and remote SVGs are rendered only through `<img>`.
 
+## MetaMask on a phone
+
+In Chrome on a phone the app cannot talk to the MetaMask app directly, and Android freezes the page while MetaMask is in front, so answers sent to it get lost. Instead the request is handed to the app's own signing page inside MetaMask's built-in browser, where the wallet is part of the page:
+
+1. The app encrypts the request (AES-256-GCM) with a fresh key and leaves it on a small relay (`relay/server.mjs`).
+2. You tap "Open MetaMask". The link carries the session id and the key in its fragment, which browsers do not send to servers.
+3. The signing page shows the request and a six-digit code that must match the one in the app, then asks MetaMask.
+4. The encrypted answer goes back through the relay, and the app picks it up when you return.
+
+The relay is a blind mailbox: it sees ciphertext only, cannot read or change a request or an answer without failing authentication, keeps a session in memory for ten minutes and logs nothing. The worst it can do is lose a message. Every signature is still verified against the signer's address. The desktop extension and MetaMask's own browser need no relay; a copy of the app hosted without one falls back to MetaMask SDK.
+
 ## Offline use and updates
 
 The service worker (`public/sw.js`) is the same file in every release and serves only the files of the active release. A new version is downloaded by the running app, each file is checked against its SHA-256, and it is activated only after you agree.
@@ -140,7 +151,7 @@ MSV_FORK=1 pnpm vitest run tests/*.fork.test.ts
 - **Spot withdrawal to HyperEVM** always arrives at the same address. For a multi-sig account, that address on HyperEVM is controlled by the original key. The app warns about this.
 - **Unit minimum amounts** are taken from the Unit documentation, not from an API.
 - **Trezor** opens a Trezor Connect window, which needs either network access or a running Trezor Suite. **Ledger** connects directly and works offline.
-- **MetaMask on Android** is reached through MetaMask SDK and needs network access. To work fully offline, open the app in MetaMask's built-in browser and move operations by QR.
+- **MetaMask on a phone** signs in MetaMask's built-in browser, reached through the relay described above, and needs network access. To work fully offline, open the whole app in MetaMask's browser and move operations by QR.
 - **MEV protection** (Flashbots Protect) applies to Ethereum transactions signed with Ledger or Trezor. MetaMask broadcasts its own transactions.
 - **USDC bridge**: by default Circle's Forwarding Service delivers the funds, and the fee is taken exactly from Circle's API. If delivery does not happen, the result card lets any signer pay the gas for it.
 - The first install, and any change to `sw.js` itself, cannot be covered by the on-chain release check. This is a limitation of the web platform.
@@ -157,6 +168,8 @@ src/lib/wallets   MetaMask, Trezor and Ledger adapters
 src/lib/qr        QR: addresses, packing, frames
 src/lib/tokens    token lists and icons
 src/lib/update    offline releases and signature check
+src/lib/handoff   encrypted hand-off to MetaMask's browser
+relay             the blind relay server for it
 src/components    one component per file
 src/i18n          en and ru
 scripts           icons, token lists, dictionaries, release.json

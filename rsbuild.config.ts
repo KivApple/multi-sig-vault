@@ -47,5 +47,6 @@ export default defineConfig({
 	performance: {
 		chunkSplit: { strategy: "split-by-experience" },
 	},
-	server: { port: 5173 },
+	// `node relay/server.mjs` with PORT=8787 serves the MetaMask hand-off relay in development.
+	server: { port: 5173, proxy: { "/relay": "http://127.0.0.1:8787" } },
 });

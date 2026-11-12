@@ -13,6 +13,7 @@ import safe from "./dict/safe";
 import swap from "./dict/swap";
 import advanced from "./dict/advanced";
 import addAccount from "./dict/addAccount";
+import handoff from "./dict/handoff";
 import type { ModuleDict } from "./define";
 
 export const DICTS: ModuleDict[] = [
@@ -31,4 +32,5 @@ export const DICTS: ModuleDict[] = [
 	swap,
 	advanced,
 	addAccount,
+	handoff,
 ];

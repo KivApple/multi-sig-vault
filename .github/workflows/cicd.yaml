@@ -5,6 +5,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 concurrency: deploy
 
@@ -42,3 +43,18 @@ jobs:
           RCLONE_S3_REGION: garage
           RCLONE_S3_ACCESS_KEY_ID: GK1f3d8356f8e5792545429824
           RCLONE_S3_SECRET_ACCESS_KEY: ${{ secrets.S3_SECRET_KEY }}
+
+  # The blind relay for MetaMask on phones (relay/); infra-config runs the image
+  relay:
+    runs-on: teapot
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build and push
+        run: |
+          echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build -t ghcr.io/kivapple/multi-sig-vault-relay:latest relay
+          docker push ghcr.io/kivapple/multi-sig-vault-relay:latest
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

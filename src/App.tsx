@@ -1,5 +1,6 @@
 import { HashRouter, Navigate, Route, Routes } from "react-router";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { HandoffDialog } from "@/components/handoff/HandoffDialog";
 import { ConfirmProvider } from "@/components/ui/ConfirmProvider";
 import { Toaster } from "@/components/ui/Toaster";
 import { useTheme } from "@/hooks/useTheme";
@@ -10,6 +11,7 @@ import { CreateSafePage } from "@/pages/CreateSafePage";
 import { LinkPage } from "@/pages/LinkPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { SignersPage } from "@/pages/SignersPage";
+import { SignRequestPage } from "@/pages/SignRequestPage";
 
 export const App: React.FC = () => {
 	useTheme();
@@ -17,6 +19,7 @@ export const App: React.FC = () => {
 		<ConfirmProvider>
 			<HashRouter>
 				<Routes>
+					<Route path="sign/:token" element={<SignRequestPage />} />
 					<Route element={<AppLayout />}>
 						<Route index element={<AccountsPage />} />
 						<Route path="accounts/new" element={<AddAccountPage />} />
@@ -29,6 +32,7 @@ export const App: React.FC = () => {
 					</Route>
 				</Routes>
 			</HashRouter>
+			<HandoffDialog />
 			<Toaster />
 		</ConfirmProvider>
 	);
