@@ -131,12 +131,9 @@ async function primeFirstRelease() {
 self.addEventListener('install', function (event) {
   event.waitUntil(
     (async function () {
-      if (await readActive()) {
-        // An active release exists: this is a new sw.js replacing an old one. Do not touch the
-        // release and do not skip waiting – the running app keeps its verified code.
-        return;
-      }
-      await primeFirstRelease();
+      // With an active release this is a new sw.js replacing an old one: leave the release alone.
+      // Taking over at once is safe – the worker serves the same verified files either way.
+      if (!(await readActive())) await primeFirstRelease();
       await self.skipWaiting();
     })(),
   );
@@ -173,5 +170,8 @@ self.addEventListener('fetch', function (event) {
   var path = url.pathname.slice(new URL(SCOPE).pathname.length);
   // The manifest and the worker itself always come from the network; meta keys are never served.
   if (path === 'release.json' || path === 'sw.js' || path.indexOf('__msv/') === 0) return;
+  // The updater downloads the next release with cache: 'no-store'. Answering that from the active
+  // release would hand it the old index.html, and the new release would never pass verification.
+  if (request.cache === 'no-store') return;
   event.respondWith(respond(request, url));
 });
