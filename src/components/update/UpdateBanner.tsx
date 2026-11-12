@@ -43,20 +43,6 @@ export const UpdateBanner: React.FC = () => {
 		);
 	}
 
-	if (status === "unverified" && newVersion) {
-		return (
-			<div className="bg-warning/15 border-warning/30 border-b" role="alert">
-				<div className="mx-auto flex w-full max-w-3xl items-start gap-3 px-4 py-2">
-					<ShieldAlert className="text-warning mt-0.5 size-5 shrink-0" />
-					<div className="min-w-0 flex-1 text-sm">
-						<p className="font-medium">{t("update.unverifiedTitle", { version: newVersion })}</p>
-						<p className="text-base-content/70 text-xs">{t("update.unverifiedText")}</p>
-					</div>
-				</div>
-			</div>
-		);
-	}
-
 	if (swUpdatePending) {
 		return (
 			<div className="bg-warning/15 border-warning/30 border-b" role="alert">

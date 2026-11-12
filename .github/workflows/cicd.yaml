@@ -2,6 +2,8 @@ on:
   push:
     branches:
       - master
+  # Run by hand after signing a release: puts it at the site root
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -12,6 +14,11 @@ concurrency: deploy
 jobs:
   deploy:
     runs-on: teapot
+    env:
+      # The Safe that approves releases (README, "Offline use and updates")
+      PUBLIC_RELEASE_SAFE: "0x22222222e8d995EA51841abc49022Fb5eb7C62b4"
+      PUBLIC_RELEASE_CHAIN_ID: "1"
+      RELEASE_RPC_URLS: https://ethereum-rpc.publicnode.com,https://eth.drpc.org
 
     steps:
       - name: Checkout
@@ -26,21 +33,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
       - name: Test
+        if: github.event_name == 'push'
         run: pnpm test
       - name: Build
+        if: github.event_name == 'push'
         run: pnpm build
-        env:
-          # The Safe that approves releases (README, "Offline use and updates"); clients offer only approved ones
-          PUBLIC_RELEASE_SAFE: "0x22222222e8d995EA51841abc49022Fb5eb7C62b4"
-          PUBLIC_RELEASE_CHAIN_ID: "1"
-      - name: Deploy
+      - name: Publish
         # The website bucket in Garage is declared in infra-config (apps/garage/app.yaml).
+        # A push publishes the build under releases/<id>/ and adds it to releases.json; the site root
+        # gets the newest release the Safe approved. A manual run only refreshes the root.
         # rclone, not the AWS CLI: its DELETE requests sign Content-Length, which the proxy in front of Garage drops.
-        run: >
-          docker run --rm -v "$PWD/dist:/dist:ro"
-          -e RCLONE_S3_PROVIDER -e RCLONE_S3_ENDPOINT -e RCLONE_S3_REGION
-          -e RCLONE_S3_ACCESS_KEY_ID -e RCLONE_S3_SECRET_ACCESS_KEY
-          rclone/rclone:1.76.0 sync --checksum -v /dist :s3:multi-sig.quoi.dev
+        run: scripts/release/publish.sh ${{ github.event_name == 'workflow_dispatch' && '--promote' || '' }}
         env:
           RCLONE_S3_PROVIDER: Other
           RCLONE_S3_ENDPOINT: https://s3.quoi.dev
@@ -50,6 +53,7 @@ jobs:
 
   # The blind relay for MetaMask on phones (relay/); infra-config runs the image
   relay:
+    if: github.event_name == 'push'
     runs-on: teapot
 
     steps:

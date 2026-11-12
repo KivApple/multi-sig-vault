@@ -58,8 +58,10 @@ export default defineDict({
 
 		"createSafe.deploy.waiting": "Creating the Safe…",
 		"createSafe.deploy.unconfirmed": "The transaction is not confirmed yet",
+		"createSafe.deploy.stuckHint":
+			"Its fee may be too low. To send it again, go back to the form and pay once more from the same address: the Safe keeps its address, and the new transaction replaces the old one.",
 		"createSafe.deploy.checkAgain": "Check again",
-		"createSafe.deploy.discard": "Stop tracking",
+		"createSafe.deploy.discard": "Back to the form",
 
 		"createSafe.target.checking": "Checking {network}…",
 		"createSafe.target.offline": "No connection. Creating a Safe needs the network.",
@@ -142,8 +144,10 @@ export default defineDict({
 
 		"createSafe.deploy.waiting": "Создаём Safe…",
 		"createSafe.deploy.unconfirmed": "Транзакция ещё не подтверждена",
+		"createSafe.deploy.stuckHint":
+			"Возможно, комиссия слишком низкая. Чтобы отправить заново, вернитесь к форме и оплатите ещё раз с того же адреса: адрес Safe останется прежним, а новая транзакция заменит старую.",
 		"createSafe.deploy.checkAgain": "Проверить ещё раз",
-		"createSafe.deploy.discard": "Не отслеживать",
+		"createSafe.deploy.discard": "Вернуться к форме",
 
 		"createSafe.target.checking": "Проверяем {network}…",
 		"createSafe.target.offline": "Нет сети. Для создания Safe нужен интернет.",

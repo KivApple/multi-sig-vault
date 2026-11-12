@@ -39,6 +39,7 @@ export const DeploymentStatus: React.FC<DeploymentStatusProps> = ({
 				<ExternalLink className="size-3 shrink-0" />
 			</a>
 			{error && <p className="text-error text-sm">{error}</p>}
+			{!waiting && <p className="text-base-content/70 text-sm">{t("createSafe.deploy.stuckHint")}</p>}
 			{!waiting && (
 				<div className="flex flex-wrap gap-2">
 					<button type="button" className="btn btn-primary btn-sm" onClick={onRetry}>

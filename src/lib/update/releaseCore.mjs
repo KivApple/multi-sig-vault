@@ -116,3 +116,47 @@ export const signMessageCalldata = (digest) =>
 /** Calldata of EIP-1271 `isValidSignature(digest, "")` sent to the Safe itself. */
 export const isValidSignatureCalldata = (digest) =>
 	encodeFunctionData({ abi: IS_VALID_SIGNATURE_ABI, functionName: "isValidSignature", args: [digest, "0x"] });
+
+/**
+ * Compares dotted numeric versions ("1.2.10" > "1.2.9"). Anything else compares as equal,
+ * so a release with an unreadable version is never taken for a newer one.
+ */
+export const compareVersions = (a, b) => {
+	const parse = (v) =>
+		typeof v === "string" && /^\d{1,9}(\.\d{1,9}){0,5}$/.test(v) ? v.split(".").map(Number) : undefined;
+	const x = parse(a);
+	const y = parse(b);
+	if (!x || !y) return 0;
+	for (let i = 0; i < Math.max(x.length, y.length); i++) {
+		const d = (x[i] ?? 0) - (y[i] ?? 0);
+		if (d !== 0) return d < 0 ? -1 : 1;
+	}
+	return 0;
+};
+
+export const RELEASE_LIST_LIMIT = 200;
+
+/**
+ * `releases.json`: every published release, newest first. It is only a hint where to look – what a
+ * release contains is proven by its own manifest, and whether it is approved by the developer Safe.
+ * Malformed entries are dropped; throws when the document itself is not a list.
+ */
+export const parseReleaseList = (raw) => {
+	if (!raw || typeof raw !== "object" || !Array.isArray(raw.releases)) throw new Error("Release list: malformed");
+	const seen = new Set();
+	const out = [];
+	for (const entry of raw.releases.slice(0, RELEASE_LIST_LIMIT)) {
+		if (!entry || typeof entry.id !== "string" || !SHA256_RE.test(entry.id) || seen.has(entry.id)) continue;
+		if (typeof entry.version !== "string" || !entry.version || entry.version.length > 64) continue;
+		seen.add(entry.id);
+		out.push({ id: entry.id, version: entry.version, ...(typeof entry.time === "string" ? { time: entry.time } : {}) });
+	}
+	return out;
+};
+
+/** The list with `manifest` put first (publishing the same release twice keeps one entry). */
+export const addToReleaseList = (raw, manifest, time) => {
+	const old = raw === undefined ? [] : parseReleaseList(raw);
+	const entry = { id: manifest.id, version: manifest.version, time };
+	return { format: 1, releases: [entry, ...old.filter((e) => e.id !== manifest.id)].slice(0, RELEASE_LIST_LIMIT) };
+};

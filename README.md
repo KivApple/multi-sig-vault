@@ -37,6 +37,7 @@ This app builds the payloads your wallets sign, so a backdoor in it could drain 
 **Safe operations**
 
 - Send native coins and tokens.
+- Every transaction the app sends offers a slower and a faster fee, taken from the tips recent blocks accepted. One that stays unconfirmed can be sent again with the same signatures.
 - Swap on Uniswap V3 (HyperSwap V3 on HyperEVM), quoted directly from the pools.
 - Bridge USDC between any two supported chains through Circle CCTP V2.
 - Change owners and threshold.
@@ -109,14 +110,19 @@ The relay is a blind mailbox. It sees ciphertext only, cannot read or change a r
 
 The service worker (`public/sw.js`) is the same file in every release and serves only the files of the active release. A new version is downloaded by the running app, each file is checked against its SHA-256, and it is activated only after you agree.
 
-A release can also be signed on-chain by the developer's Safe:
+Every published release stays on the server at `releases/<id>/`, and `releases.json` lists them newest first. That gives two update channels from one deployment:
+
+- **Stable** (the default). The app installs the newest release the developer's Safe approved on-chain, and only moves to a higher version. The site root serves the same release, so a first-time visitor gets it too.
+- **Test versions** (a switch in settings). The app installs the newest release, signed or not.
+
+Nothing changes on the server when a release gets signed: clients ask the chain which listed release is approved.
 
 ```bash
-PUBLIC_RELEASE_SAFE=0x… PUBLIC_RELEASE_CHAIN_ID=8453 pnpm build
+PUBLIC_RELEASE_SAFE=0x… PUBLIC_RELEASE_CHAIN_ID=1 pnpm build
 pnpm release:info   # release id, digest and the transaction for the developer's Safe
 ```
 
-The developer's Safe executes `SignMessageLib.signMessage(digest)`; in the app this is the "Sign message hash" operation. Clients call `isValidSignature(digest, "")` (EIP-1271) and do not offer an unsigned release. The check can be turned off in settings, and it is off when the build variables are not set.
+The developer's Safe executes `SignMessageLib.signMessage(digest)`; in the app this is the "Sign message hash" operation. Clients call `isValidSignature(digest, "")` (EIP-1271) on two independent RPC endpoints. A build without these variables has no stable channel and follows the newest release. `scripts/release/publish.sh` is the deployment: it uploads the build, extends the list and puts the newest approved release at the root.
 
 ## Tech stack
 

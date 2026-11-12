@@ -1,7 +1,15 @@
 import { APP_VERSION } from "@/config/constants";
 import { errorText } from "@/lib/errors";
 import { useAppStore } from "@/store/appStore";
-import { sha256Hex, verifyManifest, type ReleaseFile, type ReleaseManifest } from "./releaseCore.mjs";
+import {
+	compareVersions,
+	parseReleaseList,
+	sha256Hex,
+	verifyManifest,
+	type ReleaseEntry,
+	type ReleaseFile,
+	type ReleaseManifest,
+} from "./releaseCore.mjs";
 import { useUpdateStore, type UpdateState, type VerificationStatus } from "./store";
 import { RELEASE_SIGNER, verifyRelease } from "./verify";
 
@@ -10,9 +18,14 @@ import { RELEASE_SIGNER, verifyRelease } from "./verify";
  *
  * The service worker (public/sw.js) only serves the ACTIVE release from the Cache API.
  * This module – i.e. the code of the release the user already runs and trusts – finds a new
- * release, checks the developer multi-sig approval (optional), downloads every file with
- * SHA-256 verification into a separate cache and waits. Only `applyUpdate()`, called from an
- * explicit user action, switches the active pointer and reloads.
+ * release, downloads every file with SHA-256 verification into a separate cache and waits.
+ * Only `applyUpdate()`, called from an explicit user action, switches the active pointer and reloads.
+ *
+ * Two channels share one server. Every published release stays at `releases/<id>/`, and
+ * `releases.json` lists them newest first. With verification on (the default) the app takes the
+ * newest release the developer Safe approved on-chain and never moves to a lower version; with
+ * test versions allowed it takes the newest one, signed or not. Nothing has to change on the
+ * server when a release gets signed: the chain says which one is the stable one.
  */
 const META_CACHE = "msv-meta";
 const RELEASE_PREFIX = "msv-release-";
@@ -87,6 +100,8 @@ const isComplete = async (manifest: ReleaseManifest): Promise<boolean> => {
  */
 const downloadRelease = async (
 	manifest: ReleaseManifest,
+	/** Where the files of this release are served from. */
+	base: string,
 	reuseFromId: string | undefined,
 	onProgress: (fraction: number) => void,
 ): Promise<void> => {
@@ -107,7 +122,7 @@ const downloadRelease = async (
 				if (reused) {
 					await target.put(url, reused);
 				} else {
-					const res = await fetch(url, { cache: "no-store", credentials: "same-origin" });
+					const res = await fetch(new URL(file.path, base), { cache: "no-store", credentials: "same-origin" });
 					if (!res.ok) throw new Error(`HTTP ${res.status}: ${file.path}`);
 					const body = await res.arrayBuffer();
 					if ((await sha256Hex(body)) !== file.sha256) throw new Error(`update.error.integrity`);
@@ -124,11 +139,44 @@ const downloadRelease = async (
 	await Promise.all([worker(), worker(), worker(), worker()]);
 };
 
-const fetchManifest = async (): Promise<ReleaseManifest> => {
-	const res = await fetch(`${BASE}release.json`, { cache: "no-store", credentials: "same-origin" });
+const fetchManifest = async (base = BASE): Promise<ReleaseManifest> => {
+	const res = await fetch(`${base}release.json`, { cache: "no-store", credentials: "same-origin" });
 	if (!res.ok) throw new Error(`HTTP ${res.status}`);
 	return verifyManifest(await res.json());
 };
+
+const releaseBase = (id: string): string => `${BASE}releases/${id}/`;
+
+/** The manifest of one published release; its id must be the one asked for. */
+const fetchReleaseManifest = async (id: string): Promise<ReleaseManifest> => {
+	const manifest = await fetchManifest(releaseBase(id));
+	if (manifest.id !== id) throw new Error("Release manifest: unexpected id");
+	return manifest;
+};
+
+/** `undefined` – this host publishes no list (a plain copy of the build): only its root release exists. */
+const fetchList = async (): Promise<ReleaseEntry[] | undefined> => {
+	const res = await fetch(`${BASE}releases.json`, { cache: "no-store", credentials: "same-origin" });
+	if (res.status === 404 || res.status === 403) return undefined;
+	if (!res.ok) throw new Error(`HTTP ${res.status}`);
+	try {
+		return parseReleaseList(await res.json());
+	} catch {
+		// Not a list (a host that answers every path with its index page).
+		return undefined;
+	}
+};
+
+/** How many releases above the current one are looked at in one check. */
+const MAX_CANDIDATES = 20;
+
+type Search =
+	| { kind: "none" }
+	/** Something newer exists, but nothing the developer Safe approved. */
+	| { kind: "unsigned"; id: string; version: string }
+	/** The chain could not be asked. */
+	| { kind: "retry" }
+	| { kind: "found"; manifest: ReleaseManifest; base: string; verification: VerificationStatus };
 
 const deleteReleaseCaches = async (keep: (string | undefined)[]): Promise<void> => {
 	const names = await caches.keys();
@@ -200,6 +248,60 @@ const restore = async (error?: string): Promise<void> => {
 	else showIdle();
 };
 
+/**
+ * Picks the release to move to under the current setting. Throws when the server cannot be reached.
+ * `known` – the release downloaded earlier; its recorded approval is not asked for again.
+ */
+const findRelease = async (
+	currentId: string | undefined,
+	known: PendingRecord | undefined,
+	quiet: boolean,
+): Promise<Search> => {
+	const mode = verificationMode();
+	const signer = mode === "enabled" ? RELEASE_SIGNER : undefined;
+	const approved = async (id: string, version: string): Promise<"verified" | "failed" | "pending"> => {
+		if (!signer) return "verified";
+		if (known?.manifest.id === id && known.verification === "verified") return "verified";
+		if (!quiet) set({ status: "verifying", newId: id, newVersion: version, verification: "pending" });
+		return verifyRelease(id, signer);
+	};
+	const idle: VerificationStatus = mode === "enabled" ? "verified" : mode;
+
+	const list = await fetchList();
+	if (!list) {
+		const manifest = await fetchManifest();
+		if (manifest.id === currentId) return { kind: "none" };
+		const outcome = await approved(manifest.id, manifest.version);
+		if (outcome === "failed") return { kind: "unsigned", id: manifest.id, version: manifest.version };
+		if (outcome === "pending") return { kind: "retry" };
+		return { kind: "found", manifest, base: BASE, verification: idle };
+	}
+
+	// Everything listed above the running release is newer than it.
+	const at = list.findIndex((e) => e.id === currentId);
+	const newer = (at < 0 ? list : list.slice(0, at)).slice(0, MAX_CANDIDATES);
+	if (newer.length === 0) return { kind: "none" };
+	if (!signer) {
+		const manifest = await fetchReleaseManifest(newer[0].id);
+		return { kind: "found", manifest, base: releaseBase(manifest.id), verification: idle };
+	}
+
+	// An approved release is taken only upwards: the list is the server's word, and the server must
+	// not be able to walk the app back to an old approved release with a known flaw.
+	const { currentVersion } = useUpdateStore.getState();
+	for (const entry of newer) {
+		if (compareVersions(entry.version, currentVersion) <= 0) continue;
+		const outcome = await approved(entry.id, entry.version);
+		if (outcome === "pending") return { kind: "retry" };
+		if (outcome === "failed") continue;
+		const manifest = await fetchReleaseManifest(entry.id);
+		// The version that counts is the one the approved id commits to, not the one the list claims.
+		if (compareVersions(manifest.version, currentVersion) <= 0) continue;
+		return { kind: "found", manifest, base: releaseBase(manifest.id), verification: "verified" };
+	}
+	return { kind: "unsigned", id: newer[0].id, version: newer[0].version };
+};
+
 let retryTimer: ReturnType<typeof setTimeout> | undefined;
 let running: Promise<void> | null = null;
 
@@ -210,9 +312,10 @@ const doCheck = async (manual: boolean): Promise<void> => {
 	const quiet = !manual && before === "ready";
 	if (!quiet) set({ status: "checking", error: undefined, progress: undefined });
 
-	let manifest: ReleaseManifest;
+	const known = await readMeta<PendingRecord>(PENDING_URL);
+	let found: Search;
 	try {
-		manifest = await fetchManifest();
+		found = await findRelease(currentId, known, quiet);
 	} catch (e) {
 		// Being offline is the normal state of this app – never an error on automatic checks.
 		const key = !navigator.onLine || e instanceof TypeError ? "update.error.offline" : errorText(e);
@@ -223,45 +326,32 @@ const doCheck = async (manual: boolean): Promise<void> => {
 	localStorage.setItem(LAST_CHECK_KEY, String(lastCheckedAt));
 	set({ lastCheckedAt });
 
-	if (manifest.id === currentId) {
+	if (found.kind === "none") {
 		await deleteMeta(PENDING_URL);
 		await deleteReleaseCaches([currentId]);
 		showIdle();
 		return;
 	}
-
-	const known = await readMeta<PendingRecord>(PENDING_URL);
+	if (found.kind === "unsigned") {
+		// Nothing is downloaded, nothing is offered; settings mention that a test version exists.
+		set({ status: "unverified", newId: found.id, newVersion: found.version, verification: "failed" });
+		return;
+	}
+	if (found.kind === "retry") {
+		set({ status: "idle", verification: "pending" });
+		clearTimeout(retryTimer);
+		retryTimer = setTimeout(() => void checkForUpdate(false), RETRY_VERIFY_MS);
+		return;
+	}
+	const { manifest, base, verification } = found;
 	if (known?.manifest.id === manifest.id && pendingAllowed(known) && (await isComplete(manifest))) {
 		await restore();
 		return;
 	}
 
-	const mode = verificationMode();
-	let verification: VerificationStatus = mode === "enabled" ? "pending" : mode;
-	if (mode === "enabled" && RELEASE_SIGNER) {
-		if (known?.manifest.id === manifest.id && known.verification === "verified") {
-			verification = "verified";
-		} else {
-			set({ status: "verifying", newId: manifest.id, newVersion: manifest.version, verification: "pending" });
-			const outcome = await verifyRelease(manifest.id, RELEASE_SIGNER);
-			if (outcome === "failed") {
-				// Not approved by the developer multi-sig: nothing is downloaded, nothing is offered.
-				set({ status: "unverified", verification: "failed" });
-				return;
-			}
-			if (outcome === "pending") {
-				set({ status: "idle", verification: "pending" });
-				clearTimeout(retryTimer);
-				retryTimer = setTimeout(() => void checkForUpdate(false), RETRY_VERIFY_MS);
-				return;
-			}
-			verification = "verified";
-		}
-	}
-
 	set({ status: "downloading", newId: manifest.id, newVersion: manifest.version, verification, progress: 0 });
 	try {
-		await downloadRelease(manifest, currentId, (progress) => set({ progress }));
+		await downloadRelease(manifest, base, currentId, (progress) => set({ progress }));
 	} catch (e) {
 		await restore(manual ? (navigator.onLine ? errorText(e) : "update.error.offline") : undefined);
 		return;
@@ -325,7 +415,7 @@ const ensureActive = async (): Promise<ActivePointer | undefined> => {
 	}
 	try {
 		const manifest = await fetchManifest();
-		await downloadRelease(manifest, undefined, () => undefined);
+		await downloadRelease(manifest, BASE, undefined, () => undefined);
 		const healed: ActivePointer = { id: manifest.id, version: manifest.version };
 		await writeMeta(ACTIVE_URL, healed);
 		await notifyWorker();

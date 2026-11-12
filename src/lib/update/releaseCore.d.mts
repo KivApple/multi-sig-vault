@@ -34,3 +34,19 @@ export declare const verifyManifest: (raw: unknown) => Promise<ReleaseManifest>;
 export declare const releaseDigest: (id: string) => Hex;
 export declare const signMessageCalldata: (digest: Hex) => Hex;
 export declare const isValidSignatureCalldata: (digest: Hex) => Hex;
+
+export interface ReleaseEntry {
+	id: string;
+	version: string;
+	/** ISO time of publishing; informational. */
+	time?: string;
+}
+
+export declare const RELEASE_LIST_LIMIT: number;
+export declare const compareVersions: (a: string, b: string) => -1 | 0 | 1;
+export declare const parseReleaseList: (raw: unknown) => ReleaseEntry[];
+export declare const addToReleaseList: (
+	raw: unknown,
+	manifest: Pick<ReleaseManifest, "id" | "version">,
+	time: string,
+) => { format: 1; releases: ReleaseEntry[] };

@@ -9,7 +9,9 @@ import { describeError } from "@/lib/describeError";
 import { encodeReceiveMessage, messageTransmitterOf, requestReattest } from "@/lib/evm/cctp";
 import { formatAmount, shortAddress } from "@/lib/format";
 import { fetchNativeBalances } from "@/lib/safe/account";
+import { getPublicClient } from "@/lib/rpc";
 import { sendTransactionWith } from "@/lib/wallets";
+import { FeeChoice } from "../FeeChoice";
 import { useAppStore } from "@/store/appStore";
 import type { Signer } from "@/types/domain";
 
@@ -46,6 +48,26 @@ export const SwapClaimDialog: React.FC<SwapClaimDialogProps> = ({
 	const [busy, setBusy] = useState<string>();
 	const [error, setError] = useState<string>();
 	const [reattested, setReattested] = useState(false);
+	const [gas, setGas] = useState<bigint | null>();
+
+	// Gas of the claim, for the fee shown above the list (any address may send it).
+	useEffect(() => {
+		const from = signers[0]?.address;
+		if (!open || !from) return undefined;
+		let cancelled = false;
+		setGas(null);
+		getPublicClient(dstChainId)
+			.estimateGas({
+				account: from,
+				to: messageTransmitterOf(dstChainId),
+				data: encodeReceiveMessage(message, attestation),
+			})
+			.then((g) => !cancelled && setGas((g * 125n) / 100n))
+			.catch(() => !cancelled && setGas(undefined));
+		return () => {
+			cancelled = true;
+		};
+	}, [open, dstChainId, message, attestation, signers]);
 
 	useEffect(() => {
 		if (!open) return undefined;
@@ -102,6 +124,7 @@ export const SwapClaimDialog: React.FC<SwapClaimDialogProps> = ({
 				{t("swap.claim.text", { network: chain.name, symbol: chain.nativeSymbol })}
 			</p>
 			{signers.length === 0 && <p className="text-base-content/60 text-sm">{t("swap.claim.noSigners")}</p>}
+			{signers.length > 0 && <FeeChoice chainId={dstChainId} gas={gas} />}
 			<ul className="-mx-2 flex flex-col">
 				{signers.map((s) => {
 					const balance = balances[s.address.toLowerCase()];

@@ -20,7 +20,7 @@ export const UpdateSettingsSection: React.FC = () => {
 	const handleCheck = useCallback(() => void checkForUpdate(true), []);
 	const handleApply = useCallback(() => void applyUpdate(), []);
 	const handleToggle = useCallback(
-		(e: ChangeEvent<HTMLInputElement>) => updateSettings({ verifyUpdates: e.target.checked }),
+		(e: ChangeEvent<HTMLInputElement>) => updateSettings({ verifyUpdates: !e.target.checked }),
 		[updateSettings],
 	);
 
@@ -55,7 +55,7 @@ export const UpdateSettingsSection: React.FC = () => {
 		if (update.verification === "verified")
 			return { tone: "text-success", Icon: ShieldCheck, text: t("update.verify.verified", vars) };
 		if (update.verification === "failed")
-			return { tone: "text-warning", Icon: ShieldAlert, text: t("update.verify.failed", vars) };
+			return { tone: "text-base-content/60", Icon: ShieldAlert, text: t("update.unverifiedText") };
 		if (update.verification === "pending" && update.status === "idle") {
 			return { tone: "text-base-content/60", Icon: ShieldQuestion, text: t("update.verify.pending", vars) };
 		}
@@ -77,11 +77,7 @@ export const UpdateSettingsSection: React.FC = () => {
 						)}
 					</>
 				}
-				hint={
-					<span className={update.status === "error" || update.status === "unverified" ? "text-warning" : ""}>
-						{statusText}
-					</span>
-				}
+				hint={<span className={update.status === "error" ? "text-warning" : ""}>{statusText}</span>}
 				control={
 					update.status === "ready" ? (
 						<button type="button" className="btn btn-primary btn-sm" onClick={handleApply}>
@@ -118,7 +114,7 @@ export const UpdateSettingsSection: React.FC = () => {
 						<input
 							type="checkbox"
 							className="toggle toggle-primary"
-							checked={verifyUpdates}
+							checked={!verifyUpdates}
 							onChange={handleToggle}
 							aria-label={t("update.verify.label")}
 						/>

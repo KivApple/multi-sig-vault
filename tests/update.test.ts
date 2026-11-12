@@ -121,3 +121,34 @@ describe("service worker", () => {
 		expect(source).not.toMatch(/[0-9a-f]{16,}/);
 	});
 });
+
+describe("release list", () => {
+	const id = (c: string): string => c.repeat(64);
+
+	it("compares versions numerically", async () => {
+		const { compareVersions } = await import("../src/lib/update/releaseCore.mjs");
+		expect(compareVersions("1.2.10", "1.2.9")).toBe(1);
+		expect(compareVersions("1.2.9", "1.2.10")).toBe(-1);
+		expect(compareVersions("1.3", "1.3.0")).toBe(0);
+		expect(compareVersions("2.0.0", "1.99.99")).toBe(1);
+		// Unreadable versions are never "newer".
+		expect(compareVersions("9.9.9-beta", "1.0.0")).toBe(0);
+		expect(compareVersions("latest", "1.0.0")).toBe(0);
+	});
+
+	it("puts a published release first and keeps one entry per id", async () => {
+		const { addToReleaseList, parseReleaseList } = await import("../src/lib/update/releaseCore.mjs");
+		let list = addToReleaseList(undefined, { id: id("a"), version: "1.0.0" }, "t1");
+		list = addToReleaseList(list, { id: id("b"), version: "1.0.1" }, "t2");
+		list = addToReleaseList(list, { id: id("a"), version: "1.0.0" }, "t3");
+		expect(parseReleaseList(list).map((e) => e.id)).toEqual([id("a"), id("b")]);
+	});
+
+	it("drops malformed entries and rejects a non-list", async () => {
+		const { parseReleaseList } = await import("../src/lib/update/releaseCore.mjs");
+		const raw = { releases: [{ id: "x", version: "1" }, null, { id: id("c"), version: "1.0.0" }, { id: id("d") }] };
+		expect(parseReleaseList(raw)).toEqual([{ id: id("c"), version: "1.0.0" }]);
+		expect(() => parseReleaseList("<html>")).toThrow();
+		expect(() => parseReleaseList({})).toThrow();
+	});
+});
