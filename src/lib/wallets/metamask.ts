@@ -395,7 +395,9 @@ const withAccountAccess = async <T>(session: Session, address: Address, run: () 
 	try {
 		return await run();
 	} catch (e) {
-		throw refused(e) ? new WalletError("wrong-account", undefined, { address }) : e;
+		if (!refused(e)) throw e;
+		const listed = await readAccounts(session).catch(() => [] as Address[]);
+		throw new WalletError("wrong-account", `MetaMask lists: ${listed.join(", ") || "no accounts"}.`, { address });
 	}
 };
 

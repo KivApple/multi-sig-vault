@@ -10,6 +10,7 @@ import { fetchHandoffRequest, putHandoffResponse } from "@/lib/handoff/client";
 import { open, pairingKey, parseKey, parseLinkToken, seal, sessionKey } from "@/lib/handoff/crypto";
 import { addPagePairKey, loadPagePairKeys } from "@/lib/handoff/pairing";
 import { fromWireTx, parseRequest, type HandoffRequest, type HandoffResponse } from "@/lib/handoff/protocol";
+import { applyUpdate, checkForUpdate, useUpdateStore } from "@/lib/update";
 import { hasInjectedMetaMask, metamaskDirect } from "@/lib/wallets/metamask";
 import type { Signer } from "@/types/domain";
 
@@ -23,6 +24,7 @@ interface Verified {
 
 type Phase =
 	| { step: "loading" }
+	| { step: "updating" }
 	| { step: "problem"; key: string }
 	| { step: "code"; body: Bytes; wrong?: boolean }
 	| ({ step: "ready"; error?: string; asked?: boolean } & Verified)
@@ -42,6 +44,34 @@ const CLOSED = "closed";
 const closePage = (): void => {
 	window.history.replaceState(null, "", `${window.location.pathname}#/sign/${CLOSED}`);
 	window.close();
+};
+
+/**
+ * The app that sent the request says which release it runs. When this copy is on another one, it
+ * updates itself to exactly that release: the user has already accepted it in their own app, and the
+ * request proves the app is theirs. Tried once per request; returns `true` when the page is reloading.
+ */
+const followRelease = async (value: unknown, sessionId: string): Promise<boolean> => {
+	const wanted = (value as { release?: { id?: unknown } } | null)?.release?.id;
+	if (typeof wanted !== "string") return false;
+	// The updater learns this copy's own release shortly after start.
+	for (let i = 0; i < 30 && !useUpdateStore.getState().currentId; i++) {
+		await new Promise((resolve) => setTimeout(resolve, 100));
+	}
+	const mine = useUpdateStore.getState().currentId;
+	if (!mine || wanted === mine) return false;
+	const tried = `msv:handoff-update:${sessionId}`;
+	try {
+		if (sessionStorage.getItem(tried)) return false;
+		sessionStorage.setItem(tried, "1");
+	} catch {
+		return false;
+	}
+	await checkForUpdate(false);
+	const { status, newId } = useUpdateStore.getState();
+	if (status !== "ready" || newId !== wanted) return false;
+	await applyUpdate();
+	return true;
 };
 
 const requestOf = (value: unknown): HandoffRequest | undefined =>
@@ -70,12 +100,18 @@ export const SignRequestPage: React.FC = () => {
 			if (!body) return { step: "problem", key: "handoff.page.expired" };
 			if (token.linkKey) return { step: "code", body };
 			for (const pairKey of await loadPagePairKeys()) {
+				let value: unknown;
 				try {
-					const request = requestOf(await open(await sessionKey(pairKey, token.id), token.id, "req", body));
-					if (request) return { step: "ready", request, pairKey };
+					value = await open(await sessionKey(pairKey, token.id), token.id, "req", body);
 				} catch {
 					// Not from this app instance – try the next one.
+					continue;
 				}
+				const request = requestOf(value);
+				if (!request) continue;
+				if (!cancelled) setPhase({ step: "updating" });
+				if (await followRelease(value, token.id).catch(() => false)) return { step: "updating" };
+				return { step: "ready", request, pairKey };
 			}
 			return { step: "problem", key: "handoff.page.unpaired" };
 		};
@@ -163,6 +199,12 @@ export const SignRequestPage: React.FC = () => {
 				<AppLogo className="size-7 shrink-0" />
 				<h1 className="text-lg font-semibold">{t("handoff.page.title")}</h1>
 			</div>
+			{phase.step === "updating" && (
+				<div className="text-base-content/60 flex items-center gap-2 text-sm">
+					<Spinner size="xs" />
+					{t("handoff.page.updating")}
+				</div>
+			)}
 			{phase.step === "loading" && (
 				<div className="text-base-content/60 flex items-center gap-2 text-sm">
 					<Spinner size="xs" />

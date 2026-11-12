@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { WalletError } from "@/lib/errors";
+import { useUpdateStore } from "@/lib/update/store";
 import {
 	formatLinkToken,
 	newCode,
@@ -77,16 +78,25 @@ const attempt = async (
 	const pairKey = known ?? newKey();
 	const answerKey = await sessionKey(pairKey, id);
 
+	// The signing page is another installed copy of this app and may be older. Tell it which release the
+	// user is running here, so that it can bring itself to the same one before asking the wallet.
+	const { currentId, currentVersion } = useUpdateStore.getState();
+	const release = currentId ? { id: currentId, version: currentVersion } : undefined;
+
 	let body: Uint8Array<ArrayBuffer>;
 	let token: string;
 	let code: string | undefined;
 	if (known) {
-		body = await seal(answerKey, id, "req", { request });
+		body = await seal(answerKey, id, "req", { request, release });
 		token = formatLinkToken({ id });
 	} else {
 		const linkKey = newKey();
 		code = newCode();
-		body = await seal(await pairingKey(linkKey, code, id), id, "req", { pairKey: toBase64Url(pairKey), request });
+		body = await seal(await pairingKey(linkKey, code, id), id, "req", {
+			pairKey: toBase64Url(pairKey),
+			request,
+			release,
+		});
 		token = formatLinkToken({ id, linkKey });
 	}
 
