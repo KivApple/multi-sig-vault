@@ -4,6 +4,10 @@ on:
       - master
   # Run by hand after signing a release: puts it at the site root
   workflow_dispatch:
+    inputs:
+      keep:
+        description: How many of the newest releases to keep on the server
+        default: "10"
 
 permissions:
   contents: read
@@ -17,8 +21,10 @@ jobs:
     env:
       # The Safe that approves releases (README, "Offline use and updates")
       PUBLIC_RELEASE_SAFE: "0x22222222e8d995EA51841abc49022Fb5eb7C62b4"
-      PUBLIC_RELEASE_CHAIN_ID: "1"
-      RELEASE_RPC_URLS: https://ethereum-rpc.publicnode.com,https://eth.drpc.org
+      # It signs on HyperEVM, where gas is cheap; a signature on Ethereum counts as well
+      PUBLIC_RELEASE_CHAIN_ID: "999,1"
+      # Two independent endpoints per network, networks separated by ";"
+      RELEASE_RPC_URLS: https://hyperliquid.drpc.org,https://hyperliquid-json-rpc.stakely.io;https://ethereum-rpc.publicnode.com,https://eth.drpc.org
 
     steps:
       - name: Checkout
@@ -45,6 +51,7 @@ jobs:
         # rclone, not the AWS CLI: its DELETE requests sign Content-Length, which the proxy in front of Garage drops.
         run: scripts/release/publish.sh ${{ github.event_name == 'workflow_dispatch' && '--promote' || '' }}
         env:
+          RELEASES_KEEP: ${{ inputs.keep || '10' }}
           RCLONE_S3_PROVIDER: Other
           RCLONE_S3_ENDPOINT: https://s3.quoi.dev
           RCLONE_S3_REGION: garage

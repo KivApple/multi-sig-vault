@@ -96,7 +96,11 @@ export const CHAINS: ChainConfig[] = [
 		shortName: "hyperevm",
 		nativeSymbol: "HYPE",
 		nativeName: "Hyperliquid",
-		rpcUrls: ["https://rpc.hyperliquid.xyz/evm", "https://hyperliquid.drpc.org"],
+		rpcUrls: [
+			"https://rpc.hyperliquid.xyz/evm",
+			"https://hyperliquid.drpc.org",
+			"https://hyperliquid-json-rpc.stakely.io",
+		],
 		explorer: "https://hyperevmscan.io",
 		wrappedNative: "0x5555555555555555555555555555555555555555",
 		usdc: "0xb88339CB7199b77E23DB6E890353E22632Ba630f",

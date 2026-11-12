@@ -7,6 +7,7 @@
 #
 # Usage: publish.sh            publish dist/ and refresh the root
 #        publish.sh --promote  only refresh the root (after a release got signed)
+# RELEASES_KEEP (default 10) – how many of the newest releases stay on the server.
 # Needs the RCLONE_S3_* variables and docker.
 set -euo pipefail
 
@@ -41,6 +42,18 @@ fi
 
 fetch_root release.json root.json
 STABLE=$(node scripts/release/stable.mjs "$WORK/releases.json" "$WORK/root.json")
+
+# Old releases are removed: the newest RELEASES_KEEP stay, and so does the stable one.
+DROPPED=$(node scripts/release/prune.mjs "$WORK/releases.json" "${RELEASES_KEEP:-10}" "$STABLE")
+if [ -n "$DROPPED" ]; then
+	# The list first: a client must never be pointed at files that are about to go.
+	rc copyto "$WORK/releases.json" "$BUCKET/releases.json"
+	for id in $DROPPED; do
+		case "$id" in *[!0-9a-f]* | "") continue ;; esac
+		echo "prune: $id"
+		rc purge "$BUCKET/releases/$id" || true
+	done
+fi
 if [ -z "$STABLE" ]; then
 	echo "root: left as it is"
 elif [ -f "$WORK/root.json" ] && [ "$(node -p 'require("./'"$WORK"'/root.json").id')" = "$STABLE" ]; then

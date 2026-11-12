@@ -3,7 +3,7 @@
 interface ImportMetaEnv {
 	/** Developer Safe that signs releases (optional, build-time). */
 	readonly PUBLIC_RELEASE_SAFE?: string;
-	/** Chain id of the developer Safe (optional, build-time). */
+	/** Chain ids the developer Safe may sign on, comma-separated (optional, build-time). */
 	readonly PUBLIC_RELEASE_CHAIN_ID?: string;
 	readonly PUBLIC_APP_VERSION?: string;
 }

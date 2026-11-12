@@ -30,7 +30,7 @@ Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/
 
 **Icons of exchange coins come through the same relay, without telling it what you hold.** Hyperliquid serves its coin icons in a way a browser app cannot fetch, so the relay re-serves them from a disk cache (30 days by default, `ICON_CACHE_DAYS`). The app never asks for the icon of a coin on your account. Once a week it downloads the icons of every listed coin that is not already built in, in the exchange's own listing order, so every user sends the relay the same requests and it cannot tell which coins anybody holds. The icons the app starts with are part of the build; turning off "Update weekly" for token lists stops these downloads too. Token logos on EVM networks follow the same rule: whole lists, never per holding.
 
-**Stable updates are signed on-chain.** The installed app offers an update only after the developer's Safe [`0x22222222e8d995EA51841abc49022Fb5eb7C62b4`](https://etherscan.io/address/0x22222222e8d995EA51841abc49022Fb5eb7C62b4) on Ethereum (2 of 3 signers) has approved that exact release: its id commits to the SHA-256 of every file, and the app asks two independent RPC endpoints whether the Safe signed it. Unsigned test builds are installed only if you turn on "Test versions" in settings. The check protects installed copies; a first visit, and the service worker file itself, are served as the site has them. Details are in [Offline use and updates](#offline-use-and-updates).
+**Stable updates are signed on-chain.** The installed app offers an update only after the developer's Safe [`0x22222222e8d995EA51841abc49022Fb5eb7C62b4`](https://hyperevmscan.io/address/0x22222222e8d995EA51841abc49022Fb5eb7C62b4) (2 of 3 signers) has approved that exact release: its id commits to the SHA-256 of every file. The Safe signs on HyperEVM; the app looks there and on Ethereum, asks two independent RPC endpoints on each, and accepts an approval on either. Unsigned test builds are installed only if you turn on "Test versions" in settings. The check protects installed copies; a first visit, and the service worker file itself, are served as the site has them. Details are in [Offline use and updates](#offline-use-and-updates).
 
 ## What it does
 
@@ -155,11 +155,11 @@ Every published release stays on the server at `releases/<id>/`, and `releases.j
 Nothing changes on the server when a release gets signed: clients ask the chain which listed release is approved.
 
 ```bash
-PUBLIC_RELEASE_SAFE=0x… PUBLIC_RELEASE_CHAIN_ID=1 pnpm build
+PUBLIC_RELEASE_SAFE=0x… PUBLIC_RELEASE_CHAIN_ID=999,1 pnpm build
 pnpm release:info   # release id, digest and the transaction for the developer's Safe
 ```
 
-The developer's Safe executes `SignMessageLib.signMessage(digest)`; in the app this is the "Sign message hash" operation. Clients call `isValidSignature(digest, "")` (EIP-1271) on two independent RPC endpoints. A build without these variables has no stable channel and follows the newest release. `scripts/release/publish.sh` is the deployment: it uploads the build, extends the list and puts the newest approved release at the root.
+The developer's Safe executes `SignMessageLib.signMessage(digest)`; in the app this is the "Sign message hash" operation. Clients call `isValidSignature(digest, "")` (EIP-1271) on two independent RPC endpoints of each network listed in `PUBLIC_RELEASE_CHAIN_ID`, and an approval on any one of them is enough. This is sound because a Safe's address commits to the signers it was created with: at the same address on another network there can only be a Safe that started with those signers. One consequence to keep in mind: a signer removed later still counts on a network where the Safe has not been created yet, so after changing signers, create the Safe on every listed network and change them there too. A build without these variables has no stable channel and follows the newest release. `scripts/release/publish.sh` is the deployment: it uploads the build, extends the list and puts the newest approved release at the root.
 
 ## Tech stack
 

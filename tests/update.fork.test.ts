@@ -30,7 +30,7 @@ vi.mock("@/lib/rpc", async () => {
 describe.skipIf(!RPC || !SAFE || !SIGNED_ID)("release verification on a fork", () => {
 	it("accepts the signed release, rejects others, stays pending when the RPC is down", async () => {
 		const { verifyRelease } = await import("../src/lib/update/verify");
-		const signer = { safe: SAFE as Address, chainId: CHAIN_ID };
+		const signer = { safe: SAFE as Address, chainIds: [CHAIN_ID] };
 		urls = [RPC as string];
 		expect(await verifyRelease(SIGNED_ID as string, signer)).toBe("verified");
 		expect(await verifyRelease("0".repeat(64), signer)).toBe("failed");

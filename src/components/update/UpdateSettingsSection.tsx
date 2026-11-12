@@ -63,7 +63,7 @@ export const UpdateSettingsSection: React.FC = () => {
 		return undefined;
 	}, [update.newVersion, update.verification, update.status, verifyUpdates, t]);
 
-	const signerChain = findChain(RELEASE_SIGNER?.chainId);
+	const signerChains = (RELEASE_SIGNER?.chainIds ?? []).map((id) => findChain(id)?.name ?? String(id)).join(" / ");
 
 	return (
 		<SettingsSection title={t("update.section")}>
@@ -109,7 +109,7 @@ export const UpdateSettingsSection: React.FC = () => {
 					label={t("update.verify.label")}
 					hint={t("update.verify.hint", {
 						safe: shortAddress(RELEASE_SIGNER.safe),
-						chain: signerChain?.name ?? RELEASE_SIGNER.chainId,
+						chain: signerChains,
 					})}
 					control={
 						<input
