@@ -44,7 +44,7 @@ write("brand/ledger.svg", await load("wallets/background/ledger"));
 write("brand/trezor.svg", await load("wallets/background/trezor"));
 // Network logos are the networks' own official assets (scripts/tokens/official): the Ethereum mark on
 // its blue disc, the full-colour Arbitrum mark, the Base network logo from Base's brand kit.
-for (const name of ["ethereum", "arbitrum", "base"]) {
+for (const name of ["ethereum", "arbitrum", "base", "polygon"]) {
 	write(`network/${name}.svg`, official(name));
 }
 write("network/hyperevm.svg", HYPERLIQUID);
@@ -56,11 +56,12 @@ const OVERRIDES = {
 	// carry the logo of their network. WBTC is the mark from wbtc.network.
 	ETH: official("ethereum"),
 	ARB: official("arbitrum"),
+	POL: official("polygon"),
 	WBTC: official("wbtc"),
 };
 const tokenSvg = async (symbol) => OVERRIDES[symbol] ?? (await load(`tokens/background/${symbol}`));
 
-const CORE = ["ETH", "USDC", "USDT", "HYPE", "BTC", "WBTC", "DAI", "ARB"];
+const CORE = ["ETH", "USDC", "USDT", "HYPE", "BTC", "WBTC", "DAI", "ARB", "POL"];
 for (const symbol of CORE) write(`token/${symbol}.svg`, await tokenSvg(symbol));
 
 const builtin = JSON.parse(readFileSync(new URL("../../src/lib/tokens/builtin.json", import.meta.url), "utf8"));
@@ -86,7 +87,7 @@ const KEEP_LARGE = new Set(["DOGE", "PEPE", "APE"]);
 const MAX_BYTES = 12_000;
 
 const wanted = new Set(EXTRA);
-for (const chainId of ["1", "42161", "8453", "999"]) {
+for (const chainId of ["1", "42161", "8453", "137", "999"]) {
 	for (const token of builtin.chains[chainId] ?? []) wanted.add(token[1].toUpperCase());
 }
 for (const name of hlSymbols)

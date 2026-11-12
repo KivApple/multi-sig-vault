@@ -2,7 +2,7 @@
 
 **[multi-sig.quoi.dev](https://multi-sig.quoi.dev)**
 
-A PWA for operating Hyperliquid multi-sig accounts and Safe wallets on Ethereum, HyperEVM, Arbitrum and Base (mainnet and testnet).
+A PWA for operating Hyperliquid multi-sig accounts and Safe wallets on Ethereum, HyperEVM, Arbitrum, Base and Polygon (mainnet and testnet).
 
 It is built for signers who are never in the same place. You sign with the first key, carry the operation to the second device as a QR code, sign there, and broadcast from wherever you end up. Keys stay on MetaMask, Trezor and Ledger; the network is needed only to read balances and to send.
 
@@ -40,7 +40,7 @@ This app builds the payloads your wallets sign, so a backdoor in it could drain 
 
 - Send native coins and tokens.
 - Every transaction the app sends offers a slower and a faster fee, taken from the tips recent blocks accepted. One that stays unconfirmed can be sent again with the same signatures.
-- Swap on Uniswap V3 (HyperSwap V3 on HyperEVM), quoted directly from the pools.
+- Swap on Uniswap V3 (HyperSwap V3 on HyperEVM), quoted directly from the pools. There is no swap on Polygon Amoy: Uniswap is not deployed there.
 - Bridge USDC between any two supported chains through Circle CCTP V2.
 - Change owners and threshold.
 - Call a contract by ABI, deploy a contract, sign a message hash (EIP-1271).
@@ -72,7 +72,7 @@ https://multi-sig.quoi.dev/#/link?action=create&chain=base&mode=vanity&owners=0x
 |---|---|---|
 | `action` | both | `add` (existing account) or `create` (new Safe) |
 | `kind` | `add` | `hl` or `safe` |
-| `chain` | Safe | `ethereum`, `hyperevm`, `arbitrum`, `base` |
+| `chain` | Safe | `ethereum`, `hyperevm`, `arbitrum`, `base`, `polygon` |
 | `env` | both | `mainnet` (default) or `testnet` |
 | `address`, `name` | `add` | account address and an optional name |
 | `owners`, `threshold`, `name` | `create` | comma-separated owner addresses, signatures required, optional name |

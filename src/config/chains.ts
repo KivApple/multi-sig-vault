@@ -1,7 +1,7 @@
 import type { Address } from "viem";
 import type { NetworkEnv } from "@/types/domain";
 
-export type ChainKey = "ethereum" | "hyperevm" | "arbitrum" | "base";
+export type ChainKey = "ethereum" | "hyperevm" | "arbitrum" | "base" | "polygon";
 
 export interface DexConfig {
 	/** Uniswap-V3 compatible router. */
@@ -155,6 +155,29 @@ export const CHAINS: ChainConfig[] = [
 		safeTxService: "https://api.safe.global/tx-service/base",
 	},
 	{
+		id: 137,
+		key: "polygon",
+		env: "mainnet",
+		name: "Polygon",
+		shortName: "pol",
+		nativeSymbol: "POL",
+		nativeName: "POL",
+		rpcUrls: ["https://polygon-bor-rpc.publicnode.com", "https://polygon.drpc.org", "https://polygon-rpc.com"],
+		explorer: "https://polygonscan.com",
+		wrappedNative: "0x0d500B1d8E8eF31E21C99d1Db9A6444d3ADf1270",
+		// Native USDC issued by Circle, not the bridged USDC.e.
+		usdc: "0x3c499c542cEF5E3811e1192ce70d8cC03d5c3359",
+		dex: {
+			name: "Uniswap V3",
+			router: "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45",
+			quoter: "0x61fFE014bA17989E743c5F6cB21bF9697530B21e",
+			factory: "0x1F98431c8aD98523631AE4a59f267346ea31F984",
+			feeTiers: UNI_TIERS,
+		},
+		cctp: { domain: 7, ...CCTP_MAINNET },
+		safeTxService: "https://api.safe.global/tx-service/pol",
+	},
+	{
 		id: 11155111,
 		key: "ethereum",
 		env: "testnet",
@@ -241,9 +264,24 @@ export const CHAINS: ChainConfig[] = [
 		cctp: { domain: 6, ...CCTP_TESTNET },
 		safeTxService: "https://api.safe.global/tx-service/basesep",
 	},
+	{
+		id: 80002,
+		key: "polygon",
+		env: "testnet",
+		name: "Polygon Amoy",
+		shortName: "amoy",
+		nativeSymbol: "POL",
+		nativeName: "POL",
+		rpcUrls: ["https://polygon-amoy-bor-rpc.publicnode.com", "https://polygon-amoy.drpc.org"],
+		explorer: "https://amoy.polygonscan.com",
+		wrappedNative: "0x360ad4f9a9A8EFe9A8DCB5f461c4Cc1047E1Dcf9",
+		usdc: "0x41E94Eb019C0762f9Bfcf9Fb1E58725BfB0e7582",
+		// Uniswap is not deployed on Amoy: no swaps there, the USDC bridge works.
+		cctp: { domain: 7, ...CCTP_TESTNET },
+	},
 ];
 
-export const CHAIN_KEYS: ChainKey[] = ["ethereum", "hyperevm", "arbitrum", "base"];
+export const CHAIN_KEYS: ChainKey[] = ["ethereum", "hyperevm", "arbitrum", "base", "polygon"];
 
 const BY_ID = new Map(CHAINS.map((c) => [c.id, c]));
 

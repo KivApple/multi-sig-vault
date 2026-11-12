@@ -3,13 +3,14 @@ import BTC from "@/assets/icons/token/BTC.svg";
 import DAI from "@/assets/icons/token/DAI.svg";
 import ETH from "@/assets/icons/token/ETH.svg";
 import HYPE from "@/assets/icons/token/HYPE.svg";
+import POL from "@/assets/icons/token/POL.svg";
 import USDC from "@/assets/icons/token/USDC.svg";
 import USDT from "@/assets/icons/token/USDT.svg";
 import WBTC from "@/assets/icons/token/WBTC.svg";
 import { bumpIconEpoch } from "./store";
 
 /** Icons that must never wait for a network or a lazy chunk. */
-const CORE: Record<string, string> = { ARB, BTC, DAI, ETH, HYPE, USDC, USDT, WBTC };
+const CORE: Record<string, string> = { ARB, BTC, DAI, ETH, HYPE, POL, USDC, USDT, WBTC };
 
 let pack: Record<string, string> | undefined;
 let loading: Promise<void> | undefined;

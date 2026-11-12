@@ -71,7 +71,7 @@ export const normalizeLogoUrl = (value: unknown): string | undefined => {
 	return url.toString();
 };
 
-const MIRROR_FOLDER: Record<number, string> = { 1: "ethereum", 42161: "arbitrum", 8453: "base" };
+const MIRROR_FOLDER: Record<number, string> = { 1: "ethereum", 42161: "arbitrum", 8453: "base", 137: "polygon" };
 
 /** Second source for a logo: Trust Wallet assets (CORS-enabled, keyed by checksummed address). */
 export const mirrorLogoUrl = (chainId: number, address: string): string | undefined => {
