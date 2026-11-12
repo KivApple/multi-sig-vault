@@ -246,7 +246,7 @@ export const STRINGS = [
 	["ops.confirmIn.trezor", "Confirm on your Trezor…", "Подтвердите на Trezor…"],
 	["ops.confirmIn.ledger", "Confirm on your Ledger…", "Подтвердите на Ledger…"],
 	["ops.export", "Export for another device", "Экспорт на другое устройство"],
-	["ops.exportShort", "Export", "Экспорт"],
+	["ops.exportShort", "Hand off by QR", "Передать по QR"],
 	["ops.exportTitle", "Operation export", "Экспорт операции"],
 	[
 		"ops.exportHint",

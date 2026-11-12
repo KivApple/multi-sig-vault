@@ -217,9 +217,14 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 			}
 			footer={
 				<>
-					<button type="button" className="btn btn-ghost mr-auto" onClick={() => void handleExport()}>
+					<button
+						type="button"
+						className="btn btn-ghost mr-auto whitespace-nowrap max-sm:px-2"
+						onClick={() => void handleExport()}
+						title={t("ops.export")}
+					>
 						<QrCode className="size-4" />
-						<span className="hidden sm:inline">{t("ops.exportShort")}</span>
+						{t("ops.exportShort")}
 					</button>
 					{ready ? (
 						<button
