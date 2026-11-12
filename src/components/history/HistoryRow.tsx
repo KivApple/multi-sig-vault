@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { Address } from "viem";
 import { AddressLabel } from "@/components/common/AddressLabel";
 import { useLang, useT } from "@/i18n";
-import { formatAmount, formatDateTime, sameAddress } from "@/lib/format";
+import { formatAmount, formatDateTime } from "@/lib/format";
 import { fetchHlSigners } from "@/lib/history/hl";
 import type { HistoryItem } from "@/lib/history/types";
 import type { AddressScope } from "@/lib/known";
@@ -47,8 +47,6 @@ export const HistoryRow: React.FC<HistoryRowProps> = ({ item, scope, ownTitle, l
 	const looked = useHlSigners(lookupSigners, item.hlHash);
 	const signers = item.signers ?? looked?.signers ?? [];
 	const sender = item.sender ?? looked?.sender;
-	// The sender is worth a mention only when it is not just one of the signers already listed.
-	const showSender = !!sender && !signers.some((s) => sameAddress(s, sender));
 	const shown = item.amounts.slice(0, 2);
 
 	return (
@@ -87,7 +85,7 @@ export const HistoryRow: React.FC<HistoryRowProps> = ({ item, scope, ownTitle, l
 						))}
 					</span>
 				)}
-				{showSender && sender && (
+				{sender && (
 					<span className="inline-flex min-w-0 items-center gap-1.5" title={t("history.sentBy")}>
 						<Send className="size-3 shrink-0" aria-label={t("history.sentBy")} />
 						<AddressLabel address={sender} size={14} compact />

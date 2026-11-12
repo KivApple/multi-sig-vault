@@ -2,6 +2,7 @@ import { formatUnits, getAddress, isAddress, type Address } from "viem";
 import { explorerTx, findChain, getChain } from "@/config/chains";
 import { AppError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
+import { findToken } from "@/lib/tokens";
 import { cleanSymbol, type HistoryAmount, type HistoryItem, type HistoryLoader } from "./types";
 
 /**
@@ -22,27 +23,37 @@ interface RawTransfer {
 	from?: unknown;
 	to?: unknown;
 	value?: unknown;
+	tokenAddress?: unknown;
 	tokenInfo?: { symbol?: unknown; decimals?: unknown; trusted?: unknown } | null;
 }
 
 /**
- * Transfers of one transaction as amounts, netted per token. Tokens the service does not vouch for
- * are left out: anybody can send a Safe a worthless token named like a real one.
+ * Transfers of one transaction as amounts, netted per token.
+ *
+ * `own` – the Safe's own transaction: its owners signed it, so every token it moved is shown.
+ * In somebody else's transaction a token counts only when the app knows it or the service vouches
+ * for it: anybody can send a Safe a worthless token named like a real one.
  */
-export const transferAmounts = (transfers: unknown, safe: Address, nativeSymbol: string): HistoryAmount[] => {
+export const transferAmounts = (transfers: unknown, safe: Address, chainId: number, own: boolean): HistoryAmount[] => {
 	if (!Array.isArray(transfers)) return [];
-	const net = new Map<string, bigint>();
-	const decimalsOf = new Map<string, number>();
+	const net = new Map<string, { value: bigint; symbol: string; decimals: number }>();
 	for (const t of transfers.slice(0, 200) as RawTransfer[]) {
 		if (!t || typeof t.value !== "string" || !/^\d{1,78}$/.test(t.value)) continue;
+		let key: string;
 		let symbol: string | undefined;
 		let decimals: number;
 		if (t.type === "ETHER_TRANSFER") {
-			symbol = nativeSymbol;
+			key = "native";
+			symbol = getChain(chainId).nativeSymbol;
 			decimals = 18;
-		} else if (t.type === "ERC20_TRANSFER" && t.tokenInfo?.trusted === true) {
-			symbol = cleanSymbol(t.tokenInfo.symbol);
-			decimals = Number(t.tokenInfo.decimals);
+		} else if (t.type === "ERC20_TRANSFER") {
+			const token = addressOf(t.tokenAddress);
+			if (!token) continue;
+			const known = findToken(chainId, token);
+			if (!known && !own && t.tokenInfo?.trusted !== true) continue;
+			key = token.toLowerCase();
+			symbol = known ? cleanSymbol(known.symbol) : cleanSymbol(t.tokenInfo?.symbol);
+			decimals = known ? known.decimals : Number(t.tokenInfo?.decimals);
 			if (!Number.isInteger(decimals) || decimals < 0 || decimals > 36) continue;
 		} else {
 			continue;
@@ -51,17 +62,33 @@ export const transferAmounts = (transfers: unknown, safe: Address, nativeSymbol:
 		const incoming = sameAddress(t.to as string, safe);
 		const outgoing = sameAddress(t.from as string, safe);
 		if (incoming === outgoing) continue;
-		net.set(symbol, (net.get(symbol) ?? 0n) + (incoming ? BigInt(t.value) : -BigInt(t.value)));
-		decimalsOf.set(symbol, decimals);
+		const entry = net.get(key) ?? { value: 0n, symbol, decimals };
+		entry.value += incoming ? BigInt(t.value) : -BigInt(t.value);
+		net.set(key, entry);
 	}
 	const out: HistoryAmount[] = [];
-	for (const [symbol, value] of net) {
+	for (const { value, symbol, decimals } of net.values()) {
 		if (value === 0n) continue;
-		out.push({
-			sign: value > 0n ? 1 : -1,
-			value: formatUnits(value > 0n ? value : -value, decimalsOf.get(symbol) ?? 18),
-			symbol,
-		});
+		out.push({ sign: value > 0n ? 1 : -1, value: formatUnits(value > 0n ? value : -value, decimals), symbol });
+	}
+	// What left the Safe reads first: "−0.01 ETH, +28 USDC".
+	return out.sort((a, b) => a.sign - b.sign);
+};
+
+/** Addresses a transaction calls: its target and, for a batch, the targets inside it. */
+const calledAddresses = (r: Record<string, unknown>): Address[] => {
+	const out: Address[] = [];
+	const to = addressOf(r.to);
+	if (to) out.push(to);
+	const params = (r.dataDecoded as { method?: unknown; parameters?: unknown } | null)?.parameters;
+	if (Array.isArray(params)) {
+		for (const p of params as { valueDecoded?: unknown }[]) {
+			if (!Array.isArray(p?.valueDecoded)) continue;
+			for (const inner of p.valueDecoded.slice(0, 50) as { to?: unknown }[]) {
+				const a = addressOf(inner?.to);
+				if (a) out.push(a);
+			}
+		}
 	}
 	return out;
 };
@@ -84,7 +111,7 @@ export const describeSafeRecord = (raw: unknown, safe: Address, chainId: number)
 	const txHash =
 		typeof r.transactionHash === "string" ? r.transactionHash : typeof r.txHash === "string" ? r.txHash : undefined;
 	const hash = txHash && /^0x[0-9a-f]{64}$/i.test(txHash) ? txHash : undefined;
-	const amounts = transferAmounts(r.transfers, safe, getChain(chainId).nativeSymbol);
+	const amounts = transferAmounts(r.transfers, safe, chainId, r.txType === "MULTISIG_TRANSACTION");
 	const base = { time, amounts, link: hash ? explorerTx(chainId, hash) : undefined, txHash: hash };
 	const key = (name: string): HistoryItem["title"] => ({ key: `history.safe.${name}` });
 
@@ -93,8 +120,16 @@ export const describeSafeRecord = (raw: unknown, safe: Address, chainId: number)
 		const method = (r.dataDecoded as { method?: unknown } | null)?.method;
 		const hasData = typeof r.data === "string" && r.data.length > 2;
 		const to = addressOf(r.to);
+		// Calls to the contracts the app itself uses for swaps and the USDC bridge are named as such.
+		const chain = getChain(chainId);
+		const called = calledAddresses(r);
+		const calls = (target: Address | undefined): boolean => !!target && called.some((a) => sameAddress(a, target));
+		const swapped = calls(chain.dex?.router);
+		const bridged = calls(chain.cctp?.tokenMessenger);
 		let title: HistoryItem["title"];
-		if (!hasData) title = key(r.value === "0" || !r.value ? "empty" : "send");
+		if (bridged) title = key("bridge");
+		else if (swapped) title = key("swap");
+		else if (!hasData) title = key(r.value === "0" || !r.value ? "empty" : "send");
 		else if (method === "transfer") title = key("send");
 		else if (method === "signMessage") title = key("signMessage");
 		else if (method === "multiSend") title = key("batch");
@@ -109,8 +144,15 @@ export const describeSafeRecord = (raw: unknown, safe: Address, chainId: number)
 				if (owner && !signers.some((s) => sameAddress(s, owner))) signers.push(owner);
 			}
 		}
+		// Who got the funds: the receiver of a transfer, not the token contract the call went to.
+		const params = (r.dataDecoded as { parameters?: unknown } | null)?.parameters;
+		const paramTo =
+			method === "transfer" && Array.isArray(params)
+				? addressOf((params as { name?: unknown; value?: unknown }[]).find((p) => p?.name === "to")?.value)
+				: undefined;
 		const sent = amounts.some((a) => a.sign < 0);
-		const target = sent ? (firstOther(r.transfers, safe, "to") ?? to) : to;
+		const target =
+			swapped || bridged ? undefined : (paramTo ?? (sent ? firstOther(r.transfers, safe, "to") : undefined) ?? to);
 		return {
 			...base,
 			id: `m:${String(r.safeTxHash)}`,

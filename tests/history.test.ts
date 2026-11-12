@@ -195,13 +195,14 @@ describe("Hyperliquid actions from the explorer", () => {
 
 describe("Safe history", () => {
 	const SAFE = "0x22222222e8d995EA51841abc49022Fb5eb7C62b4";
+	const TOKEN = "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238";
 	const usdc = { symbol: "USDC", decimals: 6, trusted: true };
 
 	it("nets transfers per token and ignores tokens nobody vouches for", () => {
 		const amounts = transferAmounts(
 			[
-				{ type: "ERC20_TRANSFER", from: SAFE, to: OTHER, value: "2500000", tokenInfo: usdc },
-				{ type: "ERC20_TRANSFER", from: OTHER, to: SAFE, value: "500000", tokenInfo: usdc },
+				{ type: "ERC20_TRANSFER", from: SAFE, to: OTHER, value: "2500000", tokenAddress: TOKEN, tokenInfo: usdc },
+				{ type: "ERC20_TRANSFER", from: OTHER, to: SAFE, value: "500000", tokenAddress: TOKEN, tokenInfo: usdc },
 				{ type: "ETHER_TRANSFER", from: OTHER, to: SAFE, value: "1000000000000000000" },
 				{
 					type: "ERC20_TRANSFER",
@@ -213,7 +214,8 @@ describe("Safe history", () => {
 				{ type: "ERC721_TRANSFER", from: OTHER, to: SAFE, tokenId: "1" },
 			],
 			SAFE,
-			"ETH",
+			1,
+			false,
 		);
 		expect(amounts).toEqual([
 			{ sign: -1, value: "2", symbol: "USDC" },
@@ -329,5 +331,80 @@ describe("Safe history", () => {
 			key: "history.safe.created",
 		});
 		expect(describeCreation({ created: "nonsense" }, 1)).toBeUndefined();
+	});
+
+	it("shows a token send with the receiver and the amount, whatever the service thinks of the token", () => {
+		const to = "0xA0952F1ad801e7ca0256d0979a29180335bA9DEC";
+		const row = describeSafeRecord(
+			{
+				txType: "MULTISIG_TRANSACTION",
+				executionDate: "2026-10-07T14:20:00Z",
+				isExecuted: true,
+				isSuccessful: true,
+				to: TOKEN,
+				value: "0",
+				data: "0xa9059cbb00",
+				dataDecoded: {
+					method: "transfer",
+					parameters: [
+						{ name: "to", value: to },
+						{ name: "value", value: "50000000" },
+					],
+				},
+				safeTxHash: HASH,
+				executor: to,
+				transfers: [
+					{
+						type: "ERC20_TRANSFER",
+						from: SAFE,
+						to,
+						value: "50000000",
+						tokenAddress: TOKEN,
+						tokenInfo: { symbol: "USDC", decimals: 6, trusted: false },
+					},
+				],
+			},
+			SAFE,
+			11155111,
+		);
+		expect(row?.title).toEqual({ key: "history.safe.send" });
+		expect(row?.amounts).toEqual([{ sign: -1, value: "50", symbol: "USDC" }]);
+		expect(row?.counterparty).toEqual({ role: "to", address: to });
+	});
+
+	it("names a call to the swap router a swap, with what left and what came", () => {
+		const router = "0x3bFA4769FB09eefC5a80d6E87c3B9C650f7Ae48E";
+		const row = describeSafeRecord(
+			{
+				txType: "MULTISIG_TRANSACTION",
+				executionDate: "2026-10-07T14:10:00Z",
+				isExecuted: true,
+				isSuccessful: true,
+				to: router,
+				value: "10000000000000000",
+				data: "0x5ae401dc00",
+				dataDecoded: { method: "multicall", parameters: [] },
+				safeTxHash: HASH,
+				transfers: [
+					{
+						type: "ERC20_TRANSFER",
+						from: OTHER,
+						to: SAFE,
+						value: "28700000",
+						tokenAddress: TOKEN,
+						tokenInfo: { symbol: "USDC", decimals: 6, trusted: false },
+					},
+					{ type: "ETHER_TRANSFER", from: SAFE, to: router, value: "10000000000000000" },
+				],
+			},
+			SAFE,
+			11155111,
+		);
+		expect(row?.title).toEqual({ key: "history.safe.swap" });
+		expect(row?.amounts).toEqual([
+			{ sign: -1, value: "0.01", symbol: "ETH" },
+			{ sign: 1, value: "28.7", symbol: "USDC" },
+		]);
+		expect(row?.counterparty).toBeUndefined();
 	});
 });
