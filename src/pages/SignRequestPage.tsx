@@ -1,9 +1,13 @@
+import { Settings } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router";
 import { Notice } from "@/components/common/Notice";
 import { RequestView } from "@/components/handoff/RequestView";
 import { AppLogo } from "@/components/icons/AppLogo";
+import { AppearanceDialog } from "@/components/settings/AppearanceDialog";
+import { IconButton } from "@/components/ui/IconButton";
 import { Spinner } from "@/components/ui/Spinner";
+import { UpdateBanner } from "@/components/update/UpdateBanner";
 import { useT } from "@/i18n";
 import { describeError } from "@/lib/describeError";
 import { fetchHandoffRequest, putHandoffResponse } from "@/lib/handoff/client";
@@ -89,6 +93,7 @@ export const SignRequestPage: React.FC = () => {
 	const token = useMemo(() => parseLinkToken(raw ?? ""), [raw]);
 	const [phase, setPhase] = useState<Phase>({ step: "loading" });
 	const [code, setCode] = useState("");
+	const [appearance, setAppearance] = useState(false);
 
 	useEffect(() => {
 		let cancelled = false;
@@ -194,77 +199,85 @@ export const SignRequestPage: React.FC = () => {
 	}, [phase, answer]);
 
 	return (
-		<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6">
-			<div className="flex items-center gap-3">
-				<AppLogo className="size-7 shrink-0" />
-				<h1 className="text-lg font-semibold">{t("handoff.page.title")}</h1>
-			</div>
-			{phase.step === "updating" && (
-				<div className="text-base-content/60 flex items-center gap-2 text-sm">
-					<Spinner size="xs" />
-					{t("handoff.page.updating")}
+		<>
+			{/* This copy of the app has no other place to offer a new version. */}
+			<UpdateBanner />
+			<div className="mx-auto flex min-h-dvh w-full max-w-md flex-col gap-4 px-4 py-6">
+				<div className="flex items-center gap-3">
+					<AppLogo className="size-7 shrink-0" />
+					<h1 className="min-w-0 flex-1 text-lg font-semibold">{t("handoff.page.title")}</h1>
+					<IconButton label={t("settings.appearance")} onClick={() => setAppearance(true)}>
+						<Settings className="size-5" />
+					</IconButton>
 				</div>
-			)}
-			{phase.step === "loading" && (
-				<div className="text-base-content/60 flex items-center gap-2 text-sm">
-					<Spinner size="xs" />
-					{t("handoff.page.loading")}
-				</div>
-			)}
-			{phase.step === "problem" && <Notice tone="error">{t(phase.key)}</Notice>}
-			{phase.step === "finished" && <Notice>{t(phase.key)}</Notice>}
-			{phase.step === "code" && (
-				<form
-					className="flex flex-col gap-3"
-					onSubmit={(e) => {
-						e.preventDefault();
-						void handleCode();
-					}}
-				>
-					<p className="text-sm">{t("handoff.page.codeText")}</p>
-					<Notice tone="warning">{t("handoff.page.codeWarning")}</Notice>
-					<input
-						className="input mono w-full text-center text-2xl tracking-widest"
-						inputMode="numeric"
-						autoComplete="off"
-						maxLength={6}
-						value={code}
-						onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-						aria-label={t("handoff.code")}
-						aria-invalid={phase.wrong}
-					/>
-					{phase.wrong && <p className="text-error text-sm">{t("handoff.page.codeWrong")}</p>}
-					<button type="submit" className="btn btn-primary" disabled={code.length !== 6}>
-						{t("handoff.page.codeSubmit")}
-					</button>
-				</form>
-			)}
-			{(phase.step === "ready" || phase.step === "working") && (
-				<>
-					<Notice>{t("handoff.page.verified")}</Notice>
-					<div className="card-surface flex flex-col gap-3 p-4">
-						<h2 className="font-semibold">{t(`handoff.method.${phase.request.method}`)}</h2>
-						<RequestView request={phase.request} />
+				{phase.step === "updating" && (
+					<div className="text-base-content/60 flex items-center gap-2 text-sm">
+						<Spinner size="xs" />
+						{t("handoff.page.updating")}
 					</div>
-					{phase.step === "ready" && phase.error && <Notice tone="error">{phase.error}</Notice>}
-					{phase.step === "working" && (
-						<div className="text-base-content/70 flex items-center gap-2 text-sm">
-							<Spinner size="xs" />
-							{t("handoff.page.waiting")}
-						</div>
-					)}
-					<button
-						type="button"
-						className={`btn ${phase.step === "working" ? "" : "btn-primary"}`}
-						onClick={() => void handleConfirm()}
+				)}
+				{phase.step === "loading" && (
+					<div className="text-base-content/60 flex items-center gap-2 text-sm">
+						<Spinner size="xs" />
+						{t("handoff.page.loading")}
+					</div>
+				)}
+				{phase.step === "problem" && <Notice tone="error">{t(phase.key)}</Notice>}
+				{phase.step === "finished" && <Notice>{t(phase.key)}</Notice>}
+				{phase.step === "code" && (
+					<form
+						className="flex flex-col gap-3"
+						onSubmit={(e) => {
+							e.preventDefault();
+							void handleCode();
+						}}
 					>
-						{t(phase.step === "working" ? "handoff.page.again" : "handoff.page.confirm")}
-					</button>
-					<button type="button" className="btn btn-ghost" onClick={handleDecline}>
-						{t("handoff.page.decline")}
-					</button>
-				</>
-			)}
-		</div>
+						<p className="text-sm">{t("handoff.page.codeText")}</p>
+						<Notice tone="warning">{t("handoff.page.codeWarning")}</Notice>
+						<input
+							className="input mono w-full text-center text-2xl tracking-widest"
+							inputMode="numeric"
+							autoComplete="off"
+							maxLength={6}
+							value={code}
+							onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+							aria-label={t("handoff.code")}
+							aria-invalid={phase.wrong}
+						/>
+						{phase.wrong && <p className="text-error text-sm">{t("handoff.page.codeWrong")}</p>}
+						<button type="submit" className="btn btn-primary" disabled={code.length !== 6}>
+							{t("handoff.page.codeSubmit")}
+						</button>
+					</form>
+				)}
+				{(phase.step === "ready" || phase.step === "working") && (
+					<>
+						<Notice>{t("handoff.page.verified")}</Notice>
+						<div className="card-surface flex flex-col gap-3 p-4">
+							<h2 className="font-semibold">{t(`handoff.method.${phase.request.method}`)}</h2>
+							<RequestView request={phase.request} />
+						</div>
+						{phase.step === "ready" && phase.error && <Notice tone="error">{phase.error}</Notice>}
+						{phase.step === "working" && (
+							<div className="text-base-content/70 flex items-center gap-2 text-sm">
+								<Spinner size="xs" />
+								{t("handoff.page.waiting")}
+							</div>
+						)}
+						<button
+							type="button"
+							className={`btn ${phase.step === "working" ? "" : "btn-primary"}`}
+							onClick={() => void handleConfirm()}
+						>
+							{t(phase.step === "working" ? "handoff.page.again" : "handoff.page.confirm")}
+						</button>
+						<button type="button" className="btn btn-ghost" onClick={handleDecline}>
+							{t("handoff.page.decline")}
+						</button>
+					</>
+				)}
+			</div>
+			<AppearanceDialog open={appearance} onClose={() => setAppearance(false)} />
+		</>
 	);
 };

@@ -1,53 +1,25 @@
-import { useCallback, useState } from "react";
+import { useState } from "react";
+import { AppearanceSettings } from "@/components/settings/AppearanceSettings";
 import { RpcSettings } from "@/components/settings/RpcSettings";
 import { TokenListSettingsSection } from "@/components/tokens/TokenListSettingsSection";
 import { PageHeader } from "@/components/ui/PageHeader";
-import { Segmented } from "@/components/ui/Segmented";
 import { SettingRow } from "@/components/ui/SettingRow";
 import { SettingsSection } from "@/components/ui/SettingsSection";
 import { UpdateSettingsSection } from "@/components/update/UpdateSettingsSection";
 import { useT } from "@/i18n";
 import { useAppStore } from "@/store/appStore";
-import type { LangSetting, ThemeSetting } from "@/types/domain";
 
 export const SettingsPage: React.FC = () => {
 	const t = useT();
 	const settings = useAppStore((s) => s.settings);
 	const update = useAppStore((s) => s.updateSettings);
 	const [showRpc, setShowRpc] = useState(false);
-	const setTheme = useCallback((theme: ThemeSetting) => update({ theme }), [update]);
-	const setLang = useCallback((lang: LangSetting) => update({ lang }), [update]);
 
 	return (
 		<>
 			<PageHeader title={t("nav.settings")} />
 			<SettingsSection title={t("settings.appearance")}>
-				<SettingRow label={t("settings.theme")}>
-					<Segmented<ThemeSetting>
-						value={settings.theme}
-						size="sm"
-						options={[
-							{ value: "system", label: t("settings.system") },
-							{ value: "light", label: t("settings.light") },
-							{ value: "dark", label: t("settings.dark") },
-						]}
-						onChange={setTheme}
-						ariaLabel={t("settings.theme")}
-					/>
-				</SettingRow>
-				<SettingRow label={t("settings.language")}>
-					<Segmented<LangSetting>
-						value={settings.lang}
-						size="sm"
-						options={[
-							{ value: "system", label: t("settings.systemLang") },
-							{ value: "en", label: "English" },
-							{ value: "ru", label: "Русский" },
-						]}
-						onChange={setLang}
-						ariaLabel={t("settings.language")}
-					/>
-				</SettingRow>
+				<AppearanceSettings />
 			</SettingsSection>
 
 			<SettingsSection title={t("settings.network")}>
