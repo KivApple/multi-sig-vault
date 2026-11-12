@@ -35,8 +35,9 @@ export const translate = (lang: Lang, key: string, vars?: TVars): string => {
 
 export const resolveLang = (setting: "system" | Lang): Lang => {
 	if (setting !== "system") return setting;
-	const langs = typeof navigator === "undefined" ? [] : (navigator.languages ?? [navigator.language]);
-	return langs.some((l) => l.toLowerCase().startsWith("ru")) ? "ru" : "en";
+	// Only the primary language counts: a French phone that also lists Russian gets English, the fallback.
+	const primary = typeof navigator === "undefined" ? "" : (navigator.languages?.[0] ?? navigator.language ?? "");
+	return primary.toLowerCase().startsWith("ru") ? "ru" : "en";
 };
 
 export const useLang = (): Lang => {

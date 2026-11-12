@@ -40,7 +40,7 @@ export const SettingsPage: React.FC = () => {
 						value={settings.lang}
 						size="sm"
 						options={[
-							{ value: "system", label: t("settings.system") },
+							{ value: "system", label: t("settings.systemLang") },
 							{ value: "en", label: "English" },
 							{ value: "ru", label: "Русский" },
 						]}

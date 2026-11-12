@@ -279,15 +279,10 @@ const ensureAccount = async (session: Session, address: Address): Promise<void> 
 	stepDone(session);
 };
 
-/** MetaMask only signs typed data / sends transactions for its active chain. */
-const ensureChain = async (session: Session, chainId: number): Promise<void> => {
-	const current = await request<string>(session, "eth_chainId");
-	if (Number(current) === chainId) return;
+const switchOrAdd = async (session: Session, chainId: number): Promise<void> => {
 	const hexId = numberToHex(chainId);
-	const switchChain = (): Promise<unknown> =>
-		session.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hexId }] });
 	try {
-		await (session.remote ? guardRemote(switchChain, () => new WalletError("timeout")) : switchChain());
+		await session.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hexId }] });
 	} catch (e) {
 		if (!isUnknownChain(e)) {
 			const mapped = mapMetaMaskError(e);
@@ -305,16 +300,75 @@ const ensureChain = async (session: Session, chainId: number): Promise<void> => 
 			},
 		]);
 	}
+};
+
+/**
+ * Chain the mobile app was last switched to from this page, and when. The SDK answers `eth_chainId`
+ * from a cache that goes stale while the tab is frozen behind MetaMask, so on the app path the
+ * cache is never trusted: the adapter switches explicitly and remembers that it did.
+ */
+let appChain: { id: number; at: number } | undefined;
+/** A chain MetaMask did not know: the next tap adds it (adding needs its own gesture too). */
+let appChainToAdd: number | undefined;
+/** A transaction is only sent right after a switch; a signature is checked by MetaMask itself. */
+const TX_SWITCH_FRESH_MS = 120_000;
+
+const ensureAppChain = async (session: Session, chainId: number, forTx: boolean): Promise<void> => {
+	if (appChain?.id === chainId && (!forTx || Date.now() - appChain.at < TX_SWITCH_FRESH_MS)) return;
+	const hexId = numberToHex(chainId);
+	const chain = findChain(chainId);
+	if (appChainToAdd === chainId && chain) {
+		appChainToAdd = undefined;
+		await request(session, "wallet_addEthereumChain", [
+			{
+				chainId: hexId,
+				chainName: chain.name,
+				nativeCurrency: { name: chain.nativeName, symbol: chain.nativeSymbol, decimals: 18 },
+				rpcUrls: chain.rpcUrls,
+				blockExplorerUrls: [chain.explorer],
+			},
+		]);
+	} else {
+		try {
+			await guardRemote(
+				() => session.provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: hexId }] }),
+				() => new WalletError("timeout"),
+			);
+		} catch (e) {
+			if (isUnknownChain(e) && chain) {
+				appChainToAdd = chainId;
+				throw new WalletError("continue");
+			}
+			const mapped = mapMetaMaskError(e);
+			throw mapped.code === "unknown" ? new WalletError("chain", mapped.message, { chainId }) : mapped;
+		}
+	}
+	appChain = { id: chainId, at: Date.now() };
+	throw new WalletError("continue");
+};
+
+/** MetaMask only signs typed data / sends transactions for its active chain. */
+const ensureChain = async (session: Session, chainId: number, forTx = false): Promise<void> => {
+	if (session.remote) return ensureAppChain(session, chainId, forTx);
+	const current = await request<string>(session, "eth_chainId");
+	if (Number(current) === chainId) return;
+	await switchOrAdd(session, chainId);
 	const after = await request<string>(session, "eth_chainId");
 	if (Number(after) !== chainId) {
 		// Adding a chain does not always switch to it.
 		try {
-			await request(session, "wallet_switchEthereumChain", [{ chainId: hexId }]);
+			await request(session, "wallet_switchEthereumChain", [{ chainId: numberToHex(chainId) }]);
 		} catch (e) {
 			throw e instanceof WalletError && e.code === "rejected" ? e : new WalletError("chain", undefined, { chainId });
 		}
 	}
-	stepDone(session);
+};
+
+/** MetaMask refused because it is on another chain than this page believed: switch on the next tap. */
+const chainMoved = (session: Session, e: unknown): unknown => {
+	if (!session.remote || !/chain ?id/i.test(e instanceof Error ? e.message : "")) return e;
+	appChain = undefined;
+	return new WalletError("continue");
 };
 
 /** Requests go (or are about to go) to the MetaMask mobile app: nothing is injected on a phone. */
@@ -337,26 +391,39 @@ export const metamaskAdapter: WalletAdapter = {
 		const session = await getSession();
 		await ensureAccount(session, signer.address);
 		if (data.domain.chainId !== undefined) await ensureChain(session, data.domain.chainId);
-		return request<Hex>(session, "eth_signTypedData_v4", [signer.address, JSON.stringify(toFullTypedData(data))]);
+		try {
+			return await request<Hex>(session, "eth_signTypedData_v4", [
+				signer.address,
+				JSON.stringify(toFullTypedData(data)),
+			]);
+		} catch (e) {
+			throw chainMoved(session, e);
+		}
 	},
 
 	sendTransaction: async (signer: Signer, tx: TxRequest): Promise<Hex> => {
 		const session = await getSession();
 		await ensureAccount(session, signer.address);
-		await ensureChain(session, tx.chainId);
-		return request<Hex>(
-			session,
-			"eth_sendTransaction",
-			[
-				{
-					from: signer.address,
-					to: tx.to,
-					data: tx.data,
-					value: numberToHex(tx.value ?? 0n),
-					...(tx.gas !== undefined ? { gas: numberToHex(tx.gas) } : {}),
-				},
-			],
-			() => new TxOutcomeUnknownError(),
-		);
+		await ensureChain(session, tx.chainId, true);
+		try {
+			return await request<Hex>(
+				session,
+				"eth_sendTransaction",
+				[
+					{
+						from: signer.address,
+						to: tx.to,
+						data: tx.data,
+						value: numberToHex(tx.value ?? 0n),
+						// MetaMask rejects a transaction whose chain is not its active one.
+						chainId: numberToHex(tx.chainId),
+						...(tx.gas !== undefined ? { gas: numberToHex(tx.gas) } : {}),
+					},
+				],
+				() => new TxOutcomeUnknownError(),
+			);
+		} catch (e) {
+			throw chainMoved(session, e);
+		}
 	},
 };

@@ -127,6 +127,7 @@ export const STRINGS = [
 	["settings.theme", "Theme", "Тема"],
 	["settings.language", "Language", "Язык"],
 	["settings.system", "System", "Системная"],
+	["settings.systemLang", "System", "Системный"],
 	["settings.light", "Light", "Светлая"],
 	["settings.dark", "Dark", "Тёмная"],
 	["settings.network", "Network", "Сеть"],

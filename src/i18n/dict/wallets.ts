@@ -46,7 +46,7 @@ export default defineDict({
 		"walletError.app-closed": "Open the Ethereum app on your Ledger and try again",
 		"walletError.blind-signing":
 			"Enable blind signing on the Ledger: Ethereum app → Settings → Blind signing, then try again",
-		"walletError.continue": "Done in MetaMask. Tap the signer once more for the next step.",
+		"walletError.continue": "MetaMask needs one more step. Tap the signer again.",
 		"walletError.timeout": "No answer from the wallet. Try again – repeating a signature request is safe.",
 		"walletError.txUnknown":
 			"No answer from MetaMask – the transaction may or may not have been sent. Check Activity in MetaMask before trying again.",
@@ -102,7 +102,7 @@ export default defineDict({
 		"walletError.app-closed": "Откройте приложение Ethereum на Ledger и повторите",
 		"walletError.blind-signing":
 			"Включите слепую подпись на Ledger: приложение Ethereum → Settings → Blind signing, затем повторите",
-		"walletError.continue": "В MetaMask готово. Нажмите на подписанта ещё раз для следующего шага.",
+		"walletError.continue": "В MetaMask нужен ещё один шаг. Нажмите на подписанта ещё раз.",
 		"walletError.timeout": "Кошелёк не ответил. Повторите – запрос подписи можно безопасно отправить ещё раз.",
 		"walletError.txUnknown":
 			"MetaMask не ответил – транзакция могла уйти, а могла и нет. Проверьте «Активность» в MetaMask, прежде чем повторять.",
