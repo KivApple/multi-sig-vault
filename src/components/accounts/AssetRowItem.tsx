@@ -16,8 +16,11 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 	// Worth a mention only when something is really held back.
 	const free = asset.available === undefined ? undefined : Number(asset.available);
 	const held = !perp && free !== undefined && size > 0 && free < size * 0.999999;
+	const side = `${t(size >= 0 ? "accounts.long" : "accounts.short")} ${asset.note ?? ""}`.trim();
 	const caption = perp
-		? `${t(size >= 0 ? "accounts.long" : "accounts.short")} ${asset.note ?? ""}`.trim()
+		? asset.position
+			? `${side} · ${t("accounts.margin", { amount: formatUsd(asset.position.margin, lang) })}`
+			: side
 		: asset.note === "perps"
 			? t("hl.perps")
 			: asset.name;
@@ -36,12 +39,13 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 			</div>
 			<div className="tabular shrink-0 text-right leading-tight">
 				<div className={`font-medium ${perp ? (asset.usd >= 0 ? "text-success" : "text-error") : ""}`}>
+					{perp && <span className="text-base-content/60 mr-1 text-xs font-normal">PnL</span>}
 					{perp && asset.usd > 0 ? "+" : ""}
 					{formatUsd(asset.usd, lang)}
 				</div>
 				<div className="text-base-content/60 text-xs">
 					{formatAmount(perp ? Math.abs(size) : asset.amount, lang, 6)}
-					{perp ? ` · PnL` : ""}
+					{perp && asset.position ? ` · ${formatUsd(asset.position.notional, lang)}` : ""}
 				</div>
 				{held && free !== undefined && (
 					<div className="text-warning text-xs">

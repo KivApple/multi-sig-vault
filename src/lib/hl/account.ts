@@ -61,6 +61,8 @@ export interface HlPerpPosition {
 	coin: string;
 	size: string;
 	notional: number;
+	/** Margin the position holds. */
+	margin: number;
 	pnl: number;
 	leverage: number;
 }
@@ -127,6 +129,7 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 				coin: p.coin,
 				size: p.szi,
 				notional: Number(p.positionValue),
+				margin: Number(p.marginUsed) || 0,
 				pnl,
 				leverage: p.leverage.value,
 			});
@@ -194,6 +197,7 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 			symbol: p.coin,
 			amount: p.size,
 			usd: p.pnl,
+			position: { notional: p.notional, margin: p.margin },
 			kind: "perp",
 			icon: { symbol: p.coin, hl: true },
 			note: `${p.leverage}x`,

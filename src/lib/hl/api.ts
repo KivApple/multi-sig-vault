@@ -78,6 +78,7 @@ export interface HlPosition {
 	szi: string;
 	entryPx: string | null;
 	positionValue: string;
+	marginUsed: string;
 	unrealizedPnl: string;
 	leverage: { type: string; value: number };
 }

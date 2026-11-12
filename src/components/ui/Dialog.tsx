@@ -50,9 +50,21 @@ export const Dialog: React.FC<DialogProps> = ({
 		[dismissable],
 	);
 
+	// A click closes the dialog only when the button went down and came up on the backdrop. A press
+	// inside released outside (selecting text, a slipped drag), or the reverse, is not a wish to close –
+	// and the browser reports both as a click on the dialog element itself.
+	const press = useRef({ down: false, up: false });
+	const handleDown = useCallback((e: MouseEvent<HTMLDialogElement>) => {
+		press.current = { down: e.target === ref.current, up: false };
+	}, []);
+	const handleUp = useCallback((e: MouseEvent<HTMLDialogElement>) => {
+		press.current.up = e.target === ref.current;
+	}, []);
 	const handleBackdrop = useCallback(
 		(e: MouseEvent<HTMLDialogElement>) => {
-			if (dismissable && e.target === ref.current) onClose();
+			const { down, up } = press.current;
+			press.current = { down: false, up: false };
+			if (dismissable && down && up && e.target === ref.current) onClose();
 		},
 		[dismissable, onClose],
 	);
@@ -63,6 +75,8 @@ export const Dialog: React.FC<DialogProps> = ({
 			className="modal modal-bottom sm:modal-middle"
 			onClose={onClose}
 			onCancel={handleCancel}
+			onMouseDown={handleDown}
+			onMouseUp={handleUp}
 			onClick={handleBackdrop}
 		>
 			{open && (
