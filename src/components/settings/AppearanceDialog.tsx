@@ -1,4 +1,6 @@
+import { SettingsSection } from "@/components/ui/SettingsSection";
 import { Dialog } from "@/components/ui/Dialog";
+import { UpdateSettingsSection } from "@/components/update/UpdateSettingsSection";
 import { useT } from "@/i18n";
 import { AppearanceSettings } from "./AppearanceSettings";
 
@@ -7,14 +9,18 @@ export interface AppearanceDialogProps {
 	onClose: () => void;
 }
 
-/** Theme and language for pages that live outside the app frame (the signing page in MetaMask's browser). */
+/**
+ * The settings that matter on a page outside the app frame (the signing page in MetaMask's browser):
+ * theme, language and updates of this copy of the app.
+ */
 export const AppearanceDialog: React.FC<AppearanceDialogProps> = ({ open, onClose }) => {
 	const t = useT();
 	return (
-		<Dialog open={open} onClose={onClose} title={t("settings.appearance")} size="sm">
-			<div className="divide-base-300 -mx-4 flex flex-col divide-y">
+		<Dialog open={open} onClose={onClose} title={t("nav.settings")}>
+			<SettingsSection title={t("settings.appearance")}>
 				<AppearanceSettings />
-			</div>
+			</SettingsSection>
+			<UpdateSettingsSection />
 		</Dialog>
 	);
 };

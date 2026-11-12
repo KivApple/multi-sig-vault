@@ -206,7 +206,7 @@ export const SignRequestPage: React.FC = () => {
 				<div className="flex items-center gap-3">
 					<AppLogo className="size-7 shrink-0" />
 					<h1 className="min-w-0 flex-1 text-lg font-semibold">{t("handoff.page.title")}</h1>
-					<IconButton label={t("settings.appearance")} onClick={() => setAppearance(true)}>
+					<IconButton label={t("nav.settings")} onClick={() => setAppearance(true)}>
 						<Settings className="size-5" />
 					</IconButton>
 				</div>
