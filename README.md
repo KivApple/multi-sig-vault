@@ -2,6 +2,8 @@
 
 **[multi-sig.quoi.dev](https://multi-sig.quoi.dev)**
 
+<img src="docs/screenshot.png" alt="Home screen: a Hyperliquid account, two Safes on mainnet and one on testnet" width="640">
+
 A PWA for operating Hyperliquid multi-sig accounts and Safe wallets on Ethereum, HyperEVM, Arbitrum, Base and Polygon (mainnet and testnet).
 
 It is built for signers who are never in the same place. You sign with the first key, carry the operation to the second device as a QR code, sign there, and broadcast from wherever you end up. Keys stay on MetaMask, Trezor and Ledger; the network is needed only to read balances and to send.
@@ -16,46 +18,61 @@ This app builds the payloads your wallets sign, so a backdoor in it could drain 
 
 **Accounts**
 
-- Hyperliquid: plain and multi-sig accounts in standard, unified and portfolio margin modes.
+- Hyperliquid accounts, plain and multi-sig, in standard, unified and portfolio margin modes.
 - Safe 1.3.0, 1.4.1 and 1.5.0.
-- Balances refresh every 30 seconds and stay visible offline from cache.
-- History on its own page, newest first, loading older entries as you scroll. A Safe shows its creation, executed transactions with the owners that confirmed them, and incoming transfers. A Hyperliquid account shows its ledger (deposits, withdrawals, transfers) and its own key's actions such as agent approvals and multi-sig changes; orders and trades are left out. For a multi-sig account the signers of each action are recovered from its signatures.
-- The total on the home screen counts visible accounts, mainnet and testnet separately.
+- Balances per asset, refreshed every 30 seconds and kept for offline viewing. An exchange account also shows how much can be withdrawn when orders or margin hold part of it.
+- One total for mainnet and a separate one for testnet, over the accounts you have not hidden.
+- History on its own page, newest first, with the signers of each operation.
 
 **Signers**
 
-- MetaMask: the browser extension on desktop, the MetaMask app on Android.
-- Trezor, with the same derivation paths as Trezor Suite.
-- Ledger, with the same derivation paths as Ledger Live.
+- MetaMask (browser extension, or the MetaMask app on a phone), Trezor, Ledger.
+- Hardware wallets use the same derivation paths as Trezor Suite and Ledger Live.
 
 **Hyperliquid operations**
 
-- Withdraw and send USDC, send spot tokens, move funds between perps and spot.
+- Send and withdraw USDC, send spot tokens, move funds between spot and perps.
 - Withdraw spot assets to their native chain through Unit (BTC, ETH, SOL and others) or to HyperEVM.
-- Approve and revoke agent keys, and log in to the exchange web UI by link or QR. A key is valid for a chosen term: 1, 7, 30, 90 (default) or 180 days, or any number of days up to the 180 the exchange allows.
+- Approve and revoke agent keys, and log in to the exchange web UI by link or QR, for 1 to 180 days.
 - Create and manage sub-accounts.
-- Convert an account to multi-sig, change its signers, or convert it back.
+- Convert an account to multi-sig, change its signers, convert it back.
 
 **Safe operations**
 
 - Send native coins and tokens.
-- Every transaction the app sends offers a slower and a faster fee, taken from the tips recent blocks accepted. One that stays unconfirmed can be sent again with the same signatures.
-- Swap on Uniswap V3 (HyperSwap V3 on HyperEVM), quoted directly from the pools. There is no swap on Polygon Amoy: Uniswap is not deployed there.
-- Bridge USDC between any two supported chains through Circle CCTP V2.
+- Swap on Uniswap V3 (HyperSwap V3 on HyperEVM), quoted directly from the pools.
+- Bridge USDC between any two supported networks through Circle CCTP V2, alone or right after a swap.
 - Change owners and threshold.
 - Call a contract by ABI, deploy a contract, sign a message hash (EIP-1271).
+- Choose a slower or a faster network fee; a transaction that stays unconfirmed can be sent again with the same signatures.
 
 **Creating a Safe**
 
-- At a new address.
-- At the same address as an existing Safe on another chain.
-- At a vanity address: the app prints the command for `deadbeef` and parses its output.
+- At a new address, at the address of your Safe on another network, or at a vanity address mined with `deadbeef`.
 
-**Moving an operation between devices**
+**Working across devices**
 
-- An operation is exported as a QR code, animated when it does not fit in one frame.
-- QR is the only export channel, because an operation may carry an agent private key.
-- One scanner on the home screen accepts addresses and operations. Imports are deduplicated by UUID and their signatures merged.
+- An operation travels as a QR code, animated when it does not fit in one frame. QR is the only export channel, because an operation may carry an agent private key.
+- One scanner on the home screen accepts addresses and operations. Imports are deduplicated and their signatures merged.
+- Installs as a PWA and works offline; an update is installed only after you agree, and by default only when the developer's Safe has signed it.
+- A link can open the add-account or create-Safe form already filled in.
+
+## Supported networks
+
+| Network | Chain id | Swap | USDC bridge | Safe history |
+|---|---|---|---|---|
+| Ethereum | 1 | Uniswap V3 | yes | yes |
+| HyperEVM | 999 | HyperSwap V3 | yes | yes |
+| Arbitrum | 42161 | Uniswap V3 | yes | yes |
+| Base | 8453 | Uniswap V3 | yes | yes |
+| Polygon | 137 | Uniswap V3 | yes | yes |
+| Sepolia | 11155111 | Uniswap V3 | yes | yes |
+| HyperEVM Testnet | 998 | HyperSwap V3 | yes | no |
+| Arbitrum Sepolia | 421614 | Uniswap V3 | yes | no |
+| Base Sepolia | 84532 | Uniswap V3 | yes | yes |
+| Polygon Amoy | 80002 | no | yes | no |
+
+Safes work on all ten. The Hyperliquid exchange is supported on its mainnet and testnet. Safe history needs the Safe Transaction Service, which does not cover every testnet; Uniswap is not deployed on Polygon Amoy.
 
 ## Deep links
 
@@ -135,7 +152,7 @@ The developer's Safe executes `SignMessageLib.signMessage(digest)`; in the app t
 - `@metamask/sdk`, `@trezor/connect-web`, `@ledgerhq/hw-app-eth` over WebHID and WebUSB
 - vitest, Biome, pnpm
 
-There is no backend. The app talks directly to chain RPC endpoints and to the Hyperliquid, Unit, Circle and Safe transaction service APIs.
+There is no application backend. The app talks directly to chain RPC endpoints and to the Hyperliquid, Unit, Circle and Safe Transaction Service APIs; the only server of its own is the blind relay for MetaMask on a phone.
 
 ## Running
 
