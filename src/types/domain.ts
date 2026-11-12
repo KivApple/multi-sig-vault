@@ -149,6 +149,8 @@ export interface AssetRow {
 	name?: string;
 	/** Token units, decimal string (signed for perp positions). */
 	amount: string;
+	/** Units that can be moved right now, when part of the balance is held (open orders, margin). */
+	available?: string;
 	usd: number;
 	kind: "native" | "token" | "spot" | "perp";
 	/** Icon lookup hints. */

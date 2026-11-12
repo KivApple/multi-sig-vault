@@ -73,6 +73,8 @@ export interface HlAccountData {
 	/** Unified / portfolio margin: one balance for spot and perps. */
 	unified: boolean;
 	totalUsd: number;
+	/** Part of `totalUsd` that can leave the account now: not held by open orders or as margin. */
+	availableUsd: number;
 	assets: AssetRow[];
 	spot: { coin: string; token: number; tokenId: string; total: string; available: string; usd: number; evm: boolean }[];
 	/** USDC that can leave the perp account (standard mode) or the unified balance. */
@@ -134,18 +136,26 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 	const assets: AssetRow[] = [];
 	const spot: HlAccountData["spot"] = [];
 	let spotUsd = 0;
+	let availableUsd = 0;
 	for (const b of spotState.balances) {
 		const total = Number(b.total);
 		if (total === 0) continue;
 		const token = tokenByIndex.get(b.token);
 		const usd = total * (market.prices[b.token] ?? 0);
 		spotUsd += usd;
+		// Held by open orders, and (unified modes) what margin still needs: the smaller of the two is free.
+		const unheld = sub(b.total, b.hold);
+		const afterMargin = available.get(b.token);
+		const free = afterMargin !== undefined && Number(afterMargin) < Number(unheld) ? afterMargin : unheld;
+		// Never more than the balance itself, whatever the exchange reports.
+		const freeUnits = Math.max(0, Math.min(total, Number(free) || 0));
+		availableUsd += freeUnits * (market.prices[b.token] ?? 0);
 		spot.push({
 			coin: b.coin,
 			token: b.token,
 			tokenId: token?.tokenId ?? "",
 			total: b.total,
-			available: available.get(b.token) ?? sub(b.total, b.hold),
+			available: free,
 			usd,
 			evm: !!token?.evmContract || b.coin === "HYPE",
 		});
@@ -156,17 +166,22 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 			symbol: b.coin,
 			name: token?.fullName ?? undefined,
 			amount: b.total,
+			available: String(freeUnits),
 			usd: rowUsd,
 			kind: "spot",
 			icon: { symbol: b.coin, hl: true },
 		});
 	}
 
+	// Standard mode: the perp account is a balance of its own, and the exchange says how much of it is free.
+	const perpFree = unified ? 0 : Math.max(0, Number(perps[0]?.withdrawable ?? 0) || 0);
+	availableUsd += perpFree;
 	if (!unified && Math.abs(perpValue - pnlSum) > 0.005) {
 		assets.push({
 			key: "perp:usdc",
 			symbol: "USDC",
 			amount: String(Math.round((perpValue - pnlSum) * 1e6) / 1e6),
+			available: String(perpFree),
 			usd: perpValue - pnlSum,
 			kind: "spot",
 			icon: { symbol: "USDC", hl: true },
@@ -194,6 +209,7 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 		abstraction,
 		unified,
 		totalUsd: unified ? spotUsd : spotUsd + perpValue,
+		availableUsd,
 		assets,
 		spot,
 		withdrawable,

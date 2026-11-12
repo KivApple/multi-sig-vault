@@ -65,6 +65,8 @@ export const STRINGS = [
 		"This QR code is neither an address nor an operation",
 		"В этом QR-коде нет ни адреса, ни операции",
 	],
+	["accounts.availableUsd", "{amount} available to withdraw", "Доступно для вывода {amount}"],
+	["accounts.availableUnits", "{amount} available", "доступно {amount}"],
 	["accounts.total", "Total", "Всего"],
 	[
 		"accounts.allHidden",

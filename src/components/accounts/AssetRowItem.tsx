@@ -13,6 +13,9 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 	const lang = useLang();
 	const perp = asset.kind === "perp";
 	const size = Number(asset.amount);
+	// Worth a mention only when something is really held back.
+	const free = asset.available === undefined ? undefined : Number(asset.available);
+	const held = !perp && free !== undefined && size > 0 && free < size * 0.999999;
 	const caption = perp
 		? `${t(size >= 0 ? "accounts.long" : "accounts.short")} ${asset.note ?? ""}`.trim()
 		: asset.note === "perps"
@@ -40,6 +43,11 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 					{formatAmount(perp ? Math.abs(size) : asset.amount, lang, 6)}
 					{perp ? ` · PnL` : ""}
 				</div>
+				{held && free !== undefined && (
+					<div className="text-warning text-xs">
+						{t("accounts.availableUnits", { amount: formatAmount(free, lang, 6) })}
+					</div>
+				)}
 			</div>
 		</li>
 	);

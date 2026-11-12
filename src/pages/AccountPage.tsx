@@ -46,6 +46,9 @@ export const AccountPage: React.FC = () => {
 	const title = account.name?.trim() || shortAddress(account.address);
 	const scope = account.kind === "safe" ? { chainId: account.chainId as number } : { hlEnv: account.env };
 	const mode = multiSigLabel(account, data.data, t);
+	// Exchange accounts: part of the balance may be held by open orders or as margin.
+	const availableUsd = (data.data as { availableUsd?: number } | undefined)?.availableUsd;
+	const held = !!data.data && availableUsd !== undefined && data.data.totalUsd - availableUsd > 0.01;
 
 	return (
 		<>
@@ -71,6 +74,11 @@ export const AccountPage: React.FC = () => {
 							<div className="tabular text-3xl font-bold tracking-tight">
 								{data.data ? formatUsd(data.data.totalUsd, lang) : <span className="skeleton inline-block h-8 w-36" />}
 							</div>
+							{held && (
+								<div className="text-warning tabular mt-0.5 text-sm">
+									{t("accounts.availableUsd", { amount: formatUsd(availableUsd as number, lang) })}
+								</div>
+							)}
 							<div className="text-base-content/60 mt-1 text-xs">
 								{accountNetworkName(account)}
 								{data.updatedAt && ` · ${t("common.updatedAt", { when: formatRelative(data.updatedAt, lang) })}`}
