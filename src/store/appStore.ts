@@ -1,6 +1,16 @@
 import { create } from "zustand";
-import { idbGet, idbSet } from "@/lib/idb";
+import { idbBatch, idbGetAll } from "@/lib/idb";
 import type { Account, Operation, Settings, Signer } from "@/types/domain";
+import {
+	allEntries,
+	diffState,
+	keepIdentity,
+	readState,
+	REV_KEY,
+	SCHEMA,
+	SCHEMA_KEY,
+	type StoredState,
+} from "./persist";
 
 export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
@@ -14,15 +24,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	rpcOverrides: {},
 };
 
-interface Persisted {
-	version: 1;
-	accounts: Account[];
-	signers: Signer[];
-	operations: Operation[];
-	settings: Settings;
-}
-
-export interface AppState extends Omit<Persisted, "version"> {
+export interface AppState extends StoredState {
 	/** `false` until the persisted state has been loaded. */
 	ready: boolean;
 	addAccount: (account: Account) => void;
@@ -80,72 +82,102 @@ export const useAppStore = create<AppState>()((set) => ({
 	updateSettings: (patch) => set((s) => ({ settings: { ...s.settings, ...patch } })),
 }));
 
-const STATE_KEY = "app";
 const channel = typeof BroadcastChannel === "undefined" ? undefined : new BroadcastChannel("msv-state");
 
-/**
- * Revision of the stored state this tab last wrote or read. Every save gets a new one, so a tab can
- * tell whether what is stored is newer than what it shows without comparing the data itself.
- */
-let seenRev: string | undefined;
-
-const snapshot = (s: AppState): Persisted => ({
-	version: 1,
+const stored = (s: AppState): StoredState => ({
 	accounts: s.accounts,
 	signers: s.signers,
 	operations: s.operations,
 	settings: s.settings,
 });
 
+/** Revision of the stored state this window last wrote or read (see persist.ts). */
+let seenRev: string | undefined;
+/** Changes made here and not written yet: key → value, or `DELETE`. */
+const DELETE = Symbol("delete");
+const unsaved = new Map<string, unknown>();
 let saveTimer: ReturnType<typeof setTimeout> | undefined;
+let saving: Promise<void> | undefined;
+/** Another window wrote while this one had unsaved changes: read as soon as they are stored. */
+let reloadWanted = false;
 let applyingRemote = false;
 
+const newRev = (): string => `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+
 const flush = (): void => {
-	if (saveTimer === undefined) return;
-	clearTimeout(saveTimer);
+	if (saveTimer !== undefined) clearTimeout(saveTimer);
 	saveTimer = undefined;
-	const rev = `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+	if (unsaved.size === 0) return;
+	const puts: [string, unknown][] = [];
+	const deletes: string[] = [];
+	for (const [key, value] of unsaved) {
+		if (value === DELETE) deletes.push(key);
+		else puts.push([key, value]);
+	}
+	unsaved.clear();
+	const rev = newRev();
 	seenRev = rev;
-	void idbSet("state", STATE_KEY, { ...snapshot(useAppStore.getState()), rev }).then(() =>
-		channel?.postMessage("changed"),
-	);
+	const write = idbBatch("state", [...puts, [REV_KEY, rev], [SCHEMA_KEY, SCHEMA]], deletes)
+		.then(() => channel?.postMessage("changed"))
+		.catch(() => {
+			// Not stored (quota, private mode): keep the changes for the next attempt.
+			for (const [key, value] of puts) if (!unsaved.has(key)) unsaved.set(key, value);
+			for (const key of deletes) if (!unsaved.has(key)) unsaved.set(key, DELETE);
+		})
+		.finally(() => {
+			if (saving === write) saving = undefined;
+			if (reloadWanted && unsaved.size === 0) void load();
+		});
+	saving = write;
 };
 
 const load = async (): Promise<void> => {
-	const saved = await idbGet<Persisted & { rev?: string }>("state", STATE_KEY).catch(() => undefined);
-	// Nothing new since this tab last looked: leave the state (and everything rendered from it) alone.
-	if (useAppStore.getState().ready && saved?.rev !== undefined && saved.rev === seenRev) return;
-	// A change made here while the read was on its way is newer than what was read; it gets saved next.
-	if (saveTimer !== undefined) return;
-	seenRev = saved?.rev;
+	// Changes made here go out first; what other windows wrote is read right after (see flush).
+	if (unsaved.size > 0 || saving) {
+		reloadWanted = true;
+		return;
+	}
+	reloadWanted = false;
+	const first = !useAppStore.getState().ready;
+	const entries = await idbGetAll<unknown>("state").catch(() => undefined);
+	if (!entries) {
+		// Unreadable storage: start empty. Nothing is written until something is changed, and then only that.
+		if (first) useAppStore.setState({ ready: true });
+		return;
+	}
+	const rev = entries.get(REV_KEY);
+	// Nothing new since this window last looked: leave the state and everything rendered from it alone.
+	if (!first && typeof rev === "string" && rev === seenRev) return;
+	// Something was changed here while the read was on its way: it is newer, and gets written next.
+	if (unsaved.size > 0) {
+		reloadWanted = true;
+		return;
+	}
+	const loaded = readState(entries, DEFAULT_SETTINGS);
+	if (loaded?.migrate) {
+		// Versions before 1.7 kept everything in one entry. Write it out once in the new layout; the old
+		// entry stays where it is, untouched.
+		const migratedRev = newRev();
+		await idbBatch("state", [...allEntries(loaded.state), [REV_KEY, migratedRev]]).catch(() => undefined);
+		seenRev = migratedRev;
+	} else {
+		seenRev = typeof rev === "string" ? rev : undefined;
+	}
 	applyingRemote = true;
-	useAppStore.setState({
-		ready: true,
-		...(saved
-			? {
-					accounts: saved.accounts ?? [],
-					signers: saved.signers ?? [],
-					operations: saved.operations ?? [],
-					settings: { ...DEFAULT_SETTINGS, ...saved.settings },
-				}
-			: {}),
-	});
+	const current = useAppStore.getState();
+	useAppStore.setState({ ready: true, ...(loaded ? keepIdentity(stored(current), loaded.state) : {}) });
 	applyingRemote = false;
 };
 
-/** Loads persisted state and starts saving changes (debounced, flushed when the page is hidden). */
+/** Loads the stored state, saves changes (debounced, flushed when the page is hidden) and follows other windows. */
 export const initAppStore = async (): Promise<void> => {
 	await load();
 	useAppStore.subscribe((state, prev) => {
 		if (applyingRemote) return;
-		if (
-			state.accounts === prev.accounts &&
-			state.signers === prev.signers &&
-			state.operations === prev.operations &&
-			state.settings === prev.settings
-		) {
-			return;
-		}
+		const { puts, deletes } = diffState(stored(prev), stored(state));
+		if (puts.length === 0 && deletes.length === 0) return;
+		for (const [key, value] of puts) unsaved.set(key, value);
+		for (const key of deletes) unsaved.set(key, DELETE);
 		if (saveTimer !== undefined) clearTimeout(saveTimer);
 		saveTimer = setTimeout(flush, 150);
 	});
@@ -153,13 +185,12 @@ export const initAppStore = async (): Promise<void> => {
 		if (document.visibilityState === "hidden") flush();
 	});
 	window.addEventListener("pagehide", flush);
-	// Another tab saved the state – pick it up so tabs never overwrite each other with stale data.
-	const refresh = (): void => {
-		if (saveTimer === undefined) void load();
-	};
+
+	// Another window saved something: read it.
+	const refresh = (): void => void load();
 	channel?.addEventListener("message", refresh);
-	// A tab that was in the background may have been frozen and missed the message: whenever it comes
-	// back to the user it reads the stored state before anything can be changed in it.
+	// A window in the background may have been frozen and missed the message: whenever it comes back
+	// to the user it reads the stored state before anything can be changed in it.
 	document.addEventListener("visibilitychange", () => {
 		if (document.visibilityState === "visible") refresh();
 	});

@@ -72,6 +72,7 @@ Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/
 
 - An operation travels as a QR code, animated when it does not fit in one frame. QR is the only export channel, because an operation may carry an agent private key.
 - One scanner on the home screen accepts addresses and operations. Imports are deduplicated and their signatures merged.
+- Several windows of the app can be open at once: a change made in one shows in the others, and a window that was asleep catches up when you return to it.
 - Installs as a PWA and works offline; an update is installed only after you agree, and by default only when the developer's Safe has signed it.
 - A link can open the add-account or create-Safe form already filled in.
 
