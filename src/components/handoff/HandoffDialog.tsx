@@ -1,5 +1,6 @@
 import { ExternalLink } from "lucide-react";
 import { useCallback } from "react";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { Dialog } from "@/components/ui/Dialog";
 import { Spinner } from "@/components/ui/Spinner";
 import { useT } from "@/i18n";
@@ -22,7 +23,12 @@ export const HandoffDialog: React.FC = () => {
 					{pending.code && (
 						<div className="bg-base-200 rounded-box px-4 py-3 text-center">
 							<div className="field-label mb-0">{t("handoff.code")}</div>
-							<div className="mono tabular text-2xl font-semibold tracking-widest">{pending.code}</div>
+							<div className="flex items-center justify-center gap-1">
+								{/* Same width on the left keeps the digits centred. */}
+								<span className="w-8" aria-hidden="true" />
+								<span className="mono tabular text-2xl font-semibold tracking-widest">{pending.code}</span>
+								<CopyButton value={pending.code} label={t("handoff.copyCode")} />
+							</div>
 						</div>
 					)}
 					<a className="btn btn-primary" href={pending.href} target="_blank" rel="noopener noreferrer">

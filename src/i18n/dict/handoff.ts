@@ -7,6 +7,7 @@ export default defineDict({
 		"handoff.pairText":
 			"First connection. The page in MetaMask's browser will ask for this code – type it there. After that MetaMask's browser only accepts requests from this app on this device.",
 		"handoff.code": "Connection code",
+		"handoff.copyCode": "Copy the code",
 		"handoff.repair": "MetaMask says it does not know this app? Connect again",
 		"handoff.open": "Open MetaMask",
 		"handoff.waiting": "Waiting for the answer…",
@@ -50,6 +51,7 @@ export default defineDict({
 		"handoff.pairText":
 			"Первое подключение. Страница в браузере MetaMask спросит этот код – введите его там. После этого браузер MetaMask принимает запросы только от этого приложения на этом устройстве.",
 		"handoff.code": "Код подключения",
+		"handoff.copyCode": "Скопировать код",
 		"handoff.repair": "MetaMask пишет, что не знает это приложение? Подключить заново",
 		"handoff.open": "Открыть MetaMask",
 		"handoff.waiting": "Ждём ответ…",
