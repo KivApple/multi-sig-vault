@@ -21,6 +21,20 @@ const openDb = (): Promise<IDBDatabase> => {
 	return dbPromise;
 };
 
+/**
+ * Tells the browser the transaction is complete as soon as its requests are done, without waiting for
+ * this page to process their results. A phone may freeze a background tab at any moment; a transaction
+ * that still needs the page to run would then stay open and lock its store for every other window of
+ * the app – the installed app would wait for it forever.
+ */
+const commitNow = (tx: IDBTransaction): void => {
+	try {
+		tx.commit?.();
+	} catch {
+		// Already finished or aborted.
+	}
+};
+
 const run = async <T>(
 	store: StoreName,
 	mode: IDBTransactionMode,
@@ -33,6 +47,7 @@ const run = async <T>(
 		tx.oncomplete = () => resolve(req.result);
 		tx.onerror = () => reject(tx.error);
 		tx.onabort = () => reject(tx.error);
+		commitNow(tx);
 	});
 };
 
@@ -59,23 +74,22 @@ export const idbSetMany = async (store: StoreName, entries: [string, unknown][])
 		tx.oncomplete = () => resolve();
 		tx.onerror = () => reject(tx.error);
 		tx.onabort = () => reject(tx.error);
+		commitNow(tx);
 	});
 };
 
 export const idbGetAll = async <T>(store: StoreName): Promise<Map<string, T>> => {
 	const db = await openDb();
 	return new Promise((resolve, reject) => {
-		const out = new Map<string, T>();
+		// Two bulk requests instead of a cursor: a cursor needs the page for every row and would keep the
+		// transaction open across a freeze.
 		const tx = db.transaction(store, "readonly");
-		const req = tx.objectStore(store).openCursor();
-		req.onsuccess = () => {
-			const cur = req.result;
-			if (cur) {
-				out.set(String(cur.key), cur.value as T);
-				cur.continue();
-			}
-		};
-		tx.oncomplete = () => resolve(out);
+		const os = tx.objectStore(store);
+		const keys = os.getAllKeys();
+		const values = os.getAll() as IDBRequest<T[]>;
+		tx.oncomplete = () => resolve(new Map(keys.result.map((key, i) => [String(key), values.result[i]])));
 		tx.onerror = () => reject(tx.error);
+		tx.onabort = () => reject(tx.error);
+		commitNow(tx);
 	});
 };
