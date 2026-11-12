@@ -18,11 +18,13 @@ export const HandoffDialog: React.FC = () => {
 		<Dialog open={!!pending} onClose={handleClose} title={t("handoff.title")} size="sm">
 			{pending && (
 				<div className="flex flex-col gap-4">
-					<p className="text-base-content/70 text-sm">{t("handoff.text")}</p>
-					<div className="bg-base-200 rounded-box px-4 py-3 text-center">
-						<div className="field-label mb-0">{t("handoff.code")}</div>
-						<div className="mono tabular text-2xl font-semibold tracking-widest">{pending.code}</div>
-					</div>
+					<p className="text-base-content/70 text-sm">{t(pending.code ? "handoff.pairText" : "handoff.text")}</p>
+					{pending.code && (
+						<div className="bg-base-200 rounded-box px-4 py-3 text-center">
+							<div className="field-label mb-0">{t("handoff.code")}</div>
+							<div className="mono tabular text-2xl font-semibold tracking-widest">{pending.code}</div>
+						</div>
+					)}
 					<a className="btn btn-primary" href={pending.href} target="_blank" rel="noopener noreferrer">
 						<ExternalLink className="size-4" />
 						{t("handoff.open")}
@@ -31,6 +33,11 @@ export const HandoffDialog: React.FC = () => {
 						<Spinner size="xs" />
 						{t("handoff.waiting")}
 					</div>
+					{pending.repair && (
+						<button type="button" className="link text-base-content/60 text-center text-xs" onClick={pending.repair}>
+							{t("handoff.repair")}
+						</button>
+					)}
 				</div>
 			)}
 		</Dialog>

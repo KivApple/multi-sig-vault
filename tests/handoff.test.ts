@@ -1,6 +1,18 @@
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { formatToken, newToken, open, parseToken, seal, sessionCode } from "@/lib/handoff/crypto";
+import {
+	formatLinkToken,
+	newCode,
+	newKey,
+	newSessionId,
+	open,
+	pairingKey,
+	parseKey,
+	parseLinkToken,
+	seal,
+	sessionKey,
+	toBase64Url,
+} from "@/lib/handoff/crypto";
 import { fromWireTx, parseRequest, parseResult, toWireTx, type HandoffRequest } from "@/lib/handoff/protocol";
 // @ts-expect-error – plain JavaScript module without types
 import { createRelay } from "../relay/server.mjs";
@@ -15,36 +27,57 @@ const typedData = {
 const request: HandoffRequest = { v: 1, method: "signTypedData", address: A, data: typedData as never };
 
 describe("hand-off encryption", () => {
-	it("round-trips a message and a token", async () => {
-		const token = newToken();
-		expect(await open(token, "req", await seal(token, "req", request))).toEqual(request);
-		const parsed = parseToken(formatToken(token));
-		expect(parsed?.id).toBe(token.id);
-		expect(await open(parsed as never, "req", await seal(token, "req", request))).toEqual(request);
-		expect(parseToken("nope")).toBeUndefined();
-		expect(parseToken(`${token.id}.short`)).toBeUndefined();
+	it("round-trips a session message between paired instances", async () => {
+		const pairKey = newKey();
+		const id = newSessionId();
+		const sealed = await seal(await sessionKey(pairKey, id), id, "req", { request });
+		expect(await open(await sessionKey(pairKey, id), id, "req", sealed)).toEqual({ request });
 	});
 
-	it("rejects a changed message, another key, another slot and another session", async () => {
-		const token = newToken();
-		const sealed = await seal(token, "req", request);
+	it("a request made without the pair key cannot be opened – a planted link shows nothing", async () => {
+		const mine = newKey();
+		const id = newSessionId();
+		const planted = await seal(await sessionKey(newKey(), id), id, "req", { request });
+		await expect(open(await sessionKey(mine, id), id, "req", planted)).rejects.toThrow();
+	});
+
+	it("rejects a changed message, another direction and another session", async () => {
+		const pairKey = newKey();
+		const id = newSessionId();
+		const key = await sessionKey(pairKey, id);
+		const sealed = await seal(key, id, "req", { request });
 		const flipped = sealed.slice();
 		flipped[flipped.length - 1] ^= 1;
-		await expect(open(token, "req", flipped)).rejects.toThrow();
-		await expect(open({ id: token.id, key: newToken().key }, "req", sealed)).rejects.toThrow();
+		await expect(open(key, id, "req", flipped)).rejects.toThrow();
 		// The relay cannot hand the request back as if it were the answer…
-		await expect(open(token, "res", sealed)).rejects.toThrow();
-		// …nor move a message into another session.
-		await expect(open({ id: newToken().id, key: token.key }, "req", sealed)).rejects.toThrow();
+		await expect(open(key, id, "res", sealed)).rejects.toThrow();
+		// …nor replay it in another session of the same pair.
+		const other = newSessionId();
+		await expect(open(await sessionKey(pairKey, other), other, "req", sealed)).rejects.toThrow();
 	});
 
-	it("derives the same six-digit code on both sides, different for another key", async () => {
-		const token = newToken();
-		const code = await sessionCode(token);
+	it("pairing needs both the link key and the typed code", async () => {
+		const id = newSessionId();
+		const linkKey = newKey();
+		const code = newCode();
 		expect(code).toMatch(/^\d{6}$/);
-		expect(await sessionCode(parseToken(formatToken(token)) as never)).toBe(code);
-		const others = await Promise.all(Array.from({ length: 5 }, () => sessionCode(newToken())));
-		expect(others.every((c) => c === code)).toBe(false);
+		const sealed = await seal(await pairingKey(linkKey, code, id), id, "req", { pairKey: "k", request });
+		expect(await open(await pairingKey(linkKey, code, id), id, "req", sealed)).toEqual({ pairKey: "k", request });
+		const wrongCode = code === "000000" ? "000001" : "000000";
+		await expect(open(await pairingKey(linkKey, wrongCode, id), id, "req", sealed)).rejects.toThrow();
+		// The relay knows neither: guessing the code is useless without the link key.
+		await expect(open(await pairingKey(newKey(), code, id), id, "req", sealed)).rejects.toThrow();
+	});
+
+	it("link tokens carry a key only while pairing", () => {
+		const id = newSessionId();
+		const linkKey = newKey();
+		expect(parseLinkToken(formatLinkToken({ id }))).toEqual({ id });
+		expect(parseLinkToken(formatLinkToken({ id, linkKey }))).toEqual({ id, linkKey });
+		expect(parseLinkToken("nope")).toBeUndefined();
+		expect(parseLinkToken(`${id}.short`)).toBeUndefined();
+		expect(parseKey(toBase64Url(linkKey))).toEqual(linkKey);
+		expect(parseKey("AAAA")).toBeUndefined();
 	});
 });
 
@@ -87,7 +120,7 @@ describe("relay", () => {
 	});
 	afterAll(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-	const id = (): string => newToken().id;
+	const id = (): string => newSessionId();
 	const put = (path: string, body: string): Promise<Response> => fetch(`${base}/v1/${path}`, { method: "PUT", body });
 
 	it("stores a request and an answer once each", async () => {

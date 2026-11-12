@@ -3,14 +3,23 @@ import { defineDict } from "../define";
 export default defineDict({
 	en: {
 		"handoff.title": "Continue in MetaMask",
-		"handoff.text":
-			"The request opens in MetaMask's own browser. Check that the code there is the same, confirm, then come back here.",
-		"handoff.code": "Request code",
+		"handoff.text": "The request opens in MetaMask's own browser. Confirm it there, then come back here.",
+		"handoff.pairText":
+			"First connection. The page in MetaMask's browser will ask for this code – type it there. After that MetaMask's browser only accepts requests from this app on this device.",
+		"handoff.code": "Connection code",
+		"handoff.repair": "MetaMask says it does not know this app? Connect again",
 		"handoff.open": "Open MetaMask",
 		"handoff.waiting": "Waiting for the answer…",
 		"handoff.page.title": "Request from Multi Sig Vault",
-		"handoff.page.warning":
-			"Confirm only if you started this in Multi Sig Vault a moment ago and the code matches the one shown there.",
+		"handoff.page.verified":
+			"This request comes from your Multi Sig Vault: it is encrypted with the key of your connection.",
+		"handoff.page.unpaired":
+			'This request does not come from a Multi Sig Vault connected to this browser, so it is not shown. If you started it yourself, choose "Connect again" in the app.',
+		"handoff.page.codeText": "Type the six-digit code that Multi Sig Vault is showing in your browser right now.",
+		"handoff.page.codeWarning":
+			"Use only a code you see in your own Multi Sig Vault. If someone sent you this link or a code, close the page.",
+		"handoff.page.codeWrong": "That code does not open this request.",
+		"handoff.page.codeSubmit": "Connect",
 		"handoff.page.loading": "Loading the request…",
 		"handoff.page.badLink": "This link is not a valid request.",
 		"handoff.page.expired": "The request was not found. It may have expired or been answered already.",
@@ -36,14 +45,23 @@ export default defineDict({
 	},
 	ru: {
 		"handoff.title": "Продолжите в MetaMask",
-		"handoff.text":
-			"Запрос откроется во встроенном браузере MetaMask. Проверьте, что код там тот же, подтвердите и вернитесь сюда.",
-		"handoff.code": "Код запроса",
+		"handoff.text": "Запрос откроется во встроенном браузере MetaMask. Подтвердите его там и вернитесь сюда.",
+		"handoff.pairText":
+			"Первое подключение. Страница в браузере MetaMask спросит этот код – введите его там. После этого браузер MetaMask принимает запросы только от этого приложения на этом устройстве.",
+		"handoff.code": "Код подключения",
+		"handoff.repair": "MetaMask пишет, что не знает это приложение? Подключить заново",
 		"handoff.open": "Открыть MetaMask",
 		"handoff.waiting": "Ждём ответ…",
 		"handoff.page.title": "Запрос от Multi Sig Vault",
-		"handoff.page.warning":
-			"Подтверждайте, только если вы сами только что начали это действие в Multi Sig Vault и код совпадает с показанным там.",
+		"handoff.page.verified": "Запрос пришёл из вашего Multi Sig Vault: он зашифрован ключом вашего подключения.",
+		"handoff.page.unpaired":
+			"Этот запрос пришёл не из Multi Sig Vault, подключённого к этому браузеру, поэтому он не показан. Если вы начали его сами, выберите в приложении «Подключить заново».",
+		"handoff.page.codeText":
+			"Введите шестизначный код, который Multi Sig Vault показывает в вашем браузере прямо сейчас.",
+		"handoff.page.codeWarning":
+			"Вводите только код, который видите в своём Multi Sig Vault. Если ссылку или код вам кто-то прислал, закройте страницу.",
+		"handoff.page.codeWrong": "Этот код не открывает запрос.",
+		"handoff.page.codeSubmit": "Подключить",
 		"handoff.page.loading": "Загружаем запрос…",
 		"handoff.page.badLink": "Эта ссылка не является запросом.",
 		"handoff.page.expired": "Запрос не найден. Возможно, он устарел или на него уже ответили.",

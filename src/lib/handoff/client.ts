@@ -1,6 +1,17 @@
 import { create } from "zustand";
 import { WalletError } from "@/lib/errors";
-import { formatToken, newToken, open, seal, sessionCode } from "./crypto";
+import {
+	formatLinkToken,
+	newCode,
+	newKey,
+	newSessionId,
+	open,
+	pairingKey,
+	seal,
+	sessionKey,
+	toBase64Url,
+} from "./crypto";
+import { loadAppPairKey, saveAppPairKey } from "./pairing";
 import { parseResult, type HandoffRequest, type HandoffResponse } from "./protocol";
 
 /**
@@ -33,8 +44,11 @@ export interface PendingHandoff {
 	method: HandoffRequest["method"];
 	/** Link that opens the signing page in MetaMask's browser. */
 	href: string;
-	code: string;
+	/** First connection only: the code the user types into the signing page. */
+	code?: string;
 	cancel: () => void;
+	/** Paired sessions only: MetaMask's browser no longer knows this app – start over with a new pairing. */
+	repair?: () => void;
 }
 
 interface HandoffState {
@@ -51,70 +65,100 @@ export const signPageLink = (token: string): string => {
 
 const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Runs `request` in MetaMask's browser and returns its checked result. */
-export const requestInMetaMaskBrowser = async (
+type Outcome = { kind: "result"; value: unknown } | { kind: "repair" };
+
+const attempt = async (
 	request: HandoffRequest,
-	onExpire: () => WalletError = () => new WalletError("timeout"),
-): Promise<unknown> => {
-	const token = newToken();
+	forcePairing: boolean,
+	onExpire: () => WalletError,
+): Promise<Outcome> => {
+	const id = newSessionId();
+	const known = forcePairing ? undefined : await loadAppPairKey();
+	const pairKey = known ?? newKey();
+	const answerKey = await sessionKey(pairKey, id);
+
+	let body: Uint8Array<ArrayBuffer>;
+	let token: string;
+	let code: string | undefined;
+	if (known) {
+		body = await seal(answerKey, id, "req", { request });
+		token = formatLinkToken({ id });
+	} else {
+		const linkKey = newKey();
+		code = newCode();
+		body = await seal(await pairingKey(linkKey, code, id), id, "req", { pairKey: toBase64Url(pairKey), request });
+		token = formatLinkToken({ id, linkKey });
+	}
+
 	let put: Response;
 	try {
-		put = await fetch(relayUrl(`v1/${token.id}/req`), { method: "PUT", body: await seal(token, "req", request) });
+		put = await fetch(relayUrl(`v1/${id}/req`), { method: "PUT", body });
 	} catch (e) {
 		throw new WalletError("unavailable", (e as Error).message);
 	}
 	if (!put.ok) throw new WalletError("unavailable", `relay: HTTP ${put.status}`);
 
-	let cancelled = false;
+	let stop: "cancel" | "repair" | undefined;
 	const abort = new AbortController();
-	const cancel = (): void => {
-		cancelled = true;
+	const end = (reason: "cancel" | "repair") => (): void => {
+		stop = reason;
 		abort.abort();
 	};
 	useHandoffStore.setState({
-		pending: { method: request.method, href: signPageLink(formatToken(token)), code: await sessionCode(token), cancel },
+		pending: {
+			method: request.method,
+			href: signPageLink(token),
+			code,
+			cancel: end("cancel"),
+			repair: known ? end("repair") : undefined,
+		},
 	});
 	try {
 		const deadline = Date.now() + SESSION_MS;
 		while (Date.now() < deadline) {
-			if (cancelled) throw new WalletError("rejected");
+			if (stop === "repair") return { kind: "repair" };
+			if (stop === "cancel") throw new WalletError("rejected");
 			let res: Response | undefined;
 			try {
 				// Android freezes this tab while MetaMask is in front; the loop simply resumes afterwards.
-				res = await fetch(relayUrl(`v1/${token.id}/res?wait=${POLL_WAIT_S}`), {
-					cache: "no-store",
-					signal: abort.signal,
-				});
+				res = await fetch(relayUrl(`v1/${id}/res?wait=${POLL_WAIT_S}`), { cache: "no-store", signal: abort.signal });
 			} catch {
-				if (!cancelled) await sleep(1500);
-				continue;
-			}
-			if (res.status === 404) {
-				await sleep(300);
+				if (!stop) await sleep(1500);
 				continue;
 			}
 			if (!res.ok) {
-				await sleep(1500);
+				await sleep(res.status === 404 ? 300 : 1500);
 				continue;
 			}
 			let answer: HandoffResponse;
 			try {
-				answer = (await open(token, "res", new Uint8Array(await res.arrayBuffer()))) as HandoffResponse;
+				answer = (await open(answerKey, id, "res", new Uint8Array(await res.arrayBuffer()))) as HandoffResponse;
 			} catch {
 				// Not written with our key: the relay (or someone in between) changed it.
 				throw new WalletError("unknown", "The answer failed authentication");
 			}
-			if (!answer || answer.ok !== true) {
-				throw new WalletError(answer?.code ?? "unknown", answer?.detail);
-			}
-			const result = parseResult(request, answer.result);
-			if (result === undefined) throw new WalletError("unknown", "Unexpected answer");
-			return result;
+			// Any authentic answer proves the signing page now holds the pair key.
+			if (!known) await saveAppPairKey(pairKey);
+			if (!answer || answer.ok !== true) throw new WalletError(answer?.code ?? "unknown", answer?.detail);
+			const value = parseResult(request, answer.result);
+			if (value === undefined) throw new WalletError("unknown", "Unexpected answer");
+			return { kind: "result", value };
 		}
 		throw onExpire();
 	} finally {
 		useHandoffStore.setState({ pending: undefined });
 	}
+};
+
+/** Runs `request` in MetaMask's browser and returns its checked result. */
+export const requestInMetaMaskBrowser = async (
+	request: HandoffRequest,
+	onExpire: () => WalletError = () => new WalletError("timeout"),
+): Promise<unknown> => {
+	let outcome = await attempt(request, false, onExpire);
+	if (outcome.kind === "repair") outcome = await attempt(request, true, onExpire);
+	if (outcome.kind === "repair") throw new WalletError("rejected");
+	return outcome.value;
 };
 
 /** The signing side: fetch the request left for this session. */

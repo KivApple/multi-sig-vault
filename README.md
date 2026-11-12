@@ -97,12 +97,13 @@ The production build ships a strict CSP with no inline or third-party scripts. E
 
 In Chrome on a phone the app cannot talk to the MetaMask app directly, and Android freezes the page while MetaMask is in front, so answers sent to it get lost. Instead the request is handed to the app's own signing page inside MetaMask's built-in browser, where the wallet is part of the page:
 
-1. The app encrypts the request (AES-256-GCM) with a fresh key and leaves it on a small relay (`relay/server.mjs`).
-2. You tap "Open MetaMask". The link carries the session id and the key in its fragment, which browsers do not send to servers.
-3. The signing page shows the request and a six-digit code that must match the one in the app, then asks MetaMask.
-4. The encrypted answer goes back through the relay, and the app picks it up when you return.
+1. The app encrypts the request (AES-256-GCM) and leaves it on a small relay (`relay/server.mjs`).
+2. You tap "Open MetaMask". The signing page opens in MetaMask's browser, decrypts the request, shows it and asks MetaMask.
+3. The encrypted answer goes back through the relay, and the app picks it up when you return.
 
-The relay is a blind mailbox: it sees ciphertext only, cannot read or change a request or an answer without failing authentication, keeps a session in memory for ten minutes and logs nothing. The worst it can do is lose a message. Every signature is still verified against the signer's address. The desktop extension and MetaMask's own browser need no relay; a copy of the app hosted without one falls back to MetaMask SDK.
+The key belongs to the connection between your app and your MetaMask browser. On first use the app shows a six-digit code that you type into the signing page; from then on both sides hold a shared key, and each request is encrypted with a key derived from it for that one request. The signing page shows only what it can decrypt with that key, so a link somebody sends you cannot ask you to sign anything: it ends in an error.
+
+The relay is a blind mailbox. It sees ciphertext only, cannot read or change a request or an answer without failing authentication, keeps a session in memory for ten minutes and logs nothing. The worst it can do is lose a message. Every signature is still verified against the signer's address. The desktop extension and MetaMask's own browser need no relay; a copy of the app hosted without one falls back to MetaMask SDK.
 
 ## Offline use and updates
 
