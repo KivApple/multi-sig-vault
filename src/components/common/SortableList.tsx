@@ -8,12 +8,7 @@ import {
 	useSensors,
 	type DragEndEvent,
 } from "@dnd-kit/core";
-import {
-	arrayMove,
-	SortableContext,
-	sortableKeyboardCoordinates,
-	verticalListSortingStrategy,
-} from "@dnd-kit/sortable";
+import { arrayMove, rectSortingStrategy, SortableContext, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { useCallback, type ReactNode } from "react";
 
 export interface SortableListProps {
@@ -22,7 +17,10 @@ export interface SortableListProps {
 	children: ReactNode;
 }
 
-/** Vertical drag-and-drop list (mouse, touch with a short hold, keyboard). Rows use `SortableRow`. */
+/**
+ * Drag-and-drop list (mouse, touch with a short hold, keyboard). Rows use `SortableRow`.
+ * The list may be one column or a grid: items are sorted by their rectangles, not by height alone.
+ */
 export const SortableList: React.FC<SortableListProps> = ({ ids, onReorder, children }) => {
 	const sensors = useSensors(
 		useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -40,7 +38,7 @@ export const SortableList: React.FC<SortableListProps> = ({ ids, onReorder, chil
 	);
 	return (
 		<DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-			<SortableContext items={ids} strategy={verticalListSortingStrategy}>
+			<SortableContext items={ids} strategy={rectSortingStrategy}>
 				{children}
 			</SortableContext>
 		</DndContext>

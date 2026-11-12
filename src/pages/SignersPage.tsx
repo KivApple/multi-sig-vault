@@ -61,7 +61,7 @@ export const SignersPage: React.FC = () => {
 				/>
 			) : (
 				<SortableList ids={ids} onReorder={handleReorder}>
-					<ul className="flex flex-col gap-2">
+					<ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
 						{signers.map((signer) => (
 							<SortableRow key={signer.id} id={signer.id} editing={editing}>
 								<SignerCard signer={signer} editing={editing} />

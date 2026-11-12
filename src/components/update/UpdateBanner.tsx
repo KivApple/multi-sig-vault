@@ -24,7 +24,7 @@ export const UpdateBanner: React.FC = () => {
 	if (status === "ready" && newVersion) {
 		return (
 			<div className="bg-primary/10 border-primary/20 border-b" role="status">
-				<div className="mx-auto flex w-full max-w-3xl items-center gap-3 px-4 py-2">
+				<div className="mx-auto flex w-full max-w-6xl items-center gap-3 px-4 py-2">
 					<ArrowUpCircle className="text-primary size-5 shrink-0" />
 					<div className="min-w-0 flex-1 text-sm">
 						<span className="font-medium">{t("update.available", { version: newVersion })}</span>
@@ -46,7 +46,7 @@ export const UpdateBanner: React.FC = () => {
 	if (swUpdatePending) {
 		return (
 			<div className="bg-warning/15 border-warning/30 border-b" role="alert">
-				<div className="mx-auto flex w-full max-w-3xl items-start gap-3 px-4 py-2">
+				<div className="mx-auto flex w-full max-w-6xl items-start gap-3 px-4 py-2">
 					<ShieldAlert className="text-warning mt-0.5 size-5 shrink-0" />
 					<p className="min-w-0 flex-1 text-xs">{t("update.swPending")}</p>
 				</div>

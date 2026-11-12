@@ -179,7 +179,7 @@ export const AccountsPage: React.FC = () => {
 						</p>
 					)}
 					<SortableList ids={ids} onReorder={handleReorder}>
-						<ul className="flex flex-col gap-2">
+						<ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
 							{visible.map((account) => (
 								<SortableRow key={account.id} id={account.id} editing={editing}>
 									<AccountCard account={account} editing={editing} />

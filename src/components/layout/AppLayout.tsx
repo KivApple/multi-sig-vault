@@ -23,11 +23,12 @@ export const AppLayout: React.FC = () => {
 	);
 	// Account pages belong to the "Accounts" section.
 	const accountsActive = pathname.startsWith("/account");
+	const wide = pathname === "/" || pathname === "/signers";
 
 	return (
 		<div className="flex min-h-dvh flex-col">
 			<div className="bg-base-100/85 border-base-300 sticky top-0 z-20 border-b backdrop-blur">
-				<div className="mx-auto flex h-14 w-full max-w-3xl items-center gap-3 px-4">
+				<div className="mx-auto flex h-14 w-full max-w-6xl items-center gap-3 px-4">
 					<AppLogo className="size-7 shrink-0" />
 					<span className="font-semibold tracking-tight">{t("app.name")}</span>
 					{!online && (
@@ -44,8 +45,11 @@ export const AppLayout: React.FC = () => {
 				</div>
 			</div>
 			<UpdateBanner />
-			<main className="mx-auto w-full max-w-3xl flex-1 px-4 pt-5 pb-28 sm:pb-10">
-				<Outlet />
+			<main className="mx-auto w-full max-w-6xl flex-1 px-4 pt-5 pb-28 sm:pb-10">
+				{/* Lists use the full width (two columns on a wide screen); a form or a single account reads better narrow. */}
+				<div className={wide ? "" : "mx-auto max-w-3xl"}>
+					<Outlet />
+				</div>
 			</main>
 			<nav className="dock dock-sm border-base-300 bg-base-100 z-20 border-t sm:hidden">
 				{items.map((i) => (
