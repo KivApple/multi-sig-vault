@@ -16,7 +16,7 @@ export default defineDict({
 		"swap.toThisSafe": "Funds are credited to this Safe.",
 		"swap.toSameSafe": "Funds are credited to your Safe with the same address on {network}.",
 		"swap.unknownSafeWarning":
-			"No Safe with this address is added on {network}. The same address on another network is not necessarily yours — add that Safe first or choose another recipient.",
+			"No Safe with this address is added on {network}. The funds will not be lost: a Safe can be created there at the same address later (Create Safe, same address as an existing one) and will then hold them. That is a separate operation, and the new Safe starts with the signers and threshold this one was created with, not the current ones.",
 		"swap.slippage": "Slippage",
 		"swap.slippageHint": "Fixed when signing starts. Collecting signatures takes time — leave room for price moves.",
 		"swap.custom": "Other",
@@ -111,7 +111,7 @@ export default defineDict({
 		"swap.toThisSafe": "Средства будут зачислены в этот Safe.",
 		"swap.toSameSafe": "Средства будут зачислены в ваш Safe с тем же адресом в сети {network}.",
 		"swap.unknownSafeWarning":
-			"Safe с этим адресом в сети {network} не добавлен. Тот же адрес в другой сети может вам не принадлежать — сначала добавьте этот Safe или выберите другого получателя.",
+			"Safe с этим адресом в сети {network} не добавлен. Средства не пропадут: Safe по тому же адресу там можно создать позже («Создать Safe», тот же адрес, что у существующего), и они окажутся в нём. Это отдельная операция, и новый Safe получит подписантов и порог, с которыми был создан этот, а не текущих.",
 		"swap.slippage": "Проскальзывание",
 		"swap.slippageHint":
 			"Фиксируется при первой подписи. Сбор подписей занимает время — оставьте запас на движение цены.",

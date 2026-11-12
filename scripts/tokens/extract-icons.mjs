@@ -1,4 +1,5 @@
-// Copies official marks from @web3icons/core into src/assets/icons (run: pnpm tokens:icons).
+// Builds src/assets/icons (run: pnpm tokens:icons) from the @web3icons/core pack and, where the pack
+// redraws or miscolours a mark, from the projects' own files in scripts/tokens/official.
 //  - brand/*.svg, network/*.svg  – wallet, account and network logos on their brand chip
 //  - token/*.svg                 – core token icons available synchronously
 //  - token-pack.json             – `SYMBOL → svg` for the lazily loaded built-in pack
@@ -24,13 +25,6 @@ const minify = (svg) =>
 		.replace(/\s{2,}/g, " ")
 		.trim();
 
-/** Replaces the square background colour (first path) and optionally other colours. */
-const recolor = (svg, colors) => {
-	let out = svg;
-	for (const [from, to] of Object.entries(colors)) out = out.replaceAll(`fill="${from}"`, `fill="${to}"`);
-	return out;
-};
-
 const write = (rel, svg) => {
 	const file = join(OUT, rel);
 	mkdirSync(dirname(file), { recursive: true });
@@ -40,22 +34,29 @@ const write = (rel, svg) => {
 // --- Brand and network marks -------------------------------------------------------------
 const HYPERLIQUID = await load("networks/background/hyper-evm"); // mint mark on brand dark green
 write("brand/hyperliquid.svg", HYPERLIQUID);
-// Safe: official black + #12FF80.
-write("brand/safe.svg", recolor(await load("wallets/background/safe"), { "#049F67": "#121312", "#fff": "#12FF80" }));
+const official = (name) => readFileSync(new URL(`./official/${name}.svg`, import.meta.url), "utf8");
+// Safe: the mark from Safe's own app (app.safe.global/images/logo-no-text.svg), black on brand green
+// like its app icon. The icon pack redraws the mark and colours it differently.
+write("brand/safe.svg", official("safe"));
 write("brand/metamask.svg", await load("wallets/background/metamask"));
 write("brand/ledger.svg", await load("wallets/background/ledger"));
-write("brand/trezor.svg", recolor(await load("wallets/background/trezor"), { "#000": "#0F6148" }));
+// Trezor: white lock on black, as Trezor uses it; no recolouring.
+write("brand/trezor.svg", await load("wallets/background/trezor"));
 // Network logos are the networks' own official assets (scripts/tokens/official): the Ethereum mark on
 // its blue disc, the full-colour Arbitrum mark, the Base network logo from Base's brand kit.
 for (const name of ["ethereum", "arbitrum", "base"]) {
-	write(`network/${name}.svg`, readFileSync(new URL(`./official/${name}.svg`, import.meta.url), "utf8"));
+	write(`network/${name}.svg`, official(name));
 }
 write("network/hyperevm.svg", HYPERLIQUID);
 
 // --- Tokens ------------------------------------------------------------------------------
 const OVERRIDES = {
 	HYPE: HYPERLIQUID,
-	ETH: recolor(await load("tokens/background/ETH"), { "#000": "#EDF0FA" }),
+	// The pack's ETH is a pastel redraw and its ARB is not the Arbitrum mark at all: both tokens
+	// carry the logo of their network. WBTC is the mark from wbtc.network.
+	ETH: official("ethereum"),
+	ARB: official("arbitrum"),
+	WBTC: official("wbtc"),
 };
 const tokenSvg = async (symbol) => OVERRIDES[symbol] ?? (await load(`tokens/background/${symbol}`));
 
