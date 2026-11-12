@@ -19,21 +19,19 @@ import {
 	parseFragment,
 } from "@/lib/evm/abi";
 import { callData, type CallParams } from "@/lib/evm/abiCall";
-import { knownRecipients } from "@/lib/known";
+import type { KnownAddress } from "@/lib/known";
 import type { OpFormProps } from "@/lib/ops/types";
 import { AbiArgsForm } from "./AbiArgsForm";
 import { AbiCalldataPreview } from "./AbiCalldataPreview";
 import { AbiSourceInput } from "./AbiSourceInput";
+
+const NO_KNOWN: KnownAddress[] = [];
 
 /** Contract call builder: address → ABI → function → typed arguments, or raw calldata. */
 export const CallForm: React.FC<OpFormProps<CallParams>> = ({ value, onChange, env, errors }) => {
 	const t = useT();
 	const chainId = env.account.chainId as number;
 	const chain = getChain(chainId);
-	const known = useMemo(
-		() => knownRecipients(env.signers, env.accounts, { chainId }, env.account.address),
-		[env.signers, env.accounts, env.account.address, chainId],
-	);
 	const modes = useMemo(
 		() => [
 			{ value: "abi" as const, label: t("advanced.modeAbi") },
@@ -107,7 +105,8 @@ export const CallForm: React.FC<OpFormProps<CallParams>> = ({ value, onChange, e
 				label={t("advanced.contract")}
 				value={value.to}
 				onChange={(to) => onChange({ to })}
-				known={known}
+				// A contract is never one of our signers or accounts: straight to typing or scanning.
+				known={NO_KNOWN}
 				error={errors.to}
 			/>
 			<Segmented
