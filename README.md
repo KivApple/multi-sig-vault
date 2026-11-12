@@ -1,81 +1,140 @@
 # Multi Sig Vault
 
-PWA для управления multi-sig аккаунтами Hyperliquid и кошельками Safe (Ethereum, HyperEVM, Arbitrum, Base; mainnet и testnet). Главный сценарий — последовательный сбор подписей на MetaMask, Trezor и Ledger, которые никогда не оказываются в одном месте: подписали первым ключом, отнесли устройство ко второму, отправили транзакцию из третьего места. Сеть нужна только для балансов и отправки.
+A PWA for operating Hyperliquid multi-sig accounts and Safe wallets on Ethereum, HyperEVM, Arbitrum and Base (mainnet and testnet).
 
-## Запуск
+It is built for signers who are never in the same place. You sign with the first key, carry the operation to the second device as a QR code, sign there, and broadcast from wherever you end up. Keys stay on MetaMask, Trezor and Ledger; the network is needed only to read balances and to send.
 
-```bash
-pnpm install
-pnpm dev          # http://localhost:5173
-pnpm build        # production-сборка в dist/ (+ release.json)
-pnpm preview
-pnpm test             # юнит-тесты (офлайн)
-pnpm format       # Biome: табы, двойные кавычки
-```
+## Don't trust, verify
 
-Тесты на форке (нужны `anvil` и сеть): `MSV_FORK=1 pnpm vitest run tests/*.fork.test.ts`.
+This app builds the payloads your wallets sign, so a backdoor in it could drain every account it touches. Do not take the author's word that there is none: before using it, point your own AI agent at this repository and have it audit the code and dependencies for swapped recipients, altered payloads, key exfiltration and unexpected network calls. Then build from the commit you reviewed instead of using a copy somebody else hosts.
 
-## Что умеет
+## What it does
 
-- **Счета**: Hyperliquid (обычный и multi-sig, standard / unified / portfolio margin без двойного счёта активов) и Safe 1.3.0 / 1.4.1 / 1.5.0. Балансы обновляются раз в 30 секунд, кешируются и видны офлайн.
-- **Подписанты**: MetaMask (расширение на десктопе, приложение на Android), Trezor (пути как в Trezor Suite), Ledger (пути как в Ledger Live).
-- **Операции Hyperliquid**: вывод и отправка USDC, отправка спот-токенов, их вывод в родную сеть через Unit (BTC, ETH, SOL и др.) и в HyperEVM, перевод perps ⇄ spot, ключи агентов, вход в веб-интерфейс биржи по ссылке/QR, суб-аккаунты, настройка и отключение multi-sig. Показываются только актуальные для счёта операции.
-- **Операции Safe**: отправка токена, обмен (Uniswap V3 / HyperSwap V3, котировки прямо из пулов) и мост USDC между всеми сетями через Circle CCTP V2, изменение владельцев и порога, вызов контракта по ABI, деплой контракта, подпись хеша (EIP-1271).
-- **Создание Safe**: новый адрес, тот же адрес, что у Safe в другой сети, vanity-адрес (команда для `deadbeef` и разбор его вывода).
-- **Перенос между устройствами**: экспорт операции только в QR (многокадровый для больших; в операции может быть ключ агента, поэтому её нельзя скопировать или «поделиться»), универсальный сканер на главном экране, дедупликация по UUID, слияние подписей.
+**Accounts**
 
-## Как устроена защита от подмены
+- Hyperliquid: plain and multi-sig accounts in standard, unified and portfolio margin modes.
+- Safe 1.3.0, 1.4.1 and 1.5.0.
+- Balances refresh every 30 seconds and stay visible offline from cache.
 
-1. Первая подпись «замораживает» операцию: параметры разрешаются (котировки, nonce, комиссии), из них строится подписываемый payload.
-2. Сборка payload — чистая детерминированная функция. Перед каждой подписью, перед отправкой и при импорте payload пересобирается из показанных пользователю параметров и сравнивается с сохранённым; расхождение блокирует операцию.
-3. Каждая подпись проверяется восстановлением адреса (EIP-712). Импортированная операция с невалидной подписью отклоняется целиком.
-4. Транзакции Safe перед подписью и отправкой прогоняются через симуляцию (`SimulateTxAccessor`, `eth_estimateGas`).
-5. Подпись Hyperliquid сверена тестами с эталонным SDK (`tests/hl-signing.test.ts`), свопы и мост — на форках сетей.
+**Signers**
 
-Приватные ключи приложение не хранит. Единственное исключение — ключ агента Hyperliquid, который пользователь попросил сгенерировать: он лежит в IndexedDB зашифрованным неизвлекаемым ключом WebCrypto и стирается вместе с карточкой результата.
+- MetaMask: the browser extension on desktop, the MetaMask app on Android.
+- Trezor, with the same derivation paths as Trezor Suite.
+- Ledger, with the same derivation paths as Ledger Live.
 
-Production-сборка включает строгий CSP (нет inline- и сторонних скриптов), внешние данные (списки токенов, ответы API, QR) валидируются, SVG из сети показываются только через `<img>`.
+**Hyperliquid operations**
 
-## Офлайн и обновления
+- Withdraw and send USDC, send spot tokens, move funds between perps and spot.
+- Withdraw spot assets to their native chain through Unit (BTC, ETH, SOL and others) or to HyperEVM.
+- Approve and revoke agent keys, and log in to the exchange web UI by link or QR.
+- Create and manage sub-accounts.
+- Convert an account to multi-sig, change its signers, or convert it back.
 
-Service worker (`public/sw.js`) не меняется между релизами и отдаёт только файлы активного релиза. Новую версию скачивает и проверяет (SHA-256 каждого файла) уже работающее приложение; активируется она только после согласия пользователя.
+**Safe operations**
 
-Опционально релиз подписывается multi-sig разработчика в блокчейне:
+- Send native coins and tokens.
+- Swap on Uniswap V3 (HyperSwap V3 on HyperEVM), quoted directly from the pools.
+- Bridge USDC between any two supported chains through Circle CCTP V2.
+- Change owners and threshold.
+- Call a contract by ABI, deploy a contract, sign a message hash (EIP-1271).
+
+**Creating a Safe**
+
+- At a new address.
+- At the same address as an existing Safe on another chain.
+- At a vanity address: the app prints the command for `deadbeef` and parses its output.
+
+**Moving an operation between devices**
+
+- An operation is exported as a QR code, animated when it does not fit in one frame.
+- QR is the only export channel, because an operation may carry an agent private key.
+- One scanner on the home screen accepts addresses and operations. Imports are deduplicated by UUID and their signatures merged.
+
+## How signing is protected
+
+1. The first signature freezes the operation. Quotes, nonces and fees are resolved, and the payload is built from them.
+2. Building a payload is a pure, deterministic function. Before every signature, before broadcast and on import, the payload is rebuilt from the parameters shown on screen and compared with the stored one. A mismatch blocks the operation.
+3. Every signature is checked by recovering its address. An imported operation with an invalid signature is rejected whole.
+4. Safe transactions are simulated before signing and before sending (`SimulateTxAccessor`, `eth_estimateGas`).
+5. Unit deposit addresses are accepted only with valid guardian signatures (2 of 3), verified in the app each time the operation is built.
+
+The app stores no private keys, with one exception: a Hyperliquid agent key you ask it to generate. That key is kept in IndexedDB, encrypted with a non-extractable WebCrypto key, and is erased together with the result card.
+
+Wherever the wallet supports it, operations are signed as structured EIP-712 data that the device can display. For Ledger, the "clear signing" setting (on by default) allows fetching field descriptors from Ledger's servers. The order of attempts is fields with descriptors, then fields without, then blind signing only when the device accepts nothing else.
+
+The production build ships a strict CSP with no inline or third-party scripts. External data (token lists, API responses, QR contents) is validated, and remote SVGs are rendered only through `<img>`.
+
+## Offline use and updates
+
+The service worker (`public/sw.js`) is the same file in every release and serves only the files of the active release. A new version is downloaded by the running app, each file is checked against its SHA-256, and it is activated only after you agree.
+
+A release can also be signed on-chain by the developer's Safe:
 
 ```bash
 PUBLIC_RELEASE_SAFE=0x… PUBLIC_RELEASE_CHAIN_ID=8453 pnpm build
-pnpm release:info   # id релиза, digest и транзакция для Safe разработчика
+pnpm release:info   # release id, digest and the transaction for the developer's Safe
 ```
 
-Safe разработчика выполняет `SignMessageLib.signMessage(digest)` (в приложении это операция «Подпись хеша сообщения»). Клиенты проверяют `isValidSignature(digest, "")` по EIP-1271 и не предлагают неподписанный релиз. Проверку можно отключить в настройках; без переменных сборки она выключена.
+The developer's Safe executes `SignMessageLib.signMessage(digest)`; in the app this is the "Sign message hash" operation. Clients call `isValidSignature(digest, "")` (EIP-1271) and do not offer an unsigned release. The check can be turned off in settings, and it is off when the build variables are not set.
 
-## Ограничения, о которых стоит знать
+## Tech stack
 
-- **L1-действия Hyperliquid** (создание и переименование суб-аккаунта) подписываются в домене с chainId 1337 — MetaMask такое не подписывает, нужны Ledger или Trezor. Остальные операции доступны любому кошельку.
-- **Вывод спот-токена в HyperEVM** всегда приходит на тот же адрес; для multi-sig аккаунта этим адресом в HyperEVM управляет исходный ключ. Приложение предупреждает об этом.
-- **Вывод через Unit**: адрес Unit для получателя запрашивается у Unit API, подписи гардианов (2 из 3) приложение проверяет само при каждой сборке операции — подменить адрес нельзя ни в интерфейсе, ни через QR. Минимальные суммы взяты из документации Unit.
-- **Trezor** открывает окно Trezor Connect (нужна сеть либо запущенный Trezor Suite). **Ledger** подключается напрямую (WebHID, на Android — WebUSB) и работает офлайн.
-- **Clear signing**: всё, что можно, подписывается как структурированные данные EIP-712 (операции Hyperliquid, транзакции Safe). Для Ledger настройка «Описания для clear signing» (по умолчанию включена) разрешает загрузку описаний с серверов Ledger: порядок попыток — поля с описаниями → поля без описаний → blind signing только если устройство иначе не может. L1-действия Hyperliquid по своей природе подписываются как хеш.
-- **MetaMask на Android**: связь с приложением идёт через MetaMask SDK и требует сети; после возврата из MetaMask запрос подписи безопасно повторяется. Полностью офлайн — открыть приложение во встроенном браузере MetaMask и перенести операцию через QR.
-- **Защита от MEV** действует для транзакций Ethereum, подписанных Ledger/Trezor (Flashbots Protect). MetaMask отправляет транзакции сам.
-- **Мост USDC**: по умолчанию зачисление делает Circle Forwarding Service, комиссия берётся точно из API Circle. Если зачисление не произошло, карточка результата позволяет оплатить его газ любым подписантом.
-- Первая установка и смена самого `sw.js` не могут быть проверены multi-sig — это ограничение веб-платформы.
+- TypeScript, React 19, React Router (hash routing)
+- Rsbuild, Tailwind CSS 4, DaisyUI 5
+- zustand, persisted to IndexedDB and synced between tabs over BroadcastChannel
+- viem for EVM, `@msgpack/msgpack` and `@noble/curves` for Hyperliquid and Unit
+- `@metamask/sdk`, `@trezor/connect-web`, `@ledgerhq/hw-app-eth` over WebHID and WebUSB
+- vitest, Biome, pnpm
 
-## Структура
+There is no backend. The app talks directly to chain RPC endpoints and to the Hyperliquid, Unit, Circle and Safe transaction service APIs.
 
-```
-src/config        сети, адреса контрактов
-src/lib/hl        Hyperliquid: API, данные счёта, подпись
-src/lib/safe      Safe: транзакции, симуляция, создание
-src/lib/evm       DEX-котировки, CCTP, ABI
-src/lib/ops       операции: реестр, движок (заморозка, проверка, отправка), перенос
-src/lib/wallets   адаптеры MetaMask / Trezor / Ledger
-src/lib/qr        QR: адреса, упаковка, кадры
-src/lib/tokens    списки токенов и значки
-src/lib/update    офлайн-релизы и проверка подписи
-src/components    по одному компоненту в файле
-src/i18n          en / ru
-scripts           генерация значков, списков токенов, словарей, release.json
+## Running
+
+```bash
+pnpm install
+pnpm dev       # http://localhost:5173
+pnpm build     # production build in dist/, with release.json
+pnpm preview
+pnpm test      # unit tests, offline
+pnpm format    # Biome: tabs, double quotes
 ```
 
-Новая сеть — запись в `src/config/chains.ts` и значок. Новая операция — файл определения и строка в `src/lib/ops/registry.ts`.
+Fork tests need `anvil` and network access:
+
+```bash
+MSV_FORK=1 pnpm vitest run tests/*.fork.test.ts
+```
+
+## Limitations
+
+- **Hyperliquid L1 actions** (creating and renaming a sub-account) are signed in a domain with chainId 1337, which MetaMask refuses. They need a Ledger or Trezor, and they are signed as a hash.
+- **Spot withdrawal to HyperEVM** always arrives at the same address. For a multi-sig account, that address on HyperEVM is controlled by the original key. The app warns about this.
+- **Unit minimum amounts** are taken from the Unit documentation, not from an API.
+- **Trezor** opens a Trezor Connect window, which needs either network access or a running Trezor Suite. **Ledger** connects directly and works offline.
+- **MetaMask on Android** is reached through MetaMask SDK and needs network access. To work fully offline, open the app in MetaMask's built-in browser and move operations by QR.
+- **MEV protection** (Flashbots Protect) applies to Ethereum transactions signed with Ledger or Trezor. MetaMask broadcasts its own transactions.
+- **USDC bridge**: by default Circle's Forwarding Service delivers the funds, and the fee is taken exactly from Circle's API. If delivery does not happen, the result card lets any signer pay the gas for it.
+- The first install, and any change to `sw.js` itself, cannot be covered by the on-chain release check. This is a limitation of the web platform.
+
+## Project layout
+
+```
+src/config        chains and contract addresses
+src/lib/hl        Hyperliquid: API, account data, signing, Unit
+src/lib/safe      Safe: transactions, simulation, creation
+src/lib/evm       DEX quotes, CCTP, ABIs
+src/lib/ops       operations: registry, engine (freeze, verify, send), transfer
+src/lib/wallets   MetaMask, Trezor and Ledger adapters
+src/lib/qr        QR: addresses, packing, frames
+src/lib/tokens    token lists and icons
+src/lib/update    offline releases and signature check
+src/components    one component per file
+src/i18n          en and ru
+scripts           icons, token lists, dictionaries, release.json
+```
+
+To add a chain, add an entry to `src/config/chains.ts` and an icon. To add an operation, add a definition file and a line in `src/lib/ops/registry.ts`.
+
+## License
+
+[MIT](LICENSE)
