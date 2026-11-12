@@ -32,6 +32,24 @@ export const STRINGS = [
 		"Порог должен быть от 1 до числа подписантов",
 	],
 
+	["link.title", "Link", "Ссылка"],
+	[
+		"link.notice",
+		"This form was filled in from a link. Check every field, the address above all: change what is wrong or go back to cancel.",
+		"Форма заполнена по ссылке. Проверьте каждое поле, прежде всего адрес: исправьте неверное или вернитесь назад, чтобы отменить.",
+	],
+	["link.off.title", "Links are turned off", "Ссылки отключены"],
+	[
+		"link.off.text",
+		"This link wanted to fill in a form. Links that fill in forms are turned off in settings.",
+		"Эта ссылка должна была заполнить форму. Ссылки, заполняющие формы, отключены в настройках.",
+	],
+	["link.bad.title", "Unknown link", "Ссылка не распознана"],
+	[
+		"link.bad.text",
+		"The app does not know what this link asks for. It may be damaged or made for a newer version.",
+		"Приложение не понимает, что просит эта ссылка. Возможно, она повреждена или рассчитана на более новую версию.",
+	],
 	// ---- accounts ----
 	["accounts.title", "Accounts", "Счета"],
 	["accounts.add", "Add account", "Добавить счёт"],
@@ -123,6 +141,12 @@ export const STRINGS = [
 		"settings.clearSigningHint",
 		"Ledger loads token, contract and message descriptions from Ledger's servers, so the device shows what you sign instead of raw data. When off or offline, fields are shown without labels; blind signing is used only when nothing else works. Trezor Connect loads its definitions on its own.",
 		"Ledger загружает описания токенов, контрактов и сообщений с серверов Ledger, чтобы устройство показывало, что вы подписываете, а не сырые данные. Если выключено или нет сети, поля показываются без подписей; blind signing используется, только когда иначе нельзя. Trezor Connect загружает свои описания сам.",
+	],
+	["settings.deepLinks", "Links that fill in forms", "Ссылки, заполняющие формы"],
+	[
+		"settings.deepLinksHint",
+		"A link can open the form for adding an account or creating a Safe already filled in. Nothing is added or created until you check the form and confirm. When off, such links open nothing.",
+		"Ссылка может открыть форму добавления счёта или создания Safe уже заполненной. Ничего не добавится и не создастся, пока вы не проверите форму и не подтвердите. Если выключено, такие ссылки ничего не открывают.",
 	],
 	["settings.rpc", "RPC endpoints", "RPC-узлы"],
 	["settings.rpcFor", "RPC endpoint for {network}", "RPC-узел для {network}"],

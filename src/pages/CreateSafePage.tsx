@@ -4,6 +4,7 @@ import { Link } from "react-router";
 import type { Address } from "viem";
 import { NetworkFields } from "@/components/addAccount/NetworkFields";
 import { useUrlState } from "@/components/addAccount/useUrlState";
+import { LinkNotice } from "@/components/common/LinkNotice";
 import { TextField } from "@/components/common/TextField";
 import { AddressPreview } from "@/components/createSafe/AddressPreview";
 import { CopyPanel } from "@/components/createSafe/CopyPanel";
@@ -187,6 +188,7 @@ export const CreateSafePage: React.FC = () => {
 	return (
 		<>
 			<PageHeader title={t("createSafe.title")} back={`/accounts/new?kind=safe&chain=${chain}&env=${env}`} />
+			{!deployment.pending && <LinkNotice />}
 			{deployment.pending ? (
 				<DeploymentStatus
 					chainId={deployment.pending.chainId}

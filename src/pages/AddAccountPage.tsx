@@ -7,6 +7,7 @@ import { NetworkFields } from "@/components/addAccount/NetworkFields";
 import { useAccountCheck } from "@/components/addAccount/useAccountCheck";
 import { useUrlState } from "@/components/addAccount/useUrlState";
 import { AddressField } from "@/components/common/AddressField";
+import { LinkNotice } from "@/components/common/LinkNotice";
 import { TextField } from "@/components/common/TextField";
 import { BrandIcon } from "@/components/icons/BrandIcon";
 import { Field } from "@/components/ui/Field";
@@ -99,6 +100,7 @@ export const AddAccountPage: React.FC = () => {
 	return (
 		<>
 			<PageHeader title={t("addAccount.title")} back="/" />
+			<LinkNotice />
 			<div className="flex flex-col gap-4">
 				<Field label={t("addAccount.type")}>
 					<div className="grid grid-cols-2 gap-2" role="radiogroup" aria-label={t("addAccount.type")}>

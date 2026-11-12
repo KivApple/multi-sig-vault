@@ -49,32 +49,39 @@ export const clearDraft = (): void => {
 	}
 };
 
-/** Draft persisted in sessionStorage; starts with all known signers and a majority threshold. */
-export const useDraft = (newSalt: () => string): [CreateSafeDraft, (patch: Partial<CreateSafeDraft>) => void] => {
-	const [draft, setDraft] = useState<CreateSafeDraft>(() => {
-		const saved = load();
-		if (saved) return saved;
-		const owners = useAppStore
-			.getState()
-			.signers.slice(0, 10)
-			.map((s) => s.address as string);
-		return {
-			name: "",
-			owners: owners.length > 0 ? owners : [""],
-			threshold: owners.length > 1 ? Math.floor(owners.length / 2) + 1 : 1,
-			saltNonce: newSalt(),
-			prefix: "",
-			minerOutput: "",
-		};
-	});
+/** A new draft starts with all known signers and a majority threshold. */
+const initial = (newSalt: () => string): CreateSafeDraft => {
+	const owners = useAppStore
+		.getState()
+		.signers.slice(0, 10)
+		.map((s) => s.address as string);
+	return {
+		name: "",
+		owners: owners.length > 0 ? owners : [""],
+		threshold: owners.length > 1 ? Math.floor(owners.length / 2) + 1 : 1,
+		saltNonce: newSalt(),
+		prefix: "",
+		minerOutput: "",
+	};
+};
 
-	useEffect(() => {
-		try {
-			sessionStorage.setItem(KEY, JSON.stringify(draft));
-		} catch {
-			// Private mode / quota – the draft just won't survive a reload.
-		}
-	}, [draft]);
+const save = (draft: CreateSafeDraft): void => {
+	try {
+		sessionStorage.setItem(KEY, JSON.stringify(draft));
+	} catch {
+		// Private mode / quota – the draft just won't survive a reload.
+	}
+};
+
+/** Replaces the stored draft with a fresh one that carries the given values (deep links). */
+export const seedDraft = (values: Partial<CreateSafeDraft>, newSalt: () => string): void =>
+	save({ ...initial(newSalt), ...values });
+
+/** Draft persisted in sessionStorage. */
+export const useDraft = (newSalt: () => string): [CreateSafeDraft, (patch: Partial<CreateSafeDraft>) => void] => {
+	const [draft, setDraft] = useState<CreateSafeDraft>(() => load() ?? initial(newSalt));
+
+	useEffect(() => save(draft), [draft]);
 
 	const patch = useCallback((changes: Partial<CreateSafeDraft>) => setDraft((d) => ({ ...d, ...changes })), []);
 	return [draft, patch];

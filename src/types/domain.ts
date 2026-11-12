@@ -124,6 +124,8 @@ export interface Settings {
 	verifyUpdates: boolean;
 	/** Let hardware wallet SDKs fetch clear-signing descriptors from the vendor's servers. */
 	clearSigning: boolean;
+	/** Let a link open the add-account and create-Safe forms pre-filled. */
+	deepLinks: boolean;
 	/** Custom RPC endpoint per chain id. */
 	rpcOverrides: Record<string, string>;
 }

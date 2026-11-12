@@ -7,6 +7,7 @@ import { AccountPage } from "@/pages/AccountPage";
 import { AccountsPage } from "@/pages/AccountsPage";
 import { AddAccountPage } from "@/pages/AddAccountPage";
 import { CreateSafePage } from "@/pages/CreateSafePage";
+import { LinkPage } from "@/pages/LinkPage";
 import { SettingsPage } from "@/pages/SettingsPage";
 import { SignersPage } from "@/pages/SignersPage";
 
@@ -20,6 +21,7 @@ export const App: React.FC = () => {
 						<Route index element={<AccountsPage />} />
 						<Route path="accounts/new" element={<AddAccountPage />} />
 						<Route path="accounts/create-safe" element={<CreateSafePage />} />
+						<Route path="link" element={<LinkPage />} />
 						<Route path="account/:id" element={<AccountPage />} />
 						<Route path="signers" element={<SignersPage />} />
 						<Route path="settings" element={<SettingsPage />} />

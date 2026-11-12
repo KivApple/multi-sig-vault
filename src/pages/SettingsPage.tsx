@@ -78,6 +78,19 @@ export const SettingsPage: React.FC = () => {
 					}
 				/>
 				<SettingRow
+					label={t("settings.deepLinks")}
+					hint={t("settings.deepLinksHint")}
+					control={
+						<input
+							type="checkbox"
+							className="toggle toggle-primary"
+							checked={settings.deepLinks}
+							onChange={(e) => update({ deepLinks: e.target.checked })}
+							aria-label={t("settings.deepLinks")}
+						/>
+					}
+				/>
+				<SettingRow
 					label={t("settings.rpc")}
 					control={
 						<button type="button" className="btn btn-sm" onClick={() => setShowRpc((v) => !v)} aria-expanded={showRpc}>

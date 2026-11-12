@@ -54,6 +54,31 @@ This app builds the payloads your wallets sign, so a backdoor in it could drain 
 - QR is the only export channel, because an operation may carry an agent private key.
 - One scanner on the home screen accepts addresses and operations. Imports are deduplicated by UUID and their signatures merged.
 
+## Deep links
+
+A link can open the form for adding an account or creating a Safe already filled in:
+
+```
+https://multi-sig.quoi.dev/#/link?action=add&kind=hl&env=testnet&address=0x…&name=Desk
+https://multi-sig.quoi.dev/#/link?action=add&kind=safe&chain=base&address=0x…
+https://multi-sig.quoi.dev/#/link?action=create&chain=arbitrum&owners=0x…,0x…&threshold=2&name=Treasury
+https://multi-sig.quoi.dev/#/link?action=create&chain=base&mode=vanity&owners=0x…,0x…&threshold=2&prefix=0xdead
+```
+
+| Parameter | Used by | Values |
+|---|---|---|
+| `action` | both | `add` (existing account) or `create` (new Safe) |
+| `kind` | `add` | `hl` or `safe` |
+| `chain` | Safe | `ethereum`, `hyperevm`, `arbitrum`, `base` |
+| `env` | both | `mainnet` (default) or `testnet` |
+| `address`, `name` | `add` | account address and an optional name |
+| `owners`, `threshold`, `name` | `create` | comma-separated owner addresses, signatures required, optional name |
+| `mode` | `create` | `new` (default), `copy` (same address as a Safe on another chain) or `vanity` |
+| `salt` | `create` | decimal salt nonce, to reproduce an exact address in `new` mode |
+| `prefix` | `create` | hex address prefix for `vanity` mode |
+
+A link only fills the form. The form says it came from a link, every field can be changed, and nothing is added or created until you confirm. Unknown parameters are ignored. Links can be turned off in settings.
+
 ## How signing is protected
 
 1. The first signature freezes the operation. Quotes, nonces and fees are resolved, and the payload is built from them.

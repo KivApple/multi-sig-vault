@@ -9,6 +9,7 @@ export const DEFAULT_SETTINGS: Settings = {
 	tokenListAutoUpdate: true,
 	verifyUpdates: true,
 	clearSigning: true,
+	deepLinks: true,
 	rpcOverrides: {},
 };
 

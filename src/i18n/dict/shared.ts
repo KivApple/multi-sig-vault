@@ -25,6 +25,13 @@ export default defineDict({
 		"owners.mode": "Multi-sig",
 		"owners.duplicate": "This address is already in the list",
 		"owners.badThreshold": "Threshold must be between 1 and the number of signers",
+		"link.title": "Link",
+		"link.notice":
+			"This form was filled in from a link. Check every field, the address above all: change what is wrong or go back to cancel.",
+		"link.off.title": "Links are turned off",
+		"link.off.text": "This link wanted to fill in a form. Links that fill in forms are turned off in settings.",
+		"link.bad.title": "Unknown link",
+		"link.bad.text": "The app does not know what this link asks for. It may be damaged or made for a newer version.",
 	},
 	ru: {
 		"common.search": "Поиск",
@@ -49,5 +56,13 @@ export default defineDict({
 		"owners.mode": "Multi-sig",
 		"owners.duplicate": "Этот адрес уже есть в списке",
 		"owners.badThreshold": "Порог должен быть от 1 до числа подписантов",
+		"link.title": "Ссылка",
+		"link.notice":
+			"Форма заполнена по ссылке. Проверьте каждое поле, прежде всего адрес: исправьте неверное или вернитесь назад, чтобы отменить.",
+		"link.off.title": "Ссылки отключены",
+		"link.off.text": "Эта ссылка должна была заполнить форму. Ссылки, заполняющие формы, отключены в настройках.",
+		"link.bad.title": "Ссылка не распознана",
+		"link.bad.text":
+			"Приложение не понимает, что просит эта ссылка. Возможно, она повреждена или рассчитана на более новую версию.",
 	},
 });

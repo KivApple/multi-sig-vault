@@ -16,6 +16,9 @@ export default defineDict({
 		"settings.clearSigning": "Clear signing descriptors",
 		"settings.clearSigningHint":
 			"Ledger loads token, contract and message descriptions from Ledger's servers, so the device shows what you sign instead of raw data. When off or offline, fields are shown without labels; blind signing is used only when nothing else works. Trezor Connect loads its definitions on its own.",
+		"settings.deepLinks": "Links that fill in forms",
+		"settings.deepLinksHint":
+			"A link can open the form for adding an account or creating a Safe already filled in. Nothing is added or created until you check the form and confirm. When off, such links open nothing.",
 		"settings.rpc": "RPC endpoints",
 		"settings.rpcFor": "RPC endpoint for {network}",
 		"settings.rpcHint": "HTTPS only. Leave empty to use the built-in public endpoints.",
@@ -35,6 +38,9 @@ export default defineDict({
 		"settings.clearSigning": "Описания для clear signing",
 		"settings.clearSigningHint":
 			"Ledger загружает описания токенов, контрактов и сообщений с серверов Ledger, чтобы устройство показывало, что вы подписываете, а не сырые данные. Если выключено или нет сети, поля показываются без подписей; blind signing используется, только когда иначе нельзя. Trezor Connect загружает свои описания сам.",
+		"settings.deepLinks": "Ссылки, заполняющие формы",
+		"settings.deepLinksHint":
+			"Ссылка может открыть форму добавления счёта или создания Safe уже заполненной. Ничего не добавится и не создастся, пока вы не проверите форму и не подтвердите. Если выключено, такие ссылки ничего не открывают.",
 		"settings.rpc": "RPC-узлы",
 		"settings.rpcFor": "RPC-узел для {network}",
 		"settings.rpcHint": "Только HTTPS. Оставьте пустым, чтобы использовать встроенные публичные узлы.",
