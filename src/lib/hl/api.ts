@@ -80,6 +80,8 @@ export interface HlPosition {
 	positionValue: string;
 	marginUsed: string;
 	unrealizedPnl: string;
+	/** Funding paid by the position, USD: positive – paid, negative – received. */
+	cumFunding?: { allTime: string; sinceOpen: string; sinceChange: string };
 	leverage: { type: string; value: number };
 }
 

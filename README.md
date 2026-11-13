@@ -38,7 +38,7 @@ Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/
 
 - Hyperliquid accounts, plain and multi-sig, in standard, unified and portfolio margin modes.
 - Safe 1.3.0, 1.4.1 and 1.5.0.
-- Balances per asset, refreshed every 30 seconds and kept for offline viewing. An exchange account also shows how much can be withdrawn when orders or margin hold part of it.
+- Balances per asset, refreshed every 30 seconds and kept for offline viewing. An exchange account also shows how much can be withdrawn when orders or margin hold part of it. With open positions it shows their unrealized PnL together, and for each position its entry and mark price and the funding since it was opened.
 - One total for mainnet and a separate one for testnet, over the accounts you have not hidden.
 - History on its own page, newest first, with the signers of each operation.
 

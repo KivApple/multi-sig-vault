@@ -155,8 +155,19 @@ export interface AssetRow {
 	kind: "native" | "token" | "spot" | "perp";
 	/** Icon lookup hints. */
 	icon: { chainId?: number; address?: Address; symbol: string; hl?: boolean };
-	/** Perp position: its notional value, the margin it holds and its unrealised result, in USD. */
-	position?: { notional: number; margin: number; isolated: boolean; pnl: number };
+	/**
+	 * Perp position: its notional value, the margin it holds, its unrealised result and funding since it was
+	 * opened, in USD; the average entry price and the current mark price.
+	 */
+	position?: {
+		notional: number;
+		margin: number;
+		isolated: boolean;
+		pnl: number;
+		funding?: number;
+		entry?: number;
+		mark?: number;
+	};
 	/** Extra caption, e.g. "Long 5x" / "PnL +12$". */
 	note?: string;
 }

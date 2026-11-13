@@ -66,6 +66,11 @@ export interface HlPerpPosition {
 	/** Isolated margin; otherwise the position shares the cross margin of the account. */
 	isolated: boolean;
 	pnl: number;
+	/** Average entry price and the current mark price, USD. */
+	entryPx: number;
+	markPx: number;
+	/** Funding since the position was opened, USD: positive – received, negative – paid. */
+	funding: number;
 	leverage: number;
 }
 
@@ -84,6 +89,8 @@ export interface HlAccountData {
 	/** USDC that can leave the perp account (standard mode) or the unified balance. */
 	withdrawable: string;
 	positions: HlPerpPosition[];
+	/** Unrealised result of all open positions together, USD. */
+	unrealizedPnl: number;
 	/** `USDC:0x…` – token identifier used by transfer actions. */
 	usdcToken: string;
 }
@@ -135,6 +142,11 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 				margin: Number(p.marginUsed) || 0,
 				isolated: p.leverage.type === "isolated",
 				pnl,
+				entryPx: Number(p.entryPx) || 0,
+				// The position is valued at the mark price, so the price is its value per unit.
+				markPx: Number(p.szi) ? Math.abs(Number(p.positionValue) / Number(p.szi)) : 0,
+				// The exchange counts what the position paid; shown as a result, so received is positive.
+				funding: -Number(p.cumFunding?.sinceOpen ?? 0) || 0,
 				leverage: p.leverage.value,
 			});
 		}
@@ -208,7 +220,15 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 			amount: p.size,
 			// A position's share of the account is the margin behind it (an isolated one carries its PnL in it).
 			usd: p.margin,
-			position: { notional: p.notional, margin: p.margin, isolated: p.isolated, pnl: p.pnl },
+			position: {
+				notional: p.notional,
+				margin: p.margin,
+				isolated: p.isolated,
+				pnl: p.pnl,
+				funding: p.funding,
+				entry: p.entryPx,
+				mark: p.markPx,
+			},
 			kind: "perp",
 			icon: { symbol: p.coin, hl: true },
 			note: `${p.leverage}x`,
@@ -229,6 +249,7 @@ export const fetchHlAccount = async (env: NetworkEnv, user: Address): Promise<Hl
 		spot,
 		withdrawable,
 		positions,
+		unrealizedPnl: positions.reduce((sum, p) => sum + (p.pnl || 0), 0),
 		usdcToken: `USDC:${tokenByIndex.get(0)?.tokenId ?? ""}`,
 	};
 };

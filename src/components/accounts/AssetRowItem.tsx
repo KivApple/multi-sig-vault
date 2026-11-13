@@ -1,11 +1,14 @@
 import { TokenIcon } from "@/components/icons/TokenIcon";
 import { useLang, useT } from "@/i18n";
-import { formatAmount, formatUsd } from "@/lib/format";
+import { formatAmount, formatPrice, formatSignedUsd, formatUsd } from "@/lib/format";
 import type { AssetRow } from "@/types/domain";
 
 export interface AssetRowItemProps {
 	asset: AssetRow;
 }
+
+/** Colour is spent on one thing only – the sign of a result; its label stays neutral. */
+const signTone = (value: number): string => (value >= 0 ? "text-success" : "text-error");
 
 /**
  * One asset: icon, name, USD value and amount in units. Exchange assets carry a badge saying what they
@@ -44,15 +47,61 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 				? { tone: "badge-info", text: t("accounts.spot") }
 				: undefined;
 	const caption = perp || asset.note === "perps" ? undefined : asset.name;
+	const icon = (
+		<TokenIcon
+			symbol={asset.icon.symbol}
+			chainId={asset.icon.chainId}
+			address={asset.icon.address}
+			hl={asset.icon.hl}
+			size={36}
+		/>
+	);
+	const prices = perp && pos?.entry && pos.mark ? { entry: pos.entry, mark: pos.mark } : undefined;
+	// Funding of a position since it was opened; nothing to say until it adds up to a cent.
+	const funding = perp && pos?.funding !== undefined && Math.abs(pos.funding) >= 0.005 ? pos.funding : undefined;
+	// A position reads as three lines of pairs, text on the left and money on the right: name and badge – margin,
+	// entry → mark price – size and notional value, funding – PnL. Nothing is cut on a narrow screen: the badge
+	// drops under the name and the right half of a pair under its left half.
+	if (perp && pos && badge) {
+		const pair = "flex flex-wrap items-baseline justify-between gap-x-2 text-xs";
+		return (
+			<li className="flex items-center gap-3 px-4 py-2.5">
+				{icon}
+				<div className="tabular min-w-0 flex-1 leading-tight">
+					<div className="flex items-baseline gap-2">
+						<div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5">
+							<span className="max-w-full truncate font-medium">{asset.symbol}</span>
+							<span className={`badge badge-soft badge-xs shrink-0 whitespace-nowrap ${badge.tone}`}>{badge.text}</span>
+						</div>
+						<div className="shrink-0 font-medium">{formatUsd(asset.usd, lang)}</div>
+					</div>
+					<div className={`${pair} mt-0.5`}>
+						<span className="text-base-content/45 whitespace-nowrap">
+							{prices ? `${formatPrice(prices.entry, lang)} → ${formatPrice(prices.mark, lang)}` : ""}
+						</span>
+						<span className="text-base-content/60 ml-auto whitespace-nowrap">
+							{formatAmount(Math.abs(size), lang, 6)} · {formatUsd(pos.notional, lang)}
+						</span>
+					</div>
+					<div className={`${pair} text-base-content/60`}>
+						<span className="whitespace-nowrap">
+							{funding !== undefined && (
+								<>
+									{t("accounts.funding")} <span className={signTone(funding)}>{formatSignedUsd(funding, lang)}</span>
+								</>
+							)}
+						</span>
+						<span className="ml-auto whitespace-nowrap">
+							{t("accounts.pnl")} <span className={signTone(pos.pnl)}>{formatSignedUsd(pos.pnl, lang)}</span>
+						</span>
+					</div>
+				</div>
+			</li>
+		);
+	}
 	return (
 		<li className="flex items-center gap-3 px-4 py-2.5">
-			<TokenIcon
-				symbol={asset.icon.symbol}
-				chainId={asset.icon.chainId}
-				address={asset.icon.address}
-				hl={asset.icon.hl}
-				size={36}
-			/>
+			{icon}
 			<div className="min-w-0 flex-1 leading-tight">
 				<div className="truncate font-medium">{asset.symbol}</div>
 				{(badge || caption) && (
@@ -66,19 +115,10 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 					</div>
 				)}
 			</div>
-			{/* Every row reads the same way: how much of the account sits here, then units. For a position the first
-			    is its margin, the second line adds its notional value, the third its result in colour. */}
+			{/* How much of the account sits here, then units. */}
 			<div className="tabular shrink-0 text-right leading-tight">
 				<div className="font-medium">{formatUsd(asset.usd, lang)}</div>
-				<div className="text-base-content/60 text-xs">
-					{formatAmount(perp ? Math.abs(size) : asset.amount, lang, 6)}
-					{perp && pos ? ` · ${formatUsd(pos.notional, lang)}` : ""}
-				</div>
-				{perp && pos && (
-					<div className={`text-xs ${pos.pnl >= 0 ? "text-success" : "text-error"}`}>
-						{t("accounts.pnl", { amount: `${pos.pnl > 0 ? "+" : ""}${formatUsd(pos.pnl, lang)}` })}
-					</div>
-				)}
+				<div className="text-base-content/60 text-xs">{formatAmount(asset.amount, lang, 6)}</div>
 				{held && free !== undefined && (
 					<div className="text-warning text-xs">
 						{t("accounts.availableUnits", { amount: formatAmount(free, lang, 6) })}

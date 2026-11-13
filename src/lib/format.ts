@@ -25,6 +25,17 @@ export const formatUsd = (value: number, lang: string, compact = false): string 
 	}).format(value);
 };
 
+/** USD result with an explicit sign: "+$12.30" / "-$4.00". */
+export const formatSignedUsd = (value: number, lang: string): string =>
+	`${value > 0 ? "+" : ""}${formatUsd(value, lang)}`;
+
+/** Market price without a currency sign: five significant digits, whole numbers from 10 000 up. */
+export const formatPrice = (value: number, lang: string): string =>
+	new Intl.NumberFormat(
+		lang,
+		Math.abs(value) >= 10_000 ? { maximumFractionDigits: 0 } : { maximumSignificantDigits: 5 },
+	).format(value);
+
 /** Human readable token amount with a sensible number of significant digits. */
 export const formatAmount = (value: string | number, lang: string, maxFraction = 6): string => {
 	const n = typeof value === "number" ? value : Number(value);

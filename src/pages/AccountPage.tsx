@@ -16,7 +16,7 @@ import { Spinner } from "@/components/ui/Spinner";
 import { useOpEnv } from "@/hooks/useAccountData";
 import { useLang, useT } from "@/i18n";
 import { describeError } from "@/lib/describeError";
-import { formatRelative, formatUsd, shortAddress } from "@/lib/format";
+import { formatRelative, formatSignedUsd, formatUsd, shortAddress } from "@/lib/format";
 import { accountNetworkName } from "@/lib/known";
 import { ownerSetOf } from "@/lib/ops/engine";
 import { addressQrValue } from "@/lib/qr/address";
@@ -49,6 +49,9 @@ export const AccountPage: React.FC = () => {
 	// Exchange accounts: part of the balance may be held by open orders or as margin.
 	const availableUsd = (data.data as { availableUsd?: number } | undefined)?.availableUsd;
 	const held = !!data.data && availableUsd !== undefined && data.data.totalUsd - availableUsd > 0.01;
+	// Exchange accounts with open positions: their unrealised result together.
+	const hl = env.hl;
+	const pnl = hl && hl.positions.length > 0 && Number.isFinite(hl.unrealizedPnl) ? hl.unrealizedPnl : undefined;
 
 	return (
 		<>
@@ -74,6 +77,12 @@ export const AccountPage: React.FC = () => {
 							<div className="tabular text-3xl font-bold tracking-tight">
 								{data.data ? formatUsd(data.data.totalUsd, lang) : <span className="skeleton inline-block h-8 w-36" />}
 							</div>
+							{pnl !== undefined && (
+								<div className="text-base-content/60 tabular mt-0.5 text-sm">
+									{t("accounts.unrealizedPnl")}{" "}
+									<span className={pnl >= 0 ? "text-success" : "text-error"}>{formatSignedUsd(pnl, lang)}</span>
+								</div>
+							)}
 							{held && (
 								<div className="text-warning tabular mt-0.5 text-sm">
 									{t("accounts.availableUsd", { amount: formatUsd(availableUsd as number, lang) })}
