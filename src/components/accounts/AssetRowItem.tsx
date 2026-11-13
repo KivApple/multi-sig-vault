@@ -7,6 +7,9 @@ export interface AssetRowItemProps {
 	asset: AssetRow;
 }
 
+/** The tightest phones get slimmer gutters, so that the last pair of a position – funding and PnL – still fits. */
+const ROW = "flex items-center gap-3 px-4 py-2.5 max-[359px]:gap-2 max-[359px]:px-3";
+
 /** Colour is spent on one thing only – the sign of a result; its label stays neutral. */
 const signTone = (value: number): string => (value >= 0 ? "text-success" : "text-error");
 
@@ -59,28 +62,36 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 	const prices = perp && pos?.entry && pos.mark ? { entry: pos.entry, mark: pos.mark } : undefined;
 	// Funding of a position since it was opened; nothing to say until it adds up to a cent.
 	const funding = perp && pos?.funding !== undefined && Math.abs(pos.funding) >= 0.005 ? pos.funding : undefined;
-	// A position reads as three lines of pairs, text on the left and money on the right: name and badge – margin,
-	// entry → mark price – size and notional value, funding – PnL. Nothing is cut on a narrow screen: the badge
-	// drops under the name and the right half of a pair under its left half.
+	// A position is pairs of lines, text on the left and money on the right, so both edges stay straight.
+	// Wide: name and badge – margin, entry → mark price – size and notional value, funding – PnL.
+	// Narrow (the text block under 270px): the badge and the size get a line of their own, which makes four
+	// short pairs; that way every position row has the same shape instead of wrapping where it happens to.
 	if (perp && pos && badge) {
-		const pair = "flex flex-wrap items-baseline justify-between gap-x-2 text-xs";
+		const pair = "flex flex-wrap items-center justify-between gap-x-1 text-xs";
+		const badgeTone = `badge badge-soft badge-xs shrink-0 whitespace-nowrap ${badge.tone}`;
+		const sizeText = formatAmount(Math.abs(size), lang, 6);
 		return (
-			<li className="flex items-center gap-3 px-4 py-2.5">
+			<li className={ROW}>
 				{icon}
-				<div className="tabular min-w-0 flex-1 leading-tight">
-					<div className="flex items-baseline gap-2">
-						<div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-1.5 gap-y-0.5">
-							<span className="max-w-full truncate font-medium">{asset.symbol}</span>
-							<span className={`badge badge-soft badge-xs shrink-0 whitespace-nowrap ${badge.tone}`}>{badge.text}</span>
+				<div className="tabular @container min-w-0 flex-1 leading-tight">
+					<div className="flex items-center justify-between gap-2">
+						<div className="flex min-w-0 items-center gap-x-1.5">
+							<span className="truncate font-medium">{asset.symbol}</span>
+							<span className={`${badgeTone} hidden @min-[270px]:inline-flex`}>{badge.text}</span>
 						</div>
 						<div className="shrink-0 font-medium">{formatUsd(asset.usd, lang)}</div>
+					</div>
+					<div className={`${pair} mt-0.5 @min-[270px]:hidden`}>
+						<span className={badgeTone}>{badge.text}</span>
+						<span className="text-base-content/60 ml-auto whitespace-nowrap">{sizeText}</span>
 					</div>
 					<div className={`${pair} mt-0.5`}>
 						<span className="text-base-content/45 whitespace-nowrap">
 							{prices ? `${formatPrice(prices.entry, lang)} → ${formatPrice(prices.mark, lang)}` : ""}
 						</span>
 						<span className="text-base-content/60 ml-auto whitespace-nowrap">
-							{formatAmount(Math.abs(size), lang, 6)} · {formatUsd(pos.notional, lang)}
+							<span className="hidden @min-[270px]:inline">{sizeText} · </span>
+							{formatUsd(pos.notional, lang)}
 						</span>
 					</div>
 					<div className={`${pair} text-base-content/60`}>
@@ -100,7 +111,7 @@ export const AssetRowItem: React.FC<AssetRowItemProps> = ({ asset }) => {
 		);
 	}
 	return (
-		<li className="flex items-center gap-3 px-4 py-2.5">
+		<li className={ROW}>
 			{icon}
 			<div className="min-w-0 flex-1 leading-tight">
 				<div className="truncate font-medium">{asset.symbol}</div>

@@ -28,7 +28,7 @@ export const AssetsCard: React.FC<AssetsCardProps> = ({ account, assets }) => {
 
 	return (
 		<section className="card-surface">
-			<header className="flex items-center justify-between px-4 pt-3 pb-1">
+			<header className="flex items-center justify-between px-4 pt-3 pb-1 max-[359px]:px-3">
 				<h2 className="text-base-content/60 text-xs font-semibold tracking-wide uppercase">{t("accounts.assets")}</h2>
 				{dust > 0 && (
 					<label className="text-base-content/70 flex cursor-pointer items-center gap-2 text-xs">
