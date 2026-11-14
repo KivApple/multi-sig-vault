@@ -80,7 +80,7 @@ const GroupRow: React.FC<RowProps> = ({ account, editing, showMode }) => {
 		<li
 			ref={setNodeRef}
 			style={{ transform: CSS.Translate.toString(transform), transition }}
-			className={`border-base-300 bg-base-200 border-t first:border-t-0 ${isDragging ? "relative z-10 opacity-90" : ""}`}
+			className={`border-base-300 bg-base-100 border-t first:border-t-0 ${isDragging ? "relative z-10 opacity-90" : ""}`}
 		>
 			{editing ? (
 				<div className={`flex min-h-12 items-center gap-2 py-1 pr-1 ${account.hidden ? "opacity-50" : ""}`}>
@@ -108,7 +108,7 @@ const GroupRow: React.FC<RowProps> = ({ account, editing, showMode }) => {
 				// The row is the only thing in the card that opens something: it alone reacts to the pointer.
 				<Link
 					to={`/account/${encodeURIComponent(account.id)}`}
-					className="hover:bg-base-300/60 flex min-h-12 items-center gap-2.5 py-1.5 pr-1.5 pl-2.5"
+					className="hover:bg-base-200/60 flex min-h-12 items-center gap-2.5 py-1.5 pr-1.5 pl-2.5"
 				>
 					{text}
 					<span className="tabular shrink-0 font-semibold">
