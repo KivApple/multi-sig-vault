@@ -15,6 +15,7 @@ import {
 	ownerSetOf,
 	planSafeSend,
 	resetOperation,
+	sendersOf,
 	sendHlOperation,
 	sendSafeOperation,
 	signOperation,
@@ -110,13 +111,17 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 	const signers = env.signers;
 	const sendAddresses = useMemo<Address[]>(() => {
 		if (hlPayload) return [getAddress(hlPayload.leader)];
-		// Anyone may execute a Safe transaction: owners first, then the other known signers.
 		const known = signers.map((s) => s.address);
+		const isKnown = (a: Address): boolean => known.some((k) => sameAddress(k, a));
+		// The account limits who sends: everyone it allows, the ones with a key here first.
+		const limited = sendersOf(account, owners);
+		if (limited) return [...limited.filter(isKnown), ...limited.filter((a) => !isKnown(a))];
+		// Anyone may execute a Safe transaction: owners first, then the other known signers.
 		return [
 			...known.filter((a) => owners.some((o) => sameAddress(o, a))),
 			...known.filter((a) => !owners.some((o) => sameAddress(o, a))),
 		];
-	}, [hlPayload, signers, owners]);
+	}, [hlPayload, signers, owners, account]);
 
 	// Estimate the execution cost while the "send" dialog is open.
 	useEffect(() => {
@@ -281,7 +286,17 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 				open={dialog === "send"}
 				onClose={closeDialog}
 				title={t("ops.pick.send")}
-				hint={account.kind === "hl" ? t("ops.pick.sendHlHint") : t("ops.pick.sendSafeHint")}
+				hint={
+					account.kind === "hl"
+						? t("ops.pick.sendHlHint")
+						: t(
+								account.sendMode === "owners"
+									? "ops.pick.sendOwnersHint"
+									: account.sendMode === "selected"
+										? "ops.pick.sendSelectedHint"
+										: "ops.pick.sendSafeHint",
+							)
+				}
 				addresses={sendAddresses}
 				balanceChainId={account.kind === "safe" ? account.chainId : undefined}
 				feeGas={account.kind === "safe" ? fee : undefined}

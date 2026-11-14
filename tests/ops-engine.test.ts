@@ -2,7 +2,7 @@ import "fake-indexeddb/auto";
 import { getTypesForEIP712Domain, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import { beforeEach, describe, expect, it } from "vitest";
-import { buildPayload, signerTypedData, verifyOperation, verifySignatures } from "@/lib/ops/engine";
+import { buildPayload, sendersOf, signerTypedData, verifyOperation, verifySignatures } from "@/lib/ops/engine";
 import { planOwnerChanges } from "@/lib/ops/safe/owners";
 import { exportOperation, parseImport } from "@/lib/ops/transfer";
 import { packTransfer, unpackTransfer } from "@/lib/qr/transfer";
@@ -107,6 +107,20 @@ describe("operation integrity", () => {
 		await expect(verifySignatures(swapped, hlAccount)).rejects.toThrow();
 		const duplicated = { ...op, signatures: [op.signatures[0], op.signatures[0]] };
 		await expect(verifySignatures(duplicated, hlAccount)).rejects.toThrow();
+	});
+});
+
+describe("who may send", () => {
+	it("is anyone by default, the owners or the picked addresses when a Safe asks for it", () => {
+		expect(sendersOf(safeAccount, owners)).toBeUndefined();
+		expect(sendersOf({ ...safeAccount, sendMode: "any", senders: [recipient] }, owners)).toBeUndefined();
+		expect(sendersOf({ ...safeAccount, sendMode: "owners" }, owners)).toEqual(owners);
+		// Picked addresses need not be owners; the owners are not added to them.
+		expect(sendersOf({ ...safeAccount, sendMode: "selected", senders: [recipient] }, owners)).toEqual([recipient]);
+		// Nothing picked lets nobody send, not everybody.
+		expect(sendersOf({ ...safeAccount, sendMode: "selected" }, owners)).toEqual([]);
+		// Not a setting of exchange accounts: there the first signer always sends.
+		expect(sendersOf({ ...hlAccount, sendMode: "owners" }, owners)).toBeUndefined();
 	});
 });
 

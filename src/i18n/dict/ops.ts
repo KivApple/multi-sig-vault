@@ -51,6 +51,10 @@ export default defineDict({
 		"ops.pick.send": "Who sends?",
 		"ops.pick.sendHlHint": "The first signer confirms sending. No network fee.",
 		"ops.pick.sendSafeHint": "The sender pays the network fee. Any of your signers can do it.",
+		"ops.pick.sendOwnersHint":
+			"The sender pays the network fee. Only the signers of this Safe can send: this is set in the account settings.",
+		"ops.pick.sendSelectedHint":
+			"The sender pays the network fee. Only the signers chosen in the account settings can send.",
 		"ops.confirmIn.metamask": "Confirm in MetaMask…",
 		"ops.confirmIn.trezor": "Confirm on your Trezor…",
 		"ops.confirmIn.ledger": "Confirm on your Ledger…",
@@ -84,6 +88,7 @@ export default defineDict({
 			"The Safe has already executed a transaction with this number. Reset signatures and sign again.",
 		"ops.error.nonceAhead": "Earlier operations must be sent first (the Safe is at #{nonce}).",
 		"ops.error.noGas": "The sender does not have enough funds for the network fee.",
+		"ops.error.senderNotAllowed": "The account settings do not let this signer send transactions of this Safe.",
 		"ops.error.simulation": "The transaction would fail: {detail}",
 		"import.title": "Import operation",
 		"import.confirm": "Import",
@@ -183,6 +188,10 @@ export default defineDict({
 		"ops.pick.send": "Кто отправляет?",
 		"ops.pick.sendHlHint": "Отправку подтверждает первый подписант. Комиссии сети нет.",
 		"ops.pick.sendSafeHint": "Отправитель платит комиссию сети. Это может быть любой ваш подписант.",
+		"ops.pick.sendOwnersHint":
+			"Отправитель платит комиссию сети. Отправлять могут только подписанты этого Safe: так задано в настройках счёта.",
+		"ops.pick.sendSelectedHint":
+			"Отправитель платит комиссию сети. Отправлять могут только подписанты, выбранные в настройках счёта.",
 		"ops.confirmIn.metamask": "Подтвердите в MetaMask…",
 		"ops.confirmIn.trezor": "Подтвердите на Trezor…",
 		"ops.confirmIn.ledger": "Подтвердите на Ledger…",
@@ -215,6 +224,7 @@ export default defineDict({
 		"ops.error.nonceUsed": "Safe уже выполнил транзакцию с этим номером. Сбросьте подписи и подпишите заново.",
 		"ops.error.nonceAhead": "Сначала нужно отправить предыдущие операции (Safe ожидает #{nonce}).",
 		"ops.error.noGas": "У отправителя недостаточно средств для оплаты комиссии сети.",
+		"ops.error.senderNotAllowed": "Настройки счёта не разрешают этому подписанту отправлять транзакции этого Safe.",
 		"ops.error.simulation": "Транзакция не выполнится: {detail}",
 		"import.title": "Импорт операции",
 		"import.confirm": "Импортировать",

@@ -6,7 +6,9 @@ import { useT } from "@/i18n";
 import { fetchCctpMessage, isNonceUsed, type CctpMessage, type ExpectedTransfer } from "@/lib/evm/cctp";
 import { bridgeProgressOf, type BridgeProgress, type SwapParams } from "@/lib/evm/swapBuild";
 import { parseAddress } from "@/lib/format";
-import { patchResultExtra } from "@/lib/ops/engine";
+import { useCacheStore } from "@/lib/dataCache";
+import { accountCacheKey, patchResultExtra, sendersOf } from "@/lib/ops/engine";
+import type { SafeAccountData } from "@/lib/safe/account";
 import type { OpResultProps } from "@/lib/ops/types";
 import { SwapClaimDialog } from "./SwapClaimDialog";
 import { SwapStepper } from "./SwapStepper";
@@ -30,6 +32,11 @@ export const SwapResult: React.FC<OpResultProps> = ({ op, account }) => {
 	const reverted = op.result?.extra?.txStatus === "reverted";
 	const progress = bridgeProgressOf(op);
 	const stage = progress?.stage ?? "burned";
+	// Current owners of the Safe when known, the ones the operation was signed under otherwise.
+	const liveOwners = useCacheStore(
+		(s) => (s.entries[accountCacheKey(account)]?.data as SafeAccountData | undefined)?.owners,
+	);
+	const claimers = useMemo(() => sendersOf(account, liveOwners ?? op.owners ?? []), [account, liveOwners, op.owners]);
 	const [attested, setAttested] = useState<CctpMessage>();
 	const [claiming, setClaiming] = useState(false);
 	const [now, setNow] = useState(() => Date.now());
@@ -179,6 +186,7 @@ export const SwapResult: React.FC<OpResultProps> = ({ op, account }) => {
 					attestation={attested.attestation}
 					nonce={attested.nonce}
 					expirable={attested.expirationBlock > 0n}
+					allowed={claimers}
 					onSent={handleSent}
 				/>
 			)}

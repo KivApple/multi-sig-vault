@@ -63,6 +63,7 @@ Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/
 - Change owners and threshold.
 - Call a contract by ABI, deploy a contract, sign a message hash (EIP-1271).
 - Choose a slower or a faster network fee; a transaction that stays unconfirmed can be sent again with the same signatures.
+- Any of your signers can send a signed transaction and pay its fee. A Safe can be limited (account settings, kept on the device) to its own signers or to the signers you choose.
 
 **Creating a Safe**
 

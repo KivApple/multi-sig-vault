@@ -1,6 +1,7 @@
-import { History, Pencil, QrCode, RefreshCw } from "lucide-react";
+import { History, Pencil, QrCode, RefreshCw, Settings } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Link, Navigate, useParams } from "react-router";
+import { AccountSettingsDialog } from "@/components/accounts/AccountSettingsDialog";
 import { AssetsCard } from "@/components/accounts/AssetsCard";
 import { multiSigLabel } from "@/components/accounts/multiSigLabel";
 import { SignersCard } from "@/components/accounts/SignersCard";
@@ -32,6 +33,7 @@ export const AccountPage: React.FC = () => {
 	const { env, data, refresh } = useOpEnv(account);
 	const [renaming, setRenaming] = useState(false);
 	const [qr, setQr] = useState(false);
+	const [settings, setSettings] = useState(false);
 
 	const handleRename = useCallback(
 		(name: string) => {
@@ -64,9 +66,16 @@ export const AccountPage: React.FC = () => {
 					</span>
 				}
 				actions={
-					<IconButton label={t("common.rename")} onClick={() => setRenaming(true)}>
-						<Pencil className="size-4" />
-					</IconButton>
+					<>
+						<IconButton label={t("common.rename")} onClick={() => setRenaming(true)}>
+							<Pencil className="size-4" />
+						</IconButton>
+						{account.kind === "safe" && (
+							<IconButton label={t("accounts.settings")} onClick={() => setSettings(true)}>
+								<Settings className="size-4" />
+							</IconButton>
+						)}
+					</>
 				}
 			/>
 
@@ -137,6 +146,9 @@ export const AccountPage: React.FC = () => {
 				allowEmpty
 				onSave={handleRename}
 			/>
+			{account.kind === "safe" && (
+				<AccountSettingsDialog open={settings} onClose={() => setSettings(false)} account={account} />
+			)}
 			<QrDialog
 				open={qr}
 				onClose={() => setQr(false)}

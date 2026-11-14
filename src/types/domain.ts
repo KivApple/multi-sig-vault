@@ -17,6 +17,9 @@ export interface SafeCreation {
 	saltNonce: string;
 }
 
+/** Who may send the transactions of a Safe: any known signer, its own signers, or the ones picked for it. */
+export type SendMode = "any" | "owners" | "selected";
+
 export interface Account {
 	/** Deterministic: `hl:<env>:<address>` or `safe:<chainId>:<address>` (lowercase). */
 	id: string;
@@ -30,6 +33,10 @@ export interface Account {
 	hideDust: boolean;
 	/** Known when the Safe was created by this app or its creation was resolved. */
 	creation?: SafeCreation;
+	/** Safe accounts only, kept on this device: who sends (and pays for) its transactions. Absent – `any`. */
+	sendMode?: SendMode;
+	/** The addresses picked for `sendMode: "selected"`. */
+	senders?: Address[];
 	addedAt: number;
 }
 

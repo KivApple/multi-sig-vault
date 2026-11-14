@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useState } from "react";
-import { formatUnits, type Hex } from "viem";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { formatUnits, type Address, type Hex } from "viem";
 import { WalletIcon } from "@/components/icons/WalletIcon";
 import { Dialog } from "@/components/ui/Dialog";
 import { Spinner } from "@/components/ui/Spinner";
@@ -7,7 +7,7 @@ import { getChain } from "@/config/chains";
 import { useLang, useT } from "@/i18n";
 import { describeError } from "@/lib/describeError";
 import { encodeReceiveMessage, messageTransmitterOf, requestReattest } from "@/lib/evm/cctp";
-import { formatAmount, shortAddress } from "@/lib/format";
+import { formatAmount, sameAddress, shortAddress } from "@/lib/format";
 import { fetchNativeBalances } from "@/lib/safe/account";
 import { getPublicClient } from "@/lib/rpc";
 import { sendTransactionWith } from "@/lib/wallets";
@@ -25,10 +25,15 @@ export interface SwapClaimDialogProps {
 	nonce?: Hex;
 	/** Fast transfer: the attestation can expire and be re-requested. */
 	expirable: boolean;
+	/** Only these addresses may pay (the account limits who sends); `undefined` – any signer. */
+	allowed?: Address[];
 	onSent: (txHash: Hex) => void;
 }
 
-/** Any known signer pays gas for `receiveMessage` on the destination network; the recipient does not change. */
+/**
+ * A known signer pays gas for `receiveMessage` on the destination network; the recipient does not change.
+ * Any signer may, unless `allowed` narrows the choice.
+ */
 export const SwapClaimDialog: React.FC<SwapClaimDialogProps> = ({
 	open,
 	onClose,
@@ -38,11 +43,16 @@ export const SwapClaimDialog: React.FC<SwapClaimDialogProps> = ({
 	attestation,
 	nonce,
 	expirable,
+	allowed,
 	onSent,
 }) => {
 	const t = useT();
 	const lang = useLang();
-	const signers = useAppStore((s) => s.signers);
+	const allSigners = useAppStore((s) => s.signers);
+	const signers = useMemo(
+		() => (allowed ? allSigners.filter((s) => allowed.some((a) => sameAddress(a, s.address))) : allSigners),
+		[allSigners, allowed],
+	);
 	const chain = getChain(dstChainId);
 	const [balances, setBalances] = useState<Record<string, string>>({});
 	const [busy, setBusy] = useState<string>();
@@ -123,7 +133,12 @@ export const SwapClaimDialog: React.FC<SwapClaimDialogProps> = ({
 			<p className="text-base-content/70 mb-3 text-sm">
 				{t("swap.claim.text", { network: chain.name, symbol: chain.nativeSymbol })}
 			</p>
-			{signers.length === 0 && <p className="text-base-content/60 text-sm">{t("swap.claim.noSigners")}</p>}
+			{allowed && <p className="text-base-content/70 mb-3 text-sm">{t("swap.claim.limited")}</p>}
+			{signers.length === 0 && (
+				<p className="text-base-content/60 text-sm">
+					{t(allowed && allSigners.length > 0 ? "swap.claim.noneAllowed" : "swap.claim.noSigners")}
+				</p>
+			)}
 			{signers.length > 0 && <FeeChoice chainId={dstChainId} gas={gas} />}
 			<ul className="-mx-2 flex flex-col">
 				{signers.map((s) => {

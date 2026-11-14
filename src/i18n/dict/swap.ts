@@ -73,6 +73,8 @@ export default defineDict({
 		"swap.claim.text":
 			"The signer pays {symbol} for the crediting transaction on {network}. The recipient stays the same.",
 		"swap.claim.noSigners": "Add a signer first.",
+		"swap.claim.limited": "Who can pay is limited in the account settings.",
+		"swap.claim.noneAllowed": "None of the signers allowed in the account settings has a key on this device.",
 		"swap.claim.confirm": "Confirm the transaction in the wallet.",
 		"swap.claim.reattest": "Request a new attestation",
 		"swap.claim.reattested": "Requested. Try again in a minute.",
@@ -168,6 +170,8 @@ export default defineDict({
 		"swap.claim.text":
 			"Подписант оплатит {symbol} за транзакцию зачисления в сети {network}. Получатель остаётся прежним.",
 		"swap.claim.noSigners": "Сначала добавьте подписанта.",
+		"swap.claim.limited": "Кто может оплатить, ограничено в настройках счёта.",
+		"swap.claim.noneAllowed": "Ни у одного подписанта, разрешённого в настройках счёта, нет ключа на этом устройстве.",
 		"swap.claim.confirm": "Подтвердите транзакцию в кошельке.",
 		"swap.claim.reattest": "Запросить новое подтверждение",
 		"swap.claim.reattested": "Запрошено. Повторите через минуту.",

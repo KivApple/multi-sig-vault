@@ -290,6 +290,17 @@ export const sendHlOperation = async (op: Operation, account: Account, leaderSig
 	markSent(op, account, { sentAt: Date.now(), sender: getAddress(payload.leader) });
 };
 
+/**
+ * Who may send transactions of the account: `undefined` – any address.
+ * A Safe can be limited to its own signers (`owners`) or to the ones picked for it; the setting is kept on this device.
+ */
+export const sendersOf = (account: Account, owners: Address[]): Address[] | undefined => {
+	if (account.kind !== "safe") return undefined;
+	if (account.sendMode === "owners") return owners;
+	if (account.sendMode === "selected") return account.senders ?? [];
+	return undefined;
+};
+
 export interface SafeSendPlan {
 	data: Hex;
 	gas: bigint;
@@ -302,6 +313,9 @@ export const planSafeSend = async (op: Operation, account: Account, from: Addres
 	verifyOperation(op, account);
 	await verifySignatures(op, account);
 	const info = await fetchSafeInfo(chainId, account.address);
+	// Checked against the owners the network reports, whatever the screen offered.
+	const senders = sendersOf(account, info.owners);
+	if (senders && !senders.some((o) => sameAddress(o, from))) throw new AppError("ops.error.senderNotAllowed");
 	if (BigInt(info.nonce) > BigInt(payload.tx.nonce)) throw new AppError("ops.error.nonceUsed");
 	if (BigInt(info.nonce) < BigInt(payload.tx.nonce)) throw new AppError("ops.error.nonceAhead", { nonce: info.nonce });
 	const valid = op.signatures.filter((s) => info.owners.some((o) => sameAddress(o, s.signer)));
@@ -323,7 +337,7 @@ export const planSafeSend = async (op: Operation, account: Account, from: Addres
 	return { data, gas };
 };
 
-/** Executes the Safe transaction from `executor` (any address may pay for gas). */
+/** Executes the Safe transaction from `executor` (any address may pay for gas, unless the account limits it). */
 export const sendSafeOperation = async (op: Operation, account: Account, executor: Signer): Promise<void> => {
 	const plan = await planSafeSend(op, account, executor.address);
 	const txHash = await sendTransactionWith(executor, {
