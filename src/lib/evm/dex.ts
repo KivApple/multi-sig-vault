@@ -8,7 +8,7 @@ import {
 	type Address,
 	type Hex,
 } from "viem";
-import { getChain, type ChainConfig } from "@/config/chains";
+import { getChain, quoteTokenOf, type ChainConfig } from "@/config/chains";
 import { getPublicClient } from "@/lib/rpc";
 import { sameAddress } from "@/lib/format";
 
@@ -49,20 +49,24 @@ export const encodePath = (route: Route): Hex => {
 
 /**
  * Candidate routes: direct pools of every fee tier, plus two-hop routes through the wrapped native
- * coin and through USDC. `fee` pins the fee tier of the first hop (user override).
+ * coin and through the chain's dollar token (USDC on most). `fee` pins the fee tier of the first hop (user override).
  */
 export const candidateRoutes = (chain: ChainConfig, tokenIn: Address, tokenOut: Address, fee?: number): Route[] => {
 	const dex = chain.dex;
 	if (!dex || sameAddress(tokenIn, tokenOut)) return [];
 	const tiers = fee ? [fee] : dex.feeTiers;
 	const routes: Route[] = tiers.map((f) => ({ tokens: [tokenIn, tokenOut], fees: [f] }));
-	const mids = [dex.weth ?? chain.wrappedNative, chain.usdc].filter(
+	const mids = [dex.weth ?? chain.wrappedNative, quoteTokenOf(chain)?.address].filter(
 		(m): m is Address => !!m && !sameAddress(m, tokenIn) && !sameAddress(m, tokenOut),
 	);
-	const secondTiers = dex.feeTiers.filter((f) => f === 500 || f === 3000);
+	// The 0.05% tier and the middle one (0.3%, or 0.25% on PancakeSwap): where the deep pools of a second hop are.
+	const secondTiers = dex.feeTiers.filter((f) => f === 500 || f === 2500 || f === 3000);
+	const quote = quoteTokenOf(chain)?.address;
 	for (const mid of mids) {
+		// Out of the dollar token into another stablecoin the deep pool is the 0.01% one.
+		const seconds = sameAddress(mid, quote) && dex.feeTiers.includes(100) ? [100, ...secondTiers] : secondTiers;
 		for (const a of tiers) {
-			for (const b of secondTiers) routes.push({ tokens: [tokenIn, mid, tokenOut], fees: [a, b] });
+			for (const b of seconds) routes.push({ tokens: [tokenIn, mid, tokenOut], fees: [a, b] });
 		}
 	}
 	return routes;

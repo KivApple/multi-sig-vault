@@ -7,15 +7,17 @@ import { PickerSelect, type PickerOption } from "@/components/common/PickerSelec
 import { NetworkIcon } from "@/components/icons/NetworkIcon";
 import { TokenIcon } from "@/components/icons/TokenIcon";
 import { Field } from "@/components/ui/Field";
+import { Segmented, type SegmentedOption } from "@/components/ui/Segmented";
 import { chainsOf, getChain } from "@/config/chains";
 import { useLang, useT } from "@/i18n";
-import { NATIVE, type SwapParams } from "@/lib/evm/swapBuild";
+import { bridgeOf, bridgeRoutes, FALLBACK_RECEIVE, type ReceiveAsset } from "@/lib/evm/bridges";
+import { bridgeAssetOf, NATIVE, type SwapParams } from "@/lib/evm/swapBuild";
 import { useSwapPreview } from "@/lib/evm/useSwapPreview";
 import { formatAmount, formatUsd, sameAddress } from "@/lib/format";
 import { knownRecipients, type KnownAddress } from "@/lib/known";
 import type { OpFormProps } from "@/lib/ops/types";
 import { useTokens } from "@/lib/tokens";
-import { SwapBridgeOptions } from "./SwapBridgeOptions";
+import { BRIDGE_UI } from "./bridgeUi";
 import { SwapQuoteBox } from "./SwapQuoteBox";
 import { SwapTradeOptions } from "./SwapTradeOptions";
 
@@ -80,17 +82,29 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 		[tokens, chain.nativeSymbol, chain.nativeName, chainId, value.tokenIn],
 	);
 
+	// What the chosen token is to the bridges: the coin crosses as its wrapped token.
+	const sent = value.tokenIn === NATIVE ? chain.wrappedNative : value.tokenIn;
 	const chainOptions = useMemo<PickerOption[]>(
 		() =>
 			chainsOf(account.env)
-				.filter((c) => c.id === chainId || (!!c.cctp && !!chain.cctp))
-				.map((c) => ({
-					value: String(c.id),
-					title: c.name,
-					subtitle: c.id === chainId ? t("swap.thisNetwork") : t("swap.viaBridge"),
-					icon: <NetworkIcon chainId={c.id} size={32} />,
-				})),
-		[account.env, chainId, chain.cctp, t],
+				.filter((c) => c.id === chainId || bridgeRoutes(chain, c, sent).length > 0)
+				.map((c) => {
+					// The chosen network says how the choice made for it travels; the others, how they would by default.
+					const want = c.id === value.destChainId ? value.receive : undefined;
+					const asset = c.id === chainId ? undefined : bridgeAssetOf(chainId, c.id, value.tokenIn, want);
+					return {
+						value: String(c.id),
+						title: c.name,
+						subtitle:
+							c.id === chainId
+								? t("swap.thisNetwork")
+								: asset
+									? t("swap.via", { symbol: asset.destSymbol, bridge: bridgeOf(asset.kind).name })
+									: "",
+						icon: <NetworkIcon chainId={c.id} size={32} />,
+					};
+				}),
+		[account.env, chainId, chain, sent, value.tokenIn, value.destChainId, value.receive, t],
 	);
 
 	const handleTokenIn = useCallback(
@@ -101,6 +115,8 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 				tokenInSymbol: h?.symbol ?? chain.nativeSymbol,
 				tokenInDecimals: h?.decimals ?? 18,
 				amount: "",
+				// Another token has other ways across: start from its default.
+				receive: undefined,
 			};
 			if (sameAddress(v, value.tokenOut) || (v === NATIVE && value.tokenOut === NATIVE)) {
 				patch.tokenOut = "";
@@ -125,7 +141,7 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 
 	const handleChain = useCallback(
 		// The recipient list depends on the network – start again from this Safe's address.
-		(v: string) => onChange({ destChainId: Number(v), recipient: "" }),
+		(v: string) => onChange({ destChainId: Number(v), recipient: "", receive: undefined }),
 		[onChange],
 	);
 	const handleAmount = useCallback((amount: string) => onChange({ amount }), [onChange]);
@@ -162,7 +178,26 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 		</span>
 	);
 
-	const needSwap = !cross || value.tokenIn === NATIVE || !sameAddress(value.tokenIn, chain.usdc);
+	// What can arrive on the other network: the token itself where a bridge carries it, and whatever
+	// else the bridges carry there after a swap here. The first is the default.
+	const routes = useMemo(() => (cross ? bridgeRoutes(chain, dest, sent) : []), [cross, chain, dest, sent]);
+	// The quote found that the bridge cannot carry this amount: it goes as USDC, and there is nothing to choose.
+	const fallback = cross && !!preview.resolved?.fallback;
+	const asset = cross
+		? bridgeAssetOf(chainId, value.destChainId, value.tokenIn, fallback ? FALLBACK_RECEIVE : value.receive)
+		: undefined;
+	const needSwap = !cross || !sameAddress(sent, asset?.address);
+	const receiveOptions = useMemo<SegmentedOption<ReceiveAsset>[]>(
+		() =>
+			routes.map((r) => ({
+				value: r.receive,
+				label: bridgeAssetOf(chainId, value.destChainId, value.tokenIn, r.receive)?.destSymbol ?? r.receive,
+			})),
+		[routes, chainId, value.destChainId, value.tokenIn],
+	);
+	const received = asset?.receive;
+	const ui = asset && BRIDGE_UI[asset.kind];
+	const handleReceive = useCallback((receive: ReceiveAsset) => onChange({ receive }), [onChange]);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -195,11 +230,37 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 				</Field>
 			)}
 			{cross ? (
-				<Field label={t("swap.receive")} hint={needSwap ? t("swap.crossHint", { network: dest.name }) : undefined}>
+				<Field
+					label={t("swap.receive")}
+					hint={
+						needSwap
+							? t("swap.crossHint", { network: dest.name, symbol: asset?.symbol ?? "USDC" })
+							: asset?.destNative
+								? t("swap.wrappedHint", { symbol: asset.destSymbol })
+								: undefined
+					}
+				>
+					{/* Across cannot carry the amount: no choice is left, and the quote below says why. */}
+					{receiveOptions.length > 1 && !fallback && received && (
+						<div className="mb-2">
+							<Segmented
+								value={received}
+								options={receiveOptions}
+								onChange={handleReceive}
+								size="sm"
+								ariaLabel={t("swap.receive")}
+							/>
+						</div>
+					)}
 					<div className="input flex h-auto min-h-12 w-full items-center gap-2 py-1.5">
-						<TokenIcon symbol="USDC" chainId={dest.id} address={dest.usdc} size={32} />
+						<TokenIcon
+							symbol={asset?.destSymbol ?? "USDC"}
+							chainId={dest.id}
+							address={asset?.destNative ? undefined : (asset?.destAddress ?? dest.usdc)}
+							size={32}
+						/>
 						<span className="flex flex-col leading-tight">
-							<span className="font-medium">USDC</span>
+							<span className="font-medium">{asset?.destSymbol ?? "USDC"}</span>
 							<span className="text-base-content/60 text-xs">{dest.name}</span>
 						</span>
 					</div>
@@ -227,7 +288,8 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 				hint={recipientHint}
 			/>
 			{needSwap && <SwapTradeOptions value={value} onChange={onChange} chainId={chainId} error={errors.slippage} />}
-			{cross && <SwapBridgeOptions value={value} onChange={onChange} chainId={chainId} />}
+			{ui?.Options && <ui.Options value={value} onChange={onChange} chainId={chainId} />}
+			{ui?.Note && <ui.Note src={chain} />}
 			<SwapQuoteBox params={value} preview={preview} chainId={chainId} />
 		</div>
 	);

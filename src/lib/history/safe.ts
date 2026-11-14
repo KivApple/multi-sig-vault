@@ -1,6 +1,7 @@
 import { formatUnits, getAddress, isAddress, type Address } from "viem";
 import { explorerTx, findChain, getChain } from "@/config/chains";
 import { AppError } from "@/lib/errors";
+import { BRIDGES } from "@/lib/evm/bridges";
 import { sameAddress } from "@/lib/format";
 import { findToken } from "@/lib/tokens";
 import { cleanSymbol, type HistoryAmount, type HistoryItem, type HistoryLoader } from "./types";
@@ -140,12 +141,14 @@ export const describeSafeRecord = (raw: unknown, safe: Address, chainId: number)
 	const hash = txHash && /^0x[0-9a-f]{64}$/i.test(txHash) ? txHash : undefined;
 	const own = r.txType === "MULTISIG_TRANSACTION";
 	const chain = getChain(chainId);
-	// Calls to the contracts the app itself uses for swaps and the USDC bridge are named as such.
+	// Calls to the contracts the app itself uses for swaps and the bridges are named as such.
 	const called = own ? calledAddresses(r) : [];
 	const calls = (target: Address | undefined): boolean => !!target && called.some((a) => sameAddress(a, target));
 	const swapped = calls(chain.dex?.router);
-	const bridged = calls(chain.cctp?.tokenMessenger);
-	const amounts = transferAmounts(r.transfers, safe, chainId, own, bridged ? chain.usdc : undefined);
+	const bridge = BRIDGES.find((b) => calls(b.target(chain)));
+	const bridged = !!bridge;
+	const bridgeToken = bridge?.historyToken(chain);
+	const amounts = transferAmounts(r.transfers, safe, chainId, own, bridged ? bridgeToken : undefined);
 	const base = { time, amounts, link: hash ? explorerTx(chainId, hash) : undefined, txHash: hash };
 	const key = (name: string): HistoryItem["title"] => ({ key: `history.safe.${name}` });
 

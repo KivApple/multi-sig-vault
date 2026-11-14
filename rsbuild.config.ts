@@ -31,6 +31,10 @@ export default defineConfig({
 		entry: { index: "./src/index.tsx" },
 		define: {
 			"import.meta.env.PUBLIC_APP_VERSION": JSON.stringify(pkg.version),
+			// Optional credentials of the Across bridge API, from the environment or `.env`. Both end up in the
+			// public build: they tell the bridge which app is asking, they protect nothing.
+			"import.meta.env.PUBLIC_ACROSS_API_KEY": JSON.stringify(process.env.ACROSS_API_KEY ?? ""),
+			"import.meta.env.PUBLIC_ACROSS_INTEGRATOR_ID": JSON.stringify(process.env.ACROSS_INTEGRATOR_ID ?? ""),
 		},
 	},
 	resolve: { alias: { "@": "./src", "@react-native-async-storage/async-storage": false } },

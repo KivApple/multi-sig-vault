@@ -1,7 +1,7 @@
 import type { Address } from "viem";
 import type { NetworkEnv } from "@/types/domain";
 
-export type ChainKey = "ethereum" | "hyperevm" | "arbitrum" | "base" | "polygon";
+export type ChainKey = "ethereum" | "hyperevm" | "arbitrum" | "base" | "polygon" | "bnb";
 
 export interface DexConfig {
 	/** Uniswap-V3 compatible router. */
@@ -20,6 +20,32 @@ export interface CctpConfig {
 	messageTransmitter: Address;
 }
 
+/** What the Across bridge carries between the networks of this app as the same asset. */
+export type AcrossAsset = "USDT" | "WETH" | "WBTC";
+export const ACROSS_ASSETS: AcrossAsset[] = ["USDT", "WETH", "WBTC"];
+
+export interface AcrossToken {
+	address: Address;
+	decimals: number;
+}
+
+/**
+ * The Across bridge on a network: its pool contract and the tokens it takes there. A token crosses
+ * to another network as itself when both list the asset. It is also the only way to and from
+ * BNB Chain, which has no USDC of Circle's.
+ */
+export interface AcrossConfig {
+	spokePool: Address;
+	tokens: Partial<Record<AcrossAsset, AcrossToken>>;
+}
+
+export type BridgeKind = "cctp" | "across";
+
+export interface QuoteToken {
+	address: Address;
+	decimals: number;
+}
+
 export interface ChainConfig {
 	id: number;
 	key: ChainKey;
@@ -33,9 +59,16 @@ export interface ChainConfig {
 	mevRpcUrl?: string;
 	explorer: string;
 	wrappedNative: Address;
+	/** Circle's USDC (6 decimals): what the bridge moves, and what balances are valued in unless `quote` says otherwise. */
 	usdc?: Address;
+	/**
+	 * The dollar token balances are valued in and swaps are routed through, where that is not USDC:
+	 * a network whose liquidity sits in another stablecoin.
+	 */
+	quote?: QuoteToken;
 	dex?: DexConfig;
 	cctp?: CctpConfig;
+	across?: AcrossConfig;
 	/** Safe Transaction Service base URL (used only to resolve creation parameters). */
 	safeTxService?: string;
 	/** Legacy (non EIP-1559) transactions only. */
@@ -43,6 +76,8 @@ export interface ChainConfig {
 }
 
 const UNI_TIERS = [100, 500, 3000, 10000];
+/** PancakeSwap V3 has a 0.25% tier where Uniswap has 0.3%. */
+const PANCAKE_TIERS = [100, 500, 2500, 10000];
 
 /** Circle Iris API (attestations, fees) per environment. */
 export const IRIS_API: Record<NetworkEnv, string> = {
@@ -61,8 +96,8 @@ const CCTP_TESTNET = {
 } as const;
 
 /**
- * Adding a chain: append an entry here, add a network icon in
- * `components/icons/NetworkIcon.tsx` and (optionally) built-in tokens.
+ * Adding a network: an entry here, its icon and its tokens – the steps, and what to verify on the
+ * network itself first, are in docs/development.md ("Adding a network").
  */
 export const CHAINS: ChainConfig[] = [
 	{
@@ -86,6 +121,14 @@ export const CHAINS: ChainConfig[] = [
 			feeTiers: UNI_TIERS,
 		},
 		cctp: { domain: 0, ...CCTP_MAINNET },
+		across: {
+			spokePool: "0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5",
+			tokens: {
+				USDT: { address: "0xdAC17F958D2ee523a2206206994597C13D831ec7", decimals: 6 },
+				WETH: { address: "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", decimals: 18 },
+				WBTC: { address: "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", decimals: 8 },
+			},
+		},
 		safeTxService: "https://api.safe.global/tx-service/eth",
 	},
 	{
@@ -112,6 +155,12 @@ export const CHAINS: ChainConfig[] = [
 			feeTiers: UNI_TIERS,
 		},
 		cctp: { domain: 19, ...CCTP_MAINNET },
+		across: {
+			spokePool: "0x35E63eA3eb0fb7A3bc543C71FB66412e1F6B0E04",
+			tokens: {
+				USDT: { address: "0xB8CE59FC3717ada4C02eaDF9682A9e934F625ebb", decimals: 6 },
+			},
+		},
 		safeTxService: "https://api.safe.global/tx-service/hyper",
 	},
 	{
@@ -134,6 +183,14 @@ export const CHAINS: ChainConfig[] = [
 			feeTiers: UNI_TIERS,
 		},
 		cctp: { domain: 3, ...CCTP_MAINNET },
+		across: {
+			spokePool: "0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A",
+			tokens: {
+				USDT: { address: "0xFd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9", decimals: 6 },
+				WETH: { address: "0x82aF49447D8a07e3bd95BD0d56f35241523fBab1", decimals: 18 },
+				WBTC: { address: "0x2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f", decimals: 8 },
+			},
+		},
 		safeTxService: "https://api.safe.global/tx-service/arb1",
 	},
 	{
@@ -156,6 +213,13 @@ export const CHAINS: ChainConfig[] = [
 			feeTiers: UNI_TIERS,
 		},
 		cctp: { domain: 6, ...CCTP_MAINNET },
+		across: {
+			spokePool: "0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64",
+			tokens: {
+				USDT: { address: "0xfde4C96c8593536E31F229EA8f37b2ADa2699bb2", decimals: 6 },
+				WETH: { address: "0x4200000000000000000000000000000000000006", decimals: 18 },
+			},
+		},
 		safeTxService: "https://api.safe.global/tx-service/base",
 	},
 	{
@@ -179,7 +243,51 @@ export const CHAINS: ChainConfig[] = [
 			feeTiers: UNI_TIERS,
 		},
 		cctp: { domain: 7, ...CCTP_MAINNET },
+		across: {
+			spokePool: "0x9295ee1d8C5b022Be115A2AD3c30C72E34e7F096",
+			tokens: {
+				USDT: { address: "0xc2132D05D31c914a87C6611C10748AEb04B58e8F", decimals: 6 },
+				WETH: { address: "0x7ceB23fD6bC0adD59E62ac25578270cFf1b9f619", decimals: 18 },
+				WBTC: { address: "0x1BFD67037B42Cf73acF2047067bd4F2C47D9BfD6", decimals: 8 },
+			},
+		},
 		safeTxService: "https://api.safe.global/tx-service/pol",
+	},
+	{
+		id: 56,
+		key: "bnb",
+		env: "mainnet",
+		name: "BNB Chain",
+		shortName: "bnb",
+		nativeSymbol: "BNB",
+		nativeName: "BNB",
+		rpcUrls: [
+			"https://bsc-dataseed.bnbchain.org",
+			"https://bsc-rpc.publicnode.com",
+			"https://bsc-dataseed1.binance.org",
+		],
+		explorer: "https://bscscan.com",
+		wrappedNative: "0xbb4CdB9CBd36B01bD1cBaEBF2De08d9173bc095c",
+		// No USDC of Circle's here (the "USDC" of this network is a Binance-pegged token with 18 decimals),
+		// so no CCTP: USDT crosses through Across instead. Liquidity sits in USDT on PancakeSwap: Uniswap's
+		// pools here are too thin to price by.
+		quote: { address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 },
+		across: {
+			spokePool: "0x4e8E101924eDE233C13e2D8622DC8aED2872d505",
+			tokens: {
+				// WETH here is Binance-pegged ETH, an ordinary token.
+				USDT: { address: "0x55d398326f99059fF775485246999027B3197955", decimals: 18 },
+				WETH: { address: "0x2170Ed0880ac9A755fd29B2688956BD959F933F8", decimals: 18 },
+			},
+		},
+		dex: {
+			name: "PancakeSwap V3",
+			router: "0x13f4EA83D0bd40E75C8222255bc855a974568Dd4",
+			quoter: "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997",
+			factory: "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865",
+			feeTiers: PANCAKE_TIERS,
+		},
+		safeTxService: "https://api.safe.global/tx-service/bnb",
 	},
 	{
 		id: 11155111,
@@ -283,9 +391,30 @@ export const CHAINS: ChainConfig[] = [
 		// Uniswap is not deployed on Amoy: no swaps there, the USDC bridge works.
 		cctp: { domain: 7, ...CCTP_TESTNET },
 	},
+	{
+		id: 97,
+		key: "bnb",
+		env: "testnet",
+		name: "BNB Testnet",
+		shortName: "bnbt",
+		nativeSymbol: "BNB",
+		nativeName: "Testnet BNB",
+		rpcUrls: [
+			"https://bsc-testnet-rpc.publicnode.com",
+			"https://bsc-testnet-dataseed.bnbchain.org",
+			"https://data-seed-prebsc-1-s1.bnbchain.org:8545",
+		],
+		explorer: "https://testnet.bscscan.com",
+		wrappedNative: "0xae13d989daC2f0dEbFf460aC112a837C89BAa7cd",
+		// Safes and transfers only: no swaps and no bridge on this testnet.
+	},
 ];
 
-export const CHAIN_KEYS: ChainKey[] = ["ethereum", "hyperevm", "arbitrum", "base", "polygon"];
+export const CHAIN_KEYS: ChainKey[] = ["ethereum", "hyperevm", "arbitrum", "base", "polygon", "bnb"];
+
+/** The dollar token of a chain: its `quote`, else its USDC. */
+export const quoteTokenOf = (chain: ChainConfig): QuoteToken | undefined =>
+	chain.quote ?? (chain.usdc ? { address: chain.usdc, decimals: 6 } : undefined);
 
 const BY_ID = new Map(CHAINS.map((c) => [c.id, c]));
 

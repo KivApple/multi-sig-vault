@@ -21,6 +21,7 @@ import {
 import { privateKeyToAccount } from "viem/accounts";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getChain } from "@/config/chains";
+import { acrossToken, SPOKE_POOL_ABI, spokePoolOf } from "@/lib/evm/across";
 import { addressToBytes32, FORWARD_HOOK_DATA, TOKEN_MESSENGER_ABI } from "@/lib/evm/cctp";
 import { NATIVE, type SwapParams } from "@/lib/evm/swapBuild";
 import { swapOp } from "@/lib/ops/safe/swap";
@@ -57,6 +58,8 @@ const FORK_RPC: Record<number, string> = {
 	8453: "https://mainnet.base.org",
 	42161: "https://arb1.arbitrum.io/rpc",
 	999: "https://rpc.hyperliquid.xyz/evm",
+	56: process.env.MSV_FORK_RPC_56 ?? "https://bsc-rpc.publicnode.com",
+	137: process.env.MSV_FORK_RPC_137 ?? "https://polygon-bor-rpc.publicnode.com",
 };
 
 let nextPort = 18545 + Math.floor(Math.random() * 500);
@@ -364,7 +367,14 @@ const suite = (chainId: number, bridgeTo: number): void => {
 			const fast = chain.key !== "hyperevm";
 			const { resolved, receipt } = await run(
 				f,
-				params(f, { amount: "1", destChainId: bridgeTo, forward: false, speed: fast ? "fast" : "standard" }),
+				// The coin could cross as itself between some of these networks: USDC is asked for.
+				params(f, {
+					amount: "1",
+					destChainId: bridgeTo,
+					receive: "USDC",
+					forward: false,
+					speed: fast ? "fast" : "standard",
+				}),
 			);
 			const swap = resolved.swap as NonNullable<typeof resolved.swap>;
 			const bridge = resolved.bridge as NonNullable<typeof resolved.bridge>;
@@ -402,3 +412,407 @@ suite(1, 8453);
 suite(8453, 999);
 suite(42161, 1);
 suite(999, 42161);
+
+/**
+ * BNB Chain: PancakeSwap V3 instead of Uniswap and USDT (18 decimals) instead of USDC.
+ * The router is a different contract with the same calls – this proves it on the real one.
+ */
+describe.skipIf(!ENABLED || (!!ONLY && !ONLY.includes(56)))("swap on a fork of chain 56", () => {
+	let f: Fork;
+	const chain = getChain(56);
+	const usdt = chain.quote?.address as Address;
+	const wbnb = chain.wrappedNative;
+
+	beforeAll(async () => {
+		f = await startFork(56);
+	}, 180_000);
+	afterAll(() => {
+		f?.proc.kill();
+	});
+
+	it("native → USDT at a market price", async () => {
+		const before = await balanceOf(f, usdt);
+		const { resolved } = await run(
+			f,
+			params(f, { amount: "20", tokenOut: usdt, tokenOutSymbol: "USDT", tokenOutDecimals: 18 }),
+		);
+		const got = (await balanceOf(f, usdt)) - before;
+		expect(got).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
+		// Twenty coins must not move the price: a thin pool would show here.
+		expect(resolved.swap?.impactBps ?? 10_000).toBeLessThan(100);
+		expect(resolved.swap?.fees.every((fee) => chain.dex?.feeTiers.includes(fee))).toBe(true);
+		console.log(
+			`[56] 20 BNB → ${Number(got) / 1e18} USDT via fees ${resolved.swap?.fees.join("+")}, impact ${resolved.swap?.impactBps} bps`,
+		);
+	}, 180_000);
+
+	it("USDT → wrapped native, the approval fully used", async () => {
+		const before = await balanceOf(f, wbnb);
+		const usdtBefore = await balanceOf(f, usdt);
+		const { resolved } = await run(
+			f,
+			params(f, {
+				tokenIn: usdt,
+				tokenInSymbol: "USDT",
+				tokenInDecimals: 18,
+				amount: "500",
+				tokenOut: wbnb,
+				tokenOutSymbol: "WBNB",
+				tokenOutDecimals: 18,
+			}),
+		);
+		expect((await balanceOf(f, wbnb)) - before).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
+		expect(usdtBefore - (await balanceOf(f, usdt))).toBe(500n * 10n ** 18n);
+		expect(
+			await f.pub.readContract({
+				address: usdt,
+				abi: ERC20_ABI,
+				functionName: "allowance",
+				args: [f.safe, chain.dex?.router as Address],
+			}),
+		).toBe(0n);
+	}, 180_000);
+
+	it("USDT → native coin, unwrapped to another recipient", async () => {
+		const before = await f.pub.getBalance({ address: STRANGER });
+		const { resolved } = await run(
+			f,
+			params(f, {
+				tokenIn: usdt,
+				tokenInSymbol: "USDT",
+				tokenInDecimals: 18,
+				amount: "500",
+				tokenOut: NATIVE,
+				tokenOutSymbol: "BNB",
+				recipient: STRANGER,
+			}),
+		);
+		const got = (await f.pub.getBalance({ address: STRANGER })) - before;
+		expect(got).toBeGreaterThanOrEqual(BigInt(resolved.swap?.minOut ?? 0));
+		expect(got).toBeGreaterThan(0n);
+	}, 180_000);
+});
+
+/**
+ * USDT to and from BNB Chain through Across, on forks of the real SpokePools with a live quote.
+ * Only the deposit can be proven on a fork; the fill is a relayer's transaction on the other network.
+ */
+const usdtSide = (chainId: number) => ({
+	spokePool: spokePoolOf(chainId),
+	usdt: acrossToken(chainId, "USDT").address,
+	usdtDecimals: acrossToken(chainId, "USDT").decimals,
+});
+
+const acrossSuite = (chainId: number, destChainId: number, nativeAmount: string): void => {
+	const enabled = ENABLED && (!ONLY || ONLY.includes(chainId));
+	describe.skipIf(!enabled)(`USDT through Across from chain ${chainId} to ${destChainId}`, () => {
+		let f: Fork;
+		const chain = getChain(chainId);
+		const src = usdtSide(chainId);
+		const dst = usdtSide(destChainId);
+		// Where the coin is ETH it crosses as itself; elsewhere it is sold for USDT first.
+		const weth = getChain(chainId).across?.tokens.WETH;
+		const coinIsEth = !!weth && weth.address.toLowerCase() === chain.wrappedNative.toLowerCase();
+
+		beforeAll(async () => {
+			f = await startFork(chainId);
+		}, 180_000);
+		afterAll(() => {
+			f?.proc.kill();
+		});
+
+		const depositOf = (logs: Parameters<typeof parseEventLogs>[0]["logs"]) => {
+			const events = parseEventLogs({ abi: SPOKE_POOL_ABI, logs, eventName: "FundsDeposited" }).filter(
+				(e) => e.address.toLowerCase() === src.spokePool.toLowerCase(),
+			);
+			expect(events).toHaveLength(1);
+			return events[0].args;
+		};
+		const allowance = (): Promise<bigint> =>
+			f.pub.readContract({
+				address: src.usdt,
+				abi: ERC20_ABI,
+				functionName: "allowance",
+				args: [f.safe, src.spokePool],
+			});
+
+		it.skipIf(!coinIsEth)(
+			"the coin crosses as itself, sent as the value of the call",
+			async () => {
+				const from = acrossToken(chainId, "WETH");
+				const to = acrossToken(destChainId, "WETH");
+				const escrowBefore = await balanceOf(f, from.address, src.spokePool);
+				const coinBefore = await f.pub.getBalance({ address: f.safe });
+				const { resolved, receipt } = await run(f, params(f, { amount: nativeAmount, destChainId }));
+				const leg = resolved.across as NonNullable<typeof resolved.across>;
+				expect(resolved.swap).toBeUndefined();
+				expect(resolved.bridge).toBeUndefined();
+				expect(leg.asset).toBe("WETH");
+				const ev = depositOf(receipt.logs);
+				expect(ev.inputToken).toBe(addressToBytes32(from.address));
+				expect(ev.outputToken).toBe(addressToBytes32(to.address));
+				expect(ev.inputAmount).toBe(BigInt(leg.amount));
+				expect(ev.outputAmount).toBe(BigInt(leg.output));
+				expect(ev.destinationChainId).toBe(BigInt(destChainId));
+				expect(ev.recipient).toBe(addressToBytes32(f.safe));
+				// The pool wrapped the coin: it holds that much more of the token, the Safe that much less of the coin.
+				expect((await balanceOf(f, from.address, src.spokePool)) - escrowBefore).toBe(BigInt(leg.amount));
+				expect(coinBefore - (await f.pub.getBalance({ address: f.safe }))).toBe(BigInt(leg.amount));
+				console.log(
+					`[${chainId}→${destChainId}] ${nativeAmount} ${chain.nativeSymbol} → ${Number(leg.output) / 1e18} (unwrap ${leg.unwrap}), bridge fee ${Number(leg.fee) / 1e18}`,
+				);
+			},
+			300_000,
+		);
+
+		it.skipIf(coinIsEth)(
+			"native coin → USDT → the other network, in one transaction",
+			async () => {
+				const escrowBefore = await balanceOf(f, src.usdt, src.spokePool);
+				const { resolved, receipt } = await run(f, params(f, { amount: nativeAmount, destChainId }));
+				const leg = resolved.across as NonNullable<typeof resolved.across>;
+				expect(resolved.bridge).toBeUndefined();
+				expect(leg.amount).toBe(resolved.swap?.minOut);
+				const ev = depositOf(receipt.logs);
+				expect(ev.inputToken).toBe(addressToBytes32(src.usdt));
+				expect(ev.outputToken).toBe(addressToBytes32(dst.usdt));
+				expect(ev.inputAmount).toBe(BigInt(leg.amount));
+				expect(ev.outputAmount).toBe(BigInt(leg.output));
+				expect(ev.destinationChainId).toBe(BigInt(destChainId));
+				expect(ev.depositor).toBe(addressToBytes32(f.safe));
+				expect(ev.recipient).toBe(addressToBytes32(f.safe));
+				expect(BigInt(ev.exclusiveRelayer)).toBe(0n);
+				expect(ev.message).toBe("0x");
+				// The contract stamps the quote time and the deadline itself, from the block that ran the deposit.
+				const block = await f.pub.getBlock({ blockNumber: receipt.blockNumber });
+				expect(ev.quoteTimestamp).toBe(Number(block.timestamp));
+				expect(ev.fillDeadline - ev.quoteTimestamp).toBe(leg.fillDeadlineOffset);
+				expect((await balanceOf(f, src.usdt, src.spokePool)) - escrowBefore).toBe(BigInt(leg.amount));
+				expect(await allowance()).toBe(0n);
+				console.log(
+					`[${chainId}→${destChainId}] ${nativeAmount} ${chain.nativeSymbol} → ${Number(leg.amount) / 10 ** src.usdtDecimals} USDT via ${resolved.swap?.tokens.length === 2 ? "a direct pool" : "two hops"} (fees ${resolved.swap?.fees.join("+")}, impact ${resolved.swap?.impactBps} bps) → ${Number(leg.output) / 10 ** dst.usdtDecimals} USDT, bridge fee ${Number(leg.fee) / 10 ** src.usdtDecimals}`,
+				);
+			},
+			300_000,
+		);
+
+		it("USDT already in the Safe → another recipient, after a leftover allowance", async () => {
+			// The swap above left its surplus over the guaranteed minimum in the Safe – unless the pool gave exactly it.
+			await run(
+				f,
+				params(f, {
+					amount: nativeAmount,
+					tokenOut: src.usdt,
+					tokenOutSymbol: "USDT",
+					tokenOutDecimals: src.usdtDecimals,
+				}),
+			);
+			const held = await balanceOf(f, src.usdt);
+			const send = (held / 2n / 10n ** BigInt(src.usdtDecimals)).toString();
+			expect(Number(send)).toBeGreaterThanOrEqual(1);
+			// A leftover allowance: USDT on Ethereum refuses to change a non-zero one.
+			const approve = encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [src.spokePool, 7n] });
+			const nonce = await f.pub.readContract({ address: f.safe, abi: SAFE_ABI, functionName: "nonce" });
+			const tx = toSafeTx([{ to: src.usdt, value: 0n, data: approve }], nonce);
+			const typed = safeTxTypedData(f.chainId, f.safe, tx);
+			const signature = await owner.signTypedData({
+				domain: typed.domain,
+				types: { EIP712Domain: getTypesForEIP712Domain({ domain: typed.domain }), ...typed.types },
+				primaryType: typed.primaryType,
+				message: typed.message,
+			} as never);
+			const hash = await f.wallet.sendTransaction({
+				chain: null,
+				account: owner,
+				to: f.safe,
+				data: encodeExecTransaction(tx, [{ signer: owner.address, signature }]),
+				gas: 1_000_000n,
+			});
+			await f.pub.waitForTransactionReceipt({ hash, timeout: 400_000 });
+			expect(await allowance()).toBe(7n);
+
+			const { resolved, receipt } = await run(
+				f,
+				params(f, {
+					tokenIn: src.usdt,
+					tokenInSymbol: "USDT",
+					tokenInDecimals: src.usdtDecimals,
+					amount: send,
+					destChainId,
+					recipient: STRANGER,
+				}),
+			);
+			const leg = resolved.across as NonNullable<typeof resolved.across>;
+			expect(resolved.swap).toBeUndefined();
+			expect(leg.resetAllowance).toBe(true);
+			const ev = depositOf(receipt.logs);
+			expect(ev.inputAmount).toBe(BigInt(send) * 10n ** BigInt(src.usdtDecimals));
+			expect(ev.depositor).toBe(addressToBytes32(f.safe));
+			expect(ev.recipient).toBe(addressToBytes32(STRANGER));
+			expect(held - (await balanceOf(f, src.usdt))).toBe(ev.inputAmount);
+			expect(await allowance()).toBe(0n);
+		}, 400_000);
+	});
+};
+
+acrossSuite(1, 56, "0.5");
+acrossSuite(42161, 56, "0.5");
+acrossSuite(8453, 56, "0.5");
+// The fork gives a Safe 100 coins and the suite spends the amount twice.
+acrossSuite(137, 56, "40");
+acrossSuite(999, 56, "20");
+acrossSuite(56, 42161, "2");
+
+/**
+ * Between two networks that also have USDC, USDT is not sold for it: it goes through Across and
+ * arrives as USDT. The deposit carries the app's integrator id after its calldata.
+ */
+describe.skipIf(!ENABLED || (!!ONLY && !ONLY.includes(1)))(
+	"USDT as USDT between networks that have USDC (1 → 42161)",
+	() => {
+		let f: Fork;
+		const src = usdtSide(1);
+		const dst = usdtSide(42161);
+
+		beforeAll(async () => {
+			f = await startFork(1);
+		}, 180_000);
+		afterAll(() => {
+			vi.unstubAllEnvs();
+			f?.proc.kill();
+		});
+
+		it("deposits USDT held by the Safe, marked with the integrator id", async () => {
+			await run(f, params(f, { amount: "0.5", tokenOut: src.usdt, tokenOutSymbol: "USDT", tokenOutDecimals: 6 }));
+			const held = await balanceOf(f, src.usdt);
+			vi.stubEnv("PUBLIC_ACROSS_INTEGRATOR_ID", "0xf001");
+			const { resolved, receipt } = await run(
+				f,
+				params(f, { tokenIn: src.usdt, tokenInSymbol: "USDT", tokenInDecimals: 6, amount: "500", destChainId: 42161 }),
+			);
+			const leg = resolved.across as NonNullable<typeof resolved.across>;
+			expect(resolved.swap).toBeUndefined();
+			expect(resolved.bridge).toBeUndefined();
+			expect(leg.integrator).toBe("0xf001");
+			const events = parseEventLogs({ abi: SPOKE_POOL_ABI, logs: receipt.logs, eventName: "FundsDeposited" });
+			expect(events).toHaveLength(1);
+			const ev = events[0].args;
+			expect(ev.inputToken).toBe(addressToBytes32(src.usdt));
+			expect(ev.outputToken).toBe(addressToBytes32(dst.usdt));
+			expect(ev.inputAmount).toBe(500_000_000n);
+			expect(ev.outputAmount).toBe(BigInt(leg.output));
+			expect(ev.destinationChainId).toBe(42161n);
+			expect(ev.recipient).toBe(addressToBytes32(f.safe));
+			expect(held - (await balanceOf(f, src.usdt))).toBe(500_000_000n);
+			console.log(`[1→42161] 500 USDT → ${Number(leg.output) / 1e6} USDT, bridge fee ${Number(leg.fee) / 1e6}`);
+		}, 400_000);
+
+		it("sells USDT for USDC and sends that when USDC is asked for", async () => {
+			const usdc = getChain(1).usdc as Address;
+			const { resolved, receipt } = await run(
+				f,
+				params(f, {
+					tokenIn: src.usdt,
+					tokenInSymbol: "USDT",
+					tokenInDecimals: 6,
+					amount: "50",
+					destChainId: 42161,
+					receive: "USDC",
+				}),
+			);
+			expect(resolved.across).toBeUndefined();
+			expect(resolved.fallback).toBeUndefined();
+			expect(resolved.swap?.tokens.at(-1)?.toLowerCase()).toBe(usdc.toLowerCase());
+			expect(burnEvent(f, receipt.logs).amount).toBe(BigInt(resolved.swap?.minOut ?? 0));
+		}, 400_000);
+
+		it("falls back to USDC, and says so, when Across cannot carry the amount", async () => {
+			const real = globalThis.fetch;
+			const spy = vi.spyOn(globalThis, "fetch").mockImplementation((input, init) =>
+				String(input).includes("/swap/approval")
+					? Promise.resolve(
+							new Response(JSON.stringify({ type: "AcrossApiError", code: "AMOUNT_TOO_HIGH", status: 400 }), {
+								status: 400,
+							}),
+						)
+					: real(input, init),
+			);
+			try {
+				const { resolved, receipt } = await run(
+					f,
+					params(f, { tokenIn: src.usdt, tokenInSymbol: "USDT", tokenInDecimals: 6, amount: "50", destChainId: 42161 }),
+				);
+				expect(resolved.fallback).toBe(true);
+				expect(resolved.across).toBeUndefined();
+				expect(burnEvent(f, receipt.logs).amount).toBe(BigInt(resolved.swap?.minOut ?? 0));
+				// To BNB Chain there is nothing to fall back to: the limit is an error.
+				const env: OpEnv = { account: f.account, accounts: [], signers: [] };
+				const toBnb = params(f, {
+					tokenIn: src.usdt,
+					tokenInSymbol: "USDT",
+					tokenInDecimals: 6,
+					amount: "50",
+					destChainId: 56,
+				});
+				await expect((swapOp.prepare as NonNullable<typeof swapOp.prepare>)(toBnb, env)).rejects.toMatchObject({
+					key: "swap.error.acrossLimit",
+				});
+			} finally {
+				spy.mockRestore();
+			}
+		}, 400_000);
+
+		it("sells USDT for ETH here when ETH is what should arrive", async () => {
+			const weth = acrossToken(1, "WETH");
+			const { resolved, receipt } = await run(
+				f,
+				params(f, {
+					tokenIn: src.usdt,
+					tokenInSymbol: "USDT",
+					tokenInDecimals: 6,
+					amount: "100",
+					destChainId: 8453,
+					receive: "WETH",
+				}),
+			);
+			const leg = resolved.across as NonNullable<typeof resolved.across>;
+			expect(leg.asset).toBe("WETH");
+			expect(resolved.swap?.tokens.at(-1)?.toLowerCase()).toBe(weth.address.toLowerCase());
+			expect(leg.amount).toBe(resolved.swap?.minOut);
+			const ev = parseEventLogs({ abi: SPOKE_POOL_ABI, logs: receipt.logs, eventName: "FundsDeposited" })[0].args;
+			expect(ev.inputToken).toBe(addressToBytes32(weth.address));
+			expect(ev.outputToken).toBe(addressToBytes32(acrossToken(8453, "WETH").address));
+			expect(ev.inputAmount).toBe(BigInt(leg.amount));
+			expect(ev.destinationChainId).toBe(8453n);
+			console.log(`[1→8453] 100 USDT → ${Number(leg.amount) / 1e18} WETH → ${Number(leg.output) / 1e18} ETH on Base`);
+		}, 400_000);
+
+		it("sends WBTC as WBTC", async () => {
+			const wbtc = acrossToken(1, "WBTC");
+			await run(
+				f,
+				params(f, { amount: "2", tokenOut: wbtc.address, tokenOutSymbol: "WBTC", tokenOutDecimals: wbtc.decimals }),
+			);
+			const held = await balanceOf(f, wbtc.address);
+			expect(held).toBeGreaterThan(1_000_000n);
+			const { resolved, receipt } = await run(
+				f,
+				params(f, {
+					tokenIn: wbtc.address,
+					tokenInSymbol: "WBTC",
+					tokenInDecimals: 8,
+					amount: "0.01",
+					destChainId: 42161,
+				}),
+			);
+			const leg = resolved.across as NonNullable<typeof resolved.across>;
+			expect(leg.asset).toBe("WBTC");
+			const ev = parseEventLogs({ abi: SPOKE_POOL_ABI, logs: receipt.logs, eventName: "FundsDeposited" })[0].args;
+			expect(ev.inputToken).toBe(addressToBytes32(wbtc.address));
+			expect(ev.outputToken).toBe(addressToBytes32(acrossToken(42161, "WBTC").address));
+			expect(ev.inputAmount).toBe(1_000_000n);
+			expect(ev.outputAmount).toBe(BigInt(leg.output));
+			console.log(`[1→42161] 0.01 WBTC → ${Number(leg.output) / 1e8} WBTC, bridge fee ${Number(leg.fee) / 1e8}`);
+		}, 900_000);
+	},
+);

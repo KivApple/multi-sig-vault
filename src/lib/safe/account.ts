@@ -1,5 +1,5 @@
 import { formatUnits, type Address, type ContractFunctionParameters } from "viem";
-import { getChain, HL_EVM_CHAIN } from "@/config/chains";
+import { getChain, HL_EVM_CHAIN, quoteTokenOf } from "@/config/chains";
 import { MULTICALL3 } from "@/config/constants";
 import { dexWeth, quoteMany } from "@/lib/evm/dex";
 import { sameAddress } from "@/lib/format";
@@ -67,14 +67,16 @@ const priceHoldings = async (chainId: number, holdings: Holding[]): Promise<void
 		return;
 	}
 
-	const usdc = chain.usdc;
+	// What everything is valued in: USDC, or the chain's own dollar token.
+	const quote = quoteTokenOf(chain);
+	const usdc = quote?.address;
 	const pending: Holding[] = [];
 	for (const h of holdings) {
 		if (h.token && usdc && sameAddress(h.token.address, usdc)) priced(h, 1);
 		else if (chain.dex && usdc) pending.push(h);
 		else if (STABLE_SYMBOLS.has(h.symbol.toUpperCase())) priced(h, 1);
 	}
-	if (pending.length === 0 || !usdc) return;
+	if (pending.length === 0 || !usdc || !quote) return;
 	// Two quotes per token: the whole balance (what a sale would really return) and a 1/1000 probe
 	// scaled back up (spot price). The larger one is shown, so thin pools do not zero out a holding.
 	const PROBE = 1000n;
@@ -87,7 +89,7 @@ const priceHoldings = async (chainId: number, holdings: Holding[]): Promise<void
 		const full = quotes[i]?.amountOut ?? 0n;
 		const spot = (quotes[i + pending.length]?.amountOut ?? 0n) * PROBE;
 		const best = full > spot ? full : spot;
-		if (best > 0n) h.usd = Number(formatUnits(best, 6));
+		if (best > 0n) h.usd = Number(formatUnits(best, quote.decimals));
 		else if (STABLE_SYMBOLS.has(h.symbol.toUpperCase())) priced(h, 1);
 	});
 };

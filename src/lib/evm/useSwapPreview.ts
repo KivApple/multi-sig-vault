@@ -21,6 +21,7 @@ export const useSwapPreview = (params: SwapParams, chainId: number, safe: Addres
 				params.tokenInDecimals,
 				params.amount,
 				params.destChainId,
+				params.receive,
 				params.tokenOut,
 				params.slippage,
 				params.feeTier,

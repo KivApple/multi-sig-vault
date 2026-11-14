@@ -4,17 +4,19 @@ import { SwapForm } from "@/components/ops/safe/SwapForm";
 import { SwapResult } from "@/components/ops/safe/SwapResult";
 import { findChain, getChain } from "@/config/chains";
 import { AppError } from "@/lib/errors";
-import { FINALITY_FAST } from "@/lib/evm/cctp";
+import { bridgeOf, bridgeRoute, legOf } from "@/lib/evm/bridges";
 import {
+	bridgeAssetOf,
 	bridgeProgressOf,
 	buildSwapCalls,
 	MAX_SLIPPAGE_PERCENT,
 	NATIVE,
 	parseAmountIn,
+	receivedSymbol,
 	resolveSwap,
 	slippageBps,
 	swapShape,
-	USDC_DECIMALS,
+	viaOf,
 	type SwapParams,
 } from "@/lib/evm/swapBuild";
 import { formatAmount, formatDateTime, parseAddress, sameAddress } from "@/lib/format";
@@ -27,6 +29,10 @@ export type { BridgeProgress, SwapParams } from "@/lib/evm/swapBuild";
 
 const holdingOf = (env: OpEnv, token: string) =>
 	env.safe?.holdings.find((h) => (token === NATIVE ? !h.token : !!h.token && sameAddress(h.token.address, token)));
+
+/** The token being sent, as the bridges see it: the wrapped token stands for the coin. */
+const tokenOf = (p: SwapParams, chain: { wrappedNative: Address }): string =>
+	p.tokenIn === NATIVE ? chain.wrappedNative : p.tokenIn;
 
 const feeLabel = (fee: number): string => `${fee / 10_000}%`;
 
@@ -42,7 +48,7 @@ export const swapOp: OpDefinition<SwapParams> = {
 	icon: ArrowLeftRight,
 	available: (env) => {
 		const chain = findChain(env.account.chainId);
-		return !!chain && (!!chain.dex || !!chain.cctp);
+		return !!chain && (!!chain.dex || !!chain.cctp || !!chain.across);
 	},
 	defaults: (env) => {
 		const chain = getChain(env.account.chainId as number);
@@ -73,7 +79,9 @@ export const swapOp: OpDefinition<SwapParams> = {
 		const chainId = env.account.chainId as number;
 		const cross = p.destChainId !== chainId;
 		const dest = findChain(p.destChainId);
-		if (!dest || dest.env !== env.account.env || (cross && !dest.cctp)) errors.destChainId = t("swap.error.noBridge");
+		if (!dest || dest.env !== env.account.env || (cross && !bridgeRoute(getChain(chainId), dest))) {
+			errors.destChainId = t("swap.error.noBridge");
+		}
 		const amountIn = parseAmountIn(p);
 		if (!p.amount) errors.amount = t("error.required");
 		else if (!amountIn) errors.amount = t("swap.error.amount");
@@ -115,13 +123,17 @@ export const swapOp: OpDefinition<SwapParams> = {
 			{ label: t("swap.sum.sell"), value: `${formatAmount(p.amount, lang)} ${p.tokenInSymbol}` },
 		];
 		if (!r) return rows;
-		const usdc = (raw: string): string => `${formatAmount(formatUnits(BigInt(raw), USDC_DECIMALS), lang)} USDC`;
+		const amount = (raw: string, decimals: number, symbol: string): string =>
+			`${formatAmount(formatUnits(BigInt(raw), decimals), lang)} ${symbol}`;
+		// What crosses, and through which bridge: read from the leg the operation carries.
+		const crossing = legOf(r);
+		const asset = cross ? bridgeAssetOf(chainId, p.destChainId, p.tokenIn, viaOf(p)) : undefined;
 		if (r.swap) {
-			const outDecimals = cross ? USDC_DECIMALS : p.tokenOutDecimals;
-			const outSymbol = cross ? "USDC" : p.tokenOutSymbol;
 			rows.push({
 				label: t("swap.sum.minOut"),
-				value: `${formatAmount(formatUnits(BigInt(r.swap.minOut), outDecimals), lang)} ${outSymbol}`,
+				value: asset
+					? amount(r.swap.minOut, asset.decimals, asset.symbol)
+					: amount(r.swap.minOut, p.tokenOutDecimals, p.tokenOutSymbol),
 			});
 			rows.push({
 				label: t("swap.sum.route"),
@@ -129,34 +141,53 @@ export const swapOp: OpDefinition<SwapParams> = {
 			});
 			rows.push({ label: t("swap.sum.deadline"), value: formatDateTime(r.swap.deadline * 1000, lang) });
 		}
-		if (r.bridge) {
+		if (crossing && asset) {
+			const view = crossing.provider.view(crossing.leg, t);
 			rows.push({ label: t("swap.sum.networks"), value: `${chain.name} → ${dest?.name ?? p.destChainId}` });
-			if (r.swap) rows.push({ label: t("swap.sum.bridged"), value: usdc(r.bridge.amount) });
+			if (r.fallback) {
+				// The bridge it was meant for: the one the token takes when nothing is in the way.
+				const asked = bridgeRoute(chain, getChain(p.destChainId), tokenOf(p, chain), p.receive);
+				const bridge = asked ? bridgeOf(asked.kind).name : "";
+				rows.push({
+					label: t("swap.sum.fallback", { bridge }),
+					value: t("swap.sum.fallbackValue", { bridge }),
+					tone: "warning",
+				});
+			}
+			if (r.swap) rows.push({ label: t("swap.sum.bridged"), value: amount(view.amount, asset.decimals, asset.symbol) });
 			rows.push({
 				label: t("swap.sum.bridgeFee"),
-				value: `${usdc(r.bridge.maxFee)} · ${t(r.bridge.finality === FINALITY_FAST ? "swap.speed.fast" : "swap.speed.standard")}${
-					r.bridge.forward ? "" : ` · ${t("swap.sum.selfMint")}`
-				}`,
+				value: `${amount(view.fee, asset.decimals, asset.symbol)} · ${view.feeNote}`,
 			});
-			rows.push({ label: t("swap.sum.receive"), value: usdc(r.bridge.receive) });
+			rows.push({
+				label: t("swap.sum.receive"),
+				value: amount(view.output, asset.destDecimals, receivedSymbol(asset, view.wrapped)),
+			});
 		}
 		rows.push({
 			label: t("swap.sum.recipient"),
 			address: (parseAddress(p.recipient) ?? account.address) as Address,
 			chainId: p.destChainId,
 		});
-		if (r.swap && r.bridge) rows.push({ label: t("swap.sum.surplus"), value: t("swap.sum.surplusValue") });
+		if (crossing && dest) {
+			rows.push(...(crossing.provider.summaryRows?.(crossing.leg, { src: chain, dst: dest, t }) ?? []));
+		}
+		if (r.swap && crossing) {
+			rows.push({
+				label: t("swap.sum.surplus"),
+				value: t("swap.sum.surplusValue", { symbol: asset?.symbol ?? "" }),
+			});
+		}
 		return rows;
 	},
 	Result: SwapResult,
 	unfinished: (op) => {
-		const p = op.params as unknown as SwapParams;
-		return !!p.resolved?.bridge && bridgeProgressOf(op)?.stage !== "credited";
+		const crossing = legOf((op.params as unknown as SwapParams).resolved);
+		return !!crossing && crossing.provider.unfinished(bridgeProgressOf(op));
 	},
 	deleteWarning: (op) => {
-		const p = op.params as unknown as SwapParams;
-		if (!p.resolved?.bridge) return undefined;
-		if (op.result?.extra?.txStatus === "reverted") return undefined;
-		return bridgeProgressOf(op)?.stage === "credited" ? undefined : "swap.deleteWarning";
+		const crossing = legOf((op.params as unknown as SwapParams).resolved);
+		if (!crossing || op.result?.extra?.txStatus === "reverted") return undefined;
+		return crossing.provider.deleteWarning?.(bridgeProgressOf(op));
 	},
 };

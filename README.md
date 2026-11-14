@@ -2,9 +2,9 @@
 
 **[multi-sig.quoi.dev](https://multi-sig.quoi.dev)**
 
-<img src="docs/screenshot.png" alt="Home screen: a Hyperliquid account, two Safes on mainnet and one on testnet" width="640">
+<img src="docs/screenshot.png" alt="Home screen: a Hyperliquid account, a Safe at one address on three networks shown as one card, a Safe on HyperEVM and one on testnet" width="640">
 
-A PWA for operating Hyperliquid multi-sig accounts and Safe wallets on Ethereum, HyperEVM, Arbitrum, Base and Polygon (mainnet and testnet).
+A PWA for operating Hyperliquid multi-sig accounts and Safe wallets on Ethereum, HyperEVM, Arbitrum, Base, Polygon and BNB Chain (mainnet and testnet).
 
 It is built for signers who are never in the same place. You sign with the first key, carry the operation to the second device as a QR code, sign there, and broadcast from wherever you end up. Keys stay on MetaMask, Trezor and Ledger; the network is needed only to read balances and to send.
 
@@ -14,9 +14,9 @@ The code was written with AI, directed and reviewed by a developer with many yea
 
 This app builds the payloads your wallets sign, so a backdoor in it could drain every account it touches. Do not take the author's word that there is none: before using it, point your own AI agent at this repository and have it audit the code and dependencies for swapped recipients, altered payloads, key exfiltration and unexpected network calls. Then build from the commit you reviewed instead of using a copy somebody else hosts.
 
-## What goes through a server, and what is signed
+## What goes through a server
 
-Almost nothing leaves your device except requests to public APIs: chain RPC endpoints, Hyperliquid, Unit, Circle and the Safe Transaction Service. Two things are worth knowing before you rely on the hosted copy.
+Almost nothing leaves your device except requests to public APIs: chain RPC endpoints, Hyperliquid, Unit, Circle, Across and the Safe Transaction Service. Two things are worth knowing before you rely on the hosted copy.
 
 **MetaMask on a phone goes through our relay.** On Android and iOS, a request for MetaMask (a signature, a transaction, the list of accounts) and its answer pass through a small server of ours on the way between the app and MetaMask's built-in browser. Desktop MetaMask, Trezor and Ledger never use it. What protects you there:
 
@@ -26,11 +26,22 @@ Almost nothing leaves your device except requests to public APIs: chain RPC endp
 - Every signature is checked against the signer's address after it comes back.
 - What the server side does see is metadata: your IP address, the time and the random id of the exchange. The relay itself writes no logs, but the web server in front of it and Cloudflare keep ordinary access logs with exactly that metadata.
 
-Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/server.mjs`, one file with no dependencies; a copy of the app hosted without it falls back to MetaMask SDK.
+Details are in [MetaMask on a phone](docs/relay.md). The relay is `relay/server.mjs`, one file with no dependencies; a copy of the app hosted without it falls back to MetaMask SDK.
 
 **Icons of exchange coins come through the same relay, without telling it what you hold.** Hyperliquid serves its coin icons in a way a browser app cannot fetch, so the relay re-serves them from a disk cache (30 days by default, `ICON_CACHE_DAYS`). The app never asks for the icon of a coin on your account. Once a week it downloads the icons of every listed coin that is not already built in, in the exchange's own listing order, so every user sends the relay the same requests and it cannot tell which coins anybody holds. The icons the app starts with are part of the build; turning off "Update weekly" for token lists stops these downloads too. Token logos on EVM networks follow the same rule: whole lists, never per holding.
 
-**Stable updates are signed on-chain.** The installed app offers an update only after the developer's Safe [`0x22222222e8d995EA51841abc49022Fb5eb7C62b4`](https://hyperevmscan.io/address/0x22222222e8d995EA51841abc49022Fb5eb7C62b4) (2 of 3 signers) has approved that exact release: its id commits to the SHA-256 of every file. The Safe signs on HyperEVM; the app looks there and on Ethereum, asks two independent RPC endpoints on each, and accepts an approval on either. Unsigned test builds are installed only if you turn on "Test versions" in settings. The check protects installed copies; a first visit, and the service worker file itself, are served as the site has them. Details are in [Offline use and updates](#offline-use-and-updates).
+## Offline use and updates
+
+After the first visit the app is installed on your device and works offline: it opens without a network, shows the balances it last saw, and builds, signs and exchanges operations by QR. The network is needed only to refresh balances and to send.
+
+**The app never updates itself.** A new version is downloaded in the background, every file is checked against its SHA-256, and it replaces the running one only after you agree. Until then you keep the version you have.
+
+**There are two kinds of releases.**
+
+- **Stable**, the default. The app offers an update only after the developer's Safe [`0x22222222e8d995EA51841abc49022Fb5eb7C62b4`](https://hyperevmscan.io/address/0x22222222e8d995EA51841abc49022Fb5eb7C62b4) (2 of 3 signers) has approved that exact release on-chain: the release id commits to the SHA-256 of every file. The Safe signs on HyperEVM; the app looks there and on Ethereum, asks two independent RPC endpoints on each, and accepts an approval on either. It only moves to a higher version.
+- **Test versions**, a switch in settings, off by default. The app then offers the newest release whether or not it is signed. These are builds straight from the repository that nobody has approved yet.
+
+The site itself serves the newest stable release, so a first-time visitor gets a signed one too. But the signature protects installed copies: the first visit, and the service worker file itself, are served as the site has them. That is one more reason to [verify the code](#dont-trust-verify) and, if a lot depends on it, to host your own build. How releases are published and signed is in [docs/releases.md](docs/releases.md).
 
 ## What it does
 
@@ -59,7 +70,8 @@ Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/
 
 - Send native coins and tokens.
 - Swap on Uniswap V3 (HyperSwap V3 on HyperEVM), quoted directly from the pools.
-- Bridge USDC between any two supported networks through Circle CCTP V2, alone or right after a swap.
+- Bridge USDC between any two supported networks through Circle CCTP V2, alone or right after a swap. This is how every token travels that Across does not carry between the two networks.
+- Send USDT, ETH (or WETH) and WBTC between networks through the Across bridge, so that they arrive as themselves; USDC can be chosen instead. To and from BNB Chain, which has no USDC of Circle's, everything else travels as USDT after a swap into it.
 - Change owners and threshold.
 - Call a contract by ABI, deploy a contract, sign a message hash (EIP-1271).
 - Optionally show the Safes of one address as one card with a row per network (settings).
@@ -75,25 +87,27 @@ Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/
 - An operation travels as a QR code, animated when it does not fit in one frame. QR is the only export channel, because an operation may carry an agent private key.
 - One scanner on the home screen accepts addresses and operations. Imports are deduplicated and their signatures merged.
 - Several windows of the app can be open at once: a change made in one shows in the others, and a window that was asleep catches up when you return to it.
-- Installs as a PWA and works offline; an update is installed only after you agree, and by default only when the developer's Safe has signed it.
+- Installs as a PWA and works offline; updates are yours to accept (see [Offline use and updates](#offline-use-and-updates)).
 - A link can open the add-account or create-Safe form already filled in.
 
 ## Supported networks
 
-| Network | Chain id | Swap | USDC bridge | Safe history |
+| Network | Chain id | Swap | Bridge | Safe history |
 |---|---|---|---|---|
-| Ethereum | 1 | Uniswap V3 | yes | yes |
-| HyperEVM | 999 | HyperSwap V3 | yes | yes |
-| Arbitrum | 42161 | Uniswap V3 | yes | yes |
-| Base | 8453 | Uniswap V3 | yes | yes |
-| Polygon | 137 | Uniswap V3 | yes | yes |
-| Sepolia | 11155111 | Uniswap V3 | yes | yes |
-| HyperEVM Testnet | 998 | HyperSwap V3 | yes | no |
-| Arbitrum Sepolia | 421614 | Uniswap V3 | yes | no |
-| Base Sepolia | 84532 | Uniswap V3 | yes | yes |
-| Polygon Amoy | 80002 | no | yes | no |
+| Ethereum | 1 | Uniswap V3 | USDC, Across | yes |
+| HyperEVM | 999 | HyperSwap V3 | USDC, Across | yes |
+| Arbitrum | 42161 | Uniswap V3 | USDC, Across | yes |
+| Base | 8453 | Uniswap V3 | USDC, Across | yes |
+| Polygon | 137 | Uniswap V3 | USDC, Across | yes |
+| BNB Chain | 56 | PancakeSwap V3 | Across | yes |
+| Sepolia | 11155111 | Uniswap V3 | USDC | yes |
+| HyperEVM Testnet | 998 | HyperSwap V3 | USDC | no |
+| Arbitrum Sepolia | 421614 | Uniswap V3 | USDC | no |
+| Base Sepolia | 84532 | Uniswap V3 | USDC | yes |
+| Polygon Amoy | 80002 | no | USDC | no |
+| BNB Testnet | 97 | no | no | no |
 
-Safes work on all ten. The Hyperliquid exchange is supported on its mainnet and testnet. Safe history needs the Safe Transaction Service, which does not cover every testnet; Uniswap is not deployed on Polygon Amoy.
+Safes work on all twelve. The Hyperliquid exchange is supported on its mainnet and testnet. Safe history needs the Safe Transaction Service, which does not cover every testnet; Uniswap is not deployed on Polygon Amoy. Across works on mainnet only. It carries USDT between all six networks, ETH between Ethereum, Arbitrum, Base, Polygon and BNB Chain (as WETH or a pegged token where ETH is not the coin), and WBTC between Ethereum, Arbitrum and Polygon. BNB Chain has no USDC issued by Circle: everything crosses to and from it as USDT, and balances there are valued in USDT, where its liquidity is.
 
 ## Deep links
 
@@ -110,7 +124,7 @@ https://multi-sig.quoi.dev/#/link?action=create&chain=base&mode=vanity&owners=0x
 |---|---|---|
 | `action` | both | `add` (existing account) or `create` (new Safe) |
 | `kind` | `add` | `hl` or `safe` |
-| `chain` | Safe | `ethereum`, `hyperevm`, `arbitrum`, `base`, `polygon` |
+| `chain` | Safe | `ethereum`, `hyperevm`, `arbitrum`, `base`, `polygon`, `bnb` |
 | `env` | both | `mainnet` (default) or `testnet` |
 | `address`, `name` | `add` | account address and an optional name |
 | `owners`, `threshold`, `name` | `create` | comma-separated owner addresses, signatures required, optional name |
@@ -134,64 +148,6 @@ Wherever the wallet supports it, operations are signed as structured EIP-712 dat
 
 The production build ships a strict CSP with no inline or third-party scripts. External data (token lists, API responses, QR contents) is validated, and remote SVGs are rendered only through `<img>`.
 
-## MetaMask on a phone
-
-In Chrome on a phone the app cannot talk to the MetaMask app directly, and Android freezes the page while MetaMask is in front, so answers sent to it get lost. Instead the request is handed to the app's own signing page inside MetaMask's built-in browser, where the wallet is part of the page:
-
-1. The app encrypts the request (AES-256-GCM) and leaves it on a small relay (`relay/server.mjs`).
-2. You tap "Open MetaMask". The signing page opens in MetaMask's browser, decrypts the request, shows it and asks MetaMask.
-3. The encrypted answer goes back through the relay, and the app picks it up when you return.
-
-The key belongs to the connection between your app and your MetaMask browser. On first use the app shows a six-digit code that you type into the signing page; from then on both sides hold a shared key, and each request is encrypted with a key derived from it for that one request. The signing page shows only what it can decrypt with that key, so a link somebody sends you cannot ask you to sign anything: it ends in an error.
-
-The relay is a blind mailbox. It sees ciphertext only, cannot read or change a request or an answer without failing authentication, keeps a session in memory for ten minutes and writes no logs of its own (the proxy in front of the hosted one keeps access logs: IP address, time, the random session id). The worst it can do is lose a message. Every signature is still verified against the signer's address. The desktop extension and MetaMask's own browser need no relay; a copy of the app hosted without one falls back to MetaMask SDK.
-
-## Offline use and updates
-
-The service worker (`public/sw.js`) is the same file in every release and serves only the files of the active release. A new version is downloaded by the running app, each file is checked against its SHA-256, and it is activated only after you agree.
-
-Every published release stays on the server at `releases/<id>/`, and `releases.json` lists them newest first. That gives two update channels from one deployment:
-
-- **Stable** (the default). The app installs the newest release the developer's Safe approved on-chain, and only moves to a higher version. The site root serves the same release, so a first-time visitor gets it too.
-- **Test versions** (a switch in settings). The app installs the newest release, signed or not.
-
-Nothing changes on the server when a release gets signed: clients ask the chain which listed release is approved.
-
-```bash
-PUBLIC_RELEASE_SAFE=0x… PUBLIC_RELEASE_CHAIN_ID=999,1 pnpm build
-pnpm release:info   # release id, digest and the transaction for the developer's Safe
-```
-
-The developer's Safe executes `SignMessageLib.signMessage(digest)`; in the app this is the "Sign message hash" operation. Clients call `isValidSignature(digest, "")` (EIP-1271) on two independent RPC endpoints of each network listed in `PUBLIC_RELEASE_CHAIN_ID`, and an approval on any one of them is enough. This is sound because a Safe's address commits to the signers it was created with: at the same address on another network there can only be a Safe that started with those signers. One consequence to keep in mind: a signer removed later still counts on a network where the Safe has not been created yet, so after changing signers, create the Safe on every listed network and change them there too. A build without these variables has no stable channel and follows the newest release. `scripts/release/publish.sh` is the deployment: it uploads the build, extends the list and puts the newest approved release at the root.
-
-## Tech stack
-
-- TypeScript, React 19, React Router (hash routing)
-- Rsbuild, Tailwind CSS 4, DaisyUI 5
-- zustand, persisted to IndexedDB and synced between tabs over BroadcastChannel
-- viem for EVM, `@msgpack/msgpack` and `@noble/curves` for Hyperliquid and Unit
-- `@metamask/sdk`, `@trezor/connect-web`, `@ledgerhq/hw-app-eth` over WebHID and WebUSB
-- vitest, Biome, pnpm
-
-There is no application backend. The app talks directly to chain RPC endpoints and to the Hyperliquid, Unit, Circle and Safe Transaction Service APIs; the only server of its own is the blind relay for MetaMask on a phone.
-
-## Running
-
-```bash
-pnpm install
-pnpm dev       # http://localhost:5173
-pnpm build     # production build in dist/, with release.json
-pnpm preview
-pnpm test      # unit tests, offline
-pnpm format    # Biome: tabs, double quotes
-```
-
-Fork tests need `anvil` and network access:
-
-```bash
-MSV_FORK=1 pnpm vitest run tests/*.fork.test.ts
-```
-
 ## Limitations
 
 - **Hyperliquid L1 actions** (creating and renaming a sub-account) are signed in a domain with chainId 1337, which MetaMask refuses. They need a Ledger or Trezor, and they are signed as a hash.
@@ -202,29 +158,27 @@ MSV_FORK=1 pnpm vitest run tests/*.fork.test.ts
 - **MetaMask on a phone** signs in MetaMask's built-in browser, reached through the relay described above, and needs network access. To work fully offline, open the whole app in MetaMask's browser and move operations by QR.
 - **MEV protection** (Flashbots Protect) applies to Ethereum transactions signed with Ledger or Trezor. MetaMask broadcasts its own transactions.
 - **USDC bridge**: by default Circle's Forwarding Service delivers the funds, and the fee is taken exactly from Circle's API. If delivery does not happen, the result card lets any signer pay the gas for it.
+- **Across bridge**: Across is a relayer network, not a mint: the Safe escrows the token in Across's contract and a relayer pays the recipient. ETH sent to a contract, a Safe included, arrives wrapped (WETH). The amount to receive comes from Across's Swap API and is fixed when signing starts; the transaction itself is built by the app, because the one the API offers is valid for an hour and signatures may take longer; the app refuses a fee above 1% plus about five dollars. Above what the relayers hold, Across cannot carry an amount: the app then sells the token for USDC and sends that through CCTP, and says so before anything is signed (to and from BNB Chain there is no such way out). If conditions change before the transaction is sent and no relayer takes it, the token returns to the Safe on the source network, which takes a few hours.
 - The first install, and any change to `sw.js` itself, cannot be covered by the on-chain release check. This is a limitation of the web platform.
 
-## Project layout
+## Tech stack
 
-```
-src/config        chains and contract addresses
-src/lib/hl        Hyperliquid: API, account data, signing, Unit
-src/lib/safe      Safe: transactions, simulation, creation
-src/lib/evm       DEX quotes, CCTP, ABIs
-src/lib/ops       operations: registry, engine (freeze, verify, send), transfer
-src/lib/wallets   MetaMask, Trezor and Ledger adapters
-src/lib/qr        QR: addresses, packing, frames
-src/lib/tokens    token lists and icons
-src/lib/update    offline releases and signature check
-src/lib/history   account history: Hyperliquid ledger and explorer, Safe Transaction Service
-src/lib/handoff   encrypted hand-off to MetaMask's browser
-relay             the relay server: blind mailbox for the hand-off, cached exchange icons
-src/components    one component per file
-src/i18n          en and ru
-scripts           icons, token lists, dictionaries, release.json
+- TypeScript, React 19, React Router (hash routing)
+- Rsbuild, Tailwind CSS 4, DaisyUI 5
+- zustand, persisted to IndexedDB and synced between tabs over BroadcastChannel
+- viem for EVM, `@msgpack/msgpack` and `@noble/curves` for Hyperliquid and Unit
+- `@metamask/sdk`, `@trezor/connect-web`, `@ledgerhq/hw-app-eth` over WebHID and WebUSB
+- vitest, Biome, pnpm
+
+There is no application backend. The app talks directly to chain RPC endpoints and to the Hyperliquid, Unit, Circle, Across and Safe Transaction Service APIs; the only server of its own is the blind relay for MetaMask on a phone.
+
+```bash
+pnpm install
+pnpm dev     # http://localhost:5173
+pnpm test
 ```
 
-To add a chain, add an entry to `src/config/chains.ts` and an icon. To add an operation, add a definition file and a line in `src/lib/ops/registry.ts`.
+For developers: [running, project layout and how to add a network, a DEX, a bridge or an operation](docs/development.md); [the relay for MetaMask on a phone](docs/relay.md); [offline use and updates, and how a release gets signed](docs/releases.md).
 
 ## License
 

@@ -1,9 +1,11 @@
+import { TriangleAlert } from "lucide-react";
 import { formatUnits } from "viem";
 import { Spinner } from "@/components/ui/Spinner";
 import { getChain } from "@/config/chains";
 import { useLang, useT } from "@/i18n";
 import { describeError } from "@/lib/describeError";
-import { USDC_DECIMALS, type SwapParams } from "@/lib/evm/swapBuild";
+import { bridgeOf, bridgeRoute, legOf } from "@/lib/evm/bridges";
+import { bridgeAssetOf, NATIVE, receivedSymbol, viaOf, type SwapParams } from "@/lib/evm/swapBuild";
 import type { SwapPreview } from "@/lib/evm/useSwapPreview";
 import { formatAmount } from "@/lib/format";
 import { SwapQuoteRow } from "./SwapQuoteRow";
@@ -25,10 +27,27 @@ export const SwapQuoteBox: React.FC<SwapQuoteBoxProps> = ({ params, preview, cha
 	if (!resolved && !error && !loading) return null;
 
 	const cross = params.destChainId !== chainId;
-	const outSymbol = cross ? "USDC" : params.tokenOutSymbol;
-	const outDecimals = cross ? USDC_DECIMALS : params.tokenOutDecimals;
+	// What crosses, and through which bridge: read from the leg the quote resolved to.
+	const crossing = legOf(resolved);
+	const view = crossing?.provider.view(crossing.leg, t);
+	const asset = cross
+		? bridgeAssetOf(chainId, params.destChainId, params.tokenIn, viaOf({ ...params, resolved }))
+		: undefined;
+	const outSymbol = asset ? asset.symbol : params.tokenOutSymbol;
+	const outDecimals = asset ? asset.decimals : params.tokenOutDecimals;
 	const fmt = (raw: string, decimals: number, symbol: string): string =>
 		`${formatAmount(formatUnits(BigInt(raw), decimals), lang)} ${symbol}`;
+	// The bridge the transfer was meant for, when another one carries it instead.
+	const chain = getChain(chainId);
+	const asked =
+		resolved?.fallback && cross
+			? bridgeRoute(
+					chain,
+					getChain(params.destChainId),
+					params.tokenIn === NATIVE ? chain.wrappedNative : params.tokenIn,
+					params.receive,
+				)
+			: undefined;
 
 	return (
 		<div className="bg-base-200 rounded-box flex flex-col gap-1.5 px-3 py-2.5 text-sm" aria-live="polite">
@@ -41,6 +60,15 @@ export const SwapQuoteBox: React.FC<SwapQuoteBoxProps> = ({ params, preview, cha
 				</p>
 			) : (
 				<>
+					{resolved.fallback && (
+						<p className="text-warning flex items-start gap-1.5">
+							<TriangleAlert className="mt-0.5 size-4 shrink-0" />
+							{t("swap.fallbackWarning", {
+								symbol: params.tokenInSymbol,
+								bridge: asked ? bridgeOf(asked.kind).name : "",
+							})}
+						</p>
+					)}
 					{resolved.swap && (
 						<>
 							<SwapQuoteRow
@@ -62,25 +90,24 @@ export const SwapQuoteBox: React.FC<SwapQuoteBoxProps> = ({ params, preview, cha
 							/>
 						</>
 					)}
-					{resolved.bridge && (
+					{view && asset && (
 						<>
 							{resolved.swap && (
-								<SwapQuoteRow
-									label={t("swap.quote.bridged")}
-									value={fmt(resolved.bridge.amount, USDC_DECIMALS, "USDC")}
-								/>
+								<SwapQuoteRow label={t("swap.quote.bridged")} value={fmt(view.amount, asset.decimals, asset.symbol)} />
 							)}
 							<SwapQuoteRow
 								label={t("swap.quote.bridgeFee")}
-								value={fmt(resolved.bridge.maxFee, USDC_DECIMALS, "USDC")}
+								value={`${fmt(view.fee, asset.decimals, asset.symbol)} · ${view.feeNote}`}
 								busy={loading && !resolved.swap}
 							/>
 							<SwapQuoteRow
 								label={t("swap.quote.receive")}
-								value={fmt(resolved.bridge.receive, USDC_DECIMALS, "USDC")}
+								value={fmt(view.output, asset.destDecimals, receivedSymbol(asset, view.wrapped))}
 								strong
 							/>
-							{resolved.swap && <p className="text-base-content/60 text-xs">{t("swap.surplusNote")}</p>}
+							{resolved.swap && (
+								<p className="text-base-content/60 text-xs">{t("swap.surplusNote", { symbol: asset.symbol })}</p>
+							)}
 						</>
 					)}
 				</>

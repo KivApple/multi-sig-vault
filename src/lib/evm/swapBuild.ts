@@ -1,67 +1,59 @@
-import { encodeFunctionData, getAddress, parseUnits, type Address, type Hex } from "viem";
-import { getChain, type ChainConfig } from "@/config/chains";
+import { getAddress, parseUnits, type Address } from "viem";
+import { getChain, type AcrossAsset, type BridgeKind, type ChainConfig } from "@/config/chains";
 import { AppError } from "@/lib/errors";
 import { isDecimal, parseAddress, sameAddress } from "@/lib/format";
-import { getPublicClient } from "@/lib/rpc";
-import { ERC20_ABI } from "@/lib/safe/abis";
 import type { MetaTx } from "@/lib/safe/tx";
-import type { Operation } from "@/types/domain";
 import { findToken } from "@/lib/tokens";
+import type { Operation } from "@/types/domain";
 import {
-	bpsFee,
-	CCTP_BURN_LIMIT,
-	encodeBurn,
-	fetchCctpFees,
-	FINALITY_FAST,
-	FINALITY_STANDARD,
-	tokenMessengerOf,
-	type Finality,
-	type ForwardLevel,
-} from "./cctp";
-import { dexWeth, encodePath, quoteMany, ROUTER02_ABI } from "./dex";
+	bridgeOf,
+	bridgeRoute,
+	FALLBACK_RECEIVE,
+	legOf,
+	type BridgeProgress,
+	type BridgeRoute,
+	type LegCtx,
+	type ReceiveAsset,
+} from "./bridges";
+import type { AcrossLeg } from "./bridges/across";
+import type { BridgeLeg } from "./bridges/cctp";
+import type { ForwardLevel } from "./cctp";
+import { dexWeth } from "./dex";
+import { mismatch } from "./mismatch";
+import { swapProviderFor, type SwapCtx, type SwapLeg } from "./swaps";
+
+/**
+ * The "swap or bridge" operation: an optional exchange on the Safe's own network, then an optional
+ * crossing to another one. This file only puts the two together – what to exchange into, which way to
+ * cross, in what order the calls go. How an exchange or a crossing is quoted and built is the business
+ * of its provider (`./swaps`, `./bridges`); nothing here knows one bridge from another.
+ */
+
+export type { BridgeProgress } from "./bridges";
+export type { AcrossLeg } from "./bridges/across";
+export { fastAvailable, USDC_DECIMALS } from "./bridges/cctp";
+export type { BridgeLeg } from "./bridges/cctp";
+export type { SwapLeg } from "./swaps";
+export { applySlippage, SWAP_DEADLINE_SECONDS } from "./swaps/v3";
 
 /** Marker of the chain's native coin in `tokenIn` / `tokenOut`. */
 export const NATIVE = "native";
-export const USDC_DECIMALS = 6;
-/** Signatures may take hours to collect – the swap stays valid this long after preparation. */
-export const SWAP_DEADLINE_SECONDS = 48 * 3600;
 export const SLIPPAGE_CHOICES = ["0.5", "1", "3", "5", "10"];
 export const MAX_SLIPPAGE_PERCENT = 50;
 
-export interface SwapLeg {
-	/** Token addresses along the route (wrapped native for the native coin). */
-	tokens: Address[];
-	/** Pool fee per hop, hundredths of a bip. */
-	fees: number[];
-	/** Quoted output at preparation time, raw units. */
-	quoteOut: string;
-	/** Guaranteed minimum output (quote minus slippage), raw units. */
-	minOut: string;
-	/** Unix seconds. */
-	deadline: number;
-	/** Token needs its allowance zeroed first (USDT-style approve). */
-	resetAllowance: boolean;
-	/** Price impact of the trade size, basis points (when it could be estimated). */
-	impactBps?: number;
-}
-
-export interface BridgeLeg {
-	/** USDC burned on the source chain, raw units. */
-	amount: string;
-	/** Exact `maxFee` of the burn: forwarding fee + percentage fee. */
-	maxFee: string;
-	forwardFee: string;
-	percentFee: string;
-	finality: Finality;
-	forward: boolean;
-	/** USDC the recipient gets on the destination chain (amount − maxFee). */
-	receive: string;
-}
-
+/**
+ * Everything the signed transaction depends on that had to be asked of the network. A crossing is
+ * kept under the key of its bridge (`BridgeProvider.legKey`), at most one of them.
+ */
 export interface SwapResolved {
 	amountIn: string;
 	swap?: SwapLeg;
+	/** USDC through Circle's CCTP. */
 	bridge?: BridgeLeg;
+	/** A token through Across. */
+	across?: AcrossLeg;
+	/** The bridge asked for could not carry this amount, so the value goes as USDC through another. Shown as a warning. */
+	fallback?: boolean;
 	preparedAt: number;
 }
 
@@ -73,27 +65,39 @@ export interface SwapParams {
 	/** Decimal string in token units. */
 	amount: string;
 	destChainId: number;
-	/** Same-chain swaps only; cross-chain output is USDC of the destination chain. */
+	/** Same-chain swaps only; what a transfer to another network delivers is `receive`. */
 	tokenOut: string;
 	tokenOutSymbol: string;
 	tokenOutDecimals: number;
+	/**
+	 * Cross-chain: what should arrive on the other network, out of what the bridges carry there.
+	 * Absent – the default: the token itself where a bridge carries it, else USDC (see `bridgeRoutes`).
+	 */
+	receive?: ReceiveAsset;
 	/** Empty – this Safe's own address. */
 	recipient: string;
 	/** Percent, e.g. "1". */
 	slippage: string;
 	/** Pinned pool fee tier of the first hop; 0 – best route. */
 	feeTier: number;
+	/** Options of the CCTP bridge. */
 	speed: "standard" | "fast";
 	/** Circle submits the mint on the destination chain and deducts its cost from the transfer. */
 	forward: boolean;
 	forwardLevel: ForwardLevel;
-	/** Filled right before the first signature; everything the signed transaction depends on. */
+	/** Filled right before the first signature. */
 	resolved?: SwapResolved;
 }
 
 export interface SwapShape {
 	chain: ChainConfig;
 	cross: boolean;
+	/** How the cross-chain leg travels. */
+	route?: BridgeRoute;
+	/** The same, spelled out: the bridge, the asset when it is Across', and what arrives. */
+	bridge?: BridgeKind;
+	asset?: AcrossAsset;
+	receive?: ReceiveAsset;
 	needSwap: boolean;
 	nativeIn: boolean;
 	nativeOut: boolean;
@@ -102,28 +106,102 @@ export interface SwapShape {
 	outAddress: Address;
 }
 
-/** What kind of operation the parameters describe. Throws `AppError` when it cannot be done. */
-export const swapShape = (p: SwapParams, chainId: number): SwapShape => {
+/**
+ * What kind of operation the parameters describe. Throws `AppError` when it cannot be done.
+ * `want` is what should arrive on the other network; without it, or when no bridge carries that there, the default.
+ */
+export const swapShape = (p: SwapParams, chainId: number, want: ReceiveAsset | undefined = p.receive): SwapShape => {
 	const chain = getChain(chainId);
 	const cross = p.destChainId !== chainId;
 	const nativeIn = p.tokenIn === NATIVE;
 	const inAddress = nativeIn ? dexWeth(chain) : parseAddress(p.tokenIn);
 	if (!inAddress) throw new AppError("swap.error.tokenIn");
+	const canSwap = !!swapProviderFor(chain);
 	if (cross) {
-		const dest = getChain(p.destChainId);
-		if (dest.env !== chain.env || !chain.cctp || !dest.cctp || !chain.usdc || !dest.usdc) {
-			throw new AppError("swap.error.noBridge");
-		}
-		const needSwap = nativeIn || !sameAddress(inAddress, chain.usdc);
-		if (needSwap && !chain.dex) throw new AppError("swap.error.noDex");
-		return { chain, cross, needSwap, nativeIn, nativeOut: false, inAddress, outAddress: chain.usdc };
+		// The coin crosses as its wrapped token, where a bridge takes that one.
+		const sent = nativeIn ? chain.wrappedNative : inAddress;
+		const route = bridgeRoute(chain, getChain(p.destChainId), sent, want);
+		if (!route) throw new AppError("swap.error.noBridge");
+		// What crosses is the token of the route; anything else is swapped into it first.
+		const needSwap = !sameAddress(sent, route.token);
+		if (needSwap && !canSwap) throw new AppError("swap.error.noDex");
+		return {
+			chain,
+			cross,
+			route,
+			bridge: route.kind,
+			asset: route.kind === "across" ? (route.receive as AcrossAsset) : undefined,
+			receive: route.receive,
+			needSwap,
+			nativeIn,
+			nativeOut: false,
+			inAddress,
+			outAddress: route.token,
+		};
 	}
-	if (!chain.dex) throw new AppError("swap.error.noDex");
+	if (!canSwap) throw new AppError("swap.error.noDex");
 	const nativeOut = p.tokenOut === NATIVE;
 	const outAddress = nativeOut ? dexWeth(chain) : parseAddress(p.tokenOut);
 	if (!outAddress) throw new AppError("swap.error.tokenOut");
 	if (sameAddress(inAddress, outAddress)) throw new AppError("swap.error.sameToken");
 	return { chain, cross, needSwap: true, nativeIn, nativeOut, inAddress, outAddress };
+};
+
+/** What a transfer moves, as it is called and counted on each of the two networks. */
+export interface BridgeAsset {
+	kind: BridgeKind;
+	receive: ReceiveAsset;
+	/** What it is called where it leaves and where it arrives ("ETH" for the coin, "WETH" for its token). */
+	symbol: string;
+	destSymbol: string;
+	/** It arrives as the destination's own coin – unless the recipient is a contract, which gets the wrapped token. */
+	destNative: boolean;
+	/** Decimals of the token on the source network, and of its counterpart on the destination. */
+	decimals: number;
+	destDecimals: number;
+	address: Address;
+	destAddress: Address;
+}
+
+/** What a transfer of `tokenIn` between two networks moves, arriving as `want` (or as the default). */
+export const bridgeAssetOf = (
+	chainId: number,
+	destChainId: number,
+	tokenIn: string,
+	want?: ReceiveAsset,
+): BridgeAsset | undefined => {
+	const src = getChain(chainId);
+	const dst = getChain(destChainId);
+	const nativeIn = tokenIn === NATIVE;
+	const route = bridgeRoute(src, dst, nativeIn ? src.wrappedNative : tokenIn, want);
+	if (!route) return undefined;
+	const destNative = sameAddress(route.destToken, dst.wrappedNative);
+	// A token is called what its own network calls it: USDT is USDT0 on some, WETH is ETH on BNB Chain.
+	const name = (chain: ChainConfig, address: Address): string => findToken(chain.id, address)?.symbol ?? route.receive;
+	return {
+		kind: route.kind,
+		receive: route.receive,
+		symbol: nativeIn && sameAddress(route.token, src.wrappedNative) ? src.nativeSymbol : name(src, route.token),
+		destSymbol: destNative ? dst.nativeSymbol : name(dst, route.destToken),
+		destNative,
+		decimals: route.decimals,
+		destDecimals: route.destDecimals,
+		address: route.token,
+		destAddress: route.destToken,
+	};
+};
+
+/** How what arrives is called: the destination's coin reaches a contract as its wrapped token. */
+export const receivedSymbol = (asset: BridgeAsset, wrapped: boolean | undefined): string =>
+	asset.destNative && wrapped ? `W${asset.destSymbol}` : asset.destSymbol;
+
+/**
+ * What an operation makes arrive on the other network: what it was resolved to once it has been
+ * (an operation that fell back to another bridge stays that), and what was asked for until then.
+ */
+export const viaOf = (p: SwapParams): ReceiveAsset | undefined => {
+	const found = legOf(p.resolved);
+	return found ? found.provider.receiveOf(found.leg) : p.receive;
 };
 
 /** Percent string → basis points; `undefined` when out of range. */
@@ -133,18 +211,40 @@ export const slippageBps = (percent: string): number | undefined => {
 	return bps >= 1 && bps <= MAX_SLIPPAGE_PERCENT * 100 ? bps : undefined;
 };
 
-export const applySlippage = (amountOut: bigint, bps: number): bigint => (amountOut * BigInt(10_000 - bps)) / 10_000n;
-
 export const parseAmountIn = (p: SwapParams): bigint | undefined => {
 	if (!isDecimal(p.amount, p.tokenInDecimals)) return undefined;
 	const raw = parseUnits(p.amount, p.tokenInDecimals);
 	return raw > 0n ? raw : undefined;
 };
 
-export const finalityOf = (p: SwapParams): Finality => (p.speed === "fast" ? FINALITY_FAST : FINALITY_STANDARD);
+const swapCtx = (shape: SwapShape, amountIn: bigint, safe: Address, recipient: Address): SwapCtx => ({
+	chain: shape.chain,
+	tokenIn: shape.inAddress,
+	tokenOut: shape.outAddress,
+	nativeIn: shape.nativeIn,
+	nativeOut: shape.nativeOut,
+	amountIn,
+	safe,
+	// Cross-chain: what the exchange returns lands in the Safe and crosses right after, in the same transaction.
+	recipient: shape.cross ? getAddress(safe) : recipient,
+});
 
-/** Fast transfers are not offered when burning on HyperEVM. */
-export const fastAvailable = (chainId: number): boolean => getChain(chainId).key !== "hyperevm";
+const legCtx = (
+	shape: SwapShape,
+	route: BridgeRoute,
+	p: SwapParams,
+	amount: bigint,
+	safe: Address,
+	recipient: Address,
+): LegCtx => ({
+	src: shape.chain,
+	dst: getChain(p.destChainId),
+	lane: route,
+	amount,
+	safe,
+	recipient,
+	coin: shape.nativeIn && !shape.needSwap,
+});
 
 /**
  * Network part of the operation: fresh quote, minimum output, allowance state and bridge fees.
@@ -152,76 +252,59 @@ export const fastAvailable = (chainId: number): boolean => getChain(chainId).key
  * the visible parameters.
  */
 export const resolveSwap = async (p: SwapParams, chainId: number, safe: Address): Promise<SwapResolved> => {
-	const shape = swapShape(p, chainId);
+	try {
+		return await resolveVia(p, chainId, safe, p.receive);
+	} catch (e) {
+		// A bridge that cannot carry the amount right now says so with its own error. The value can
+		// still cross as USDC where another bridge carries that – a different outcome for the
+		// recipient, so it is flagged and shown.
+		if (!(e instanceof AppError)) throw e;
+		let asked: SwapShape;
+		let other: SwapShape;
+		try {
+			asked = swapShape(p, chainId, p.receive);
+			other = swapShape(p, chainId, FALLBACK_RECEIVE);
+		} catch {
+			throw e;
+		}
+		if (!asked.route || !other.route || other.route.kind === asked.route.kind) throw e;
+		if (bridgeOf(asked.route.kind).limitError !== e.key) throw e;
+		return { ...(await resolveVia(p, chainId, safe, FALLBACK_RECEIVE)), fallback: true };
+	}
+};
+
+const resolveVia = async (
+	p: SwapParams,
+	chainId: number,
+	safe: Address,
+	want?: ReceiveAsset,
+): Promise<SwapResolved> => {
+	const shape = swapShape(p, chainId, want);
 	const amountIn = parseAmountIn(p);
 	if (!amountIn) throw new AppError("swap.error.amount");
+	const recipient = parseAddress(p.recipient) ?? getAddress(safe);
 	const resolved: SwapResolved = { amountIn: amountIn.toString(), preparedAt: Date.now() };
-	let bridgeAmount = amountIn;
+	let crossing = amountIn;
 
 	if (shape.needSwap) {
 		const bps = slippageBps(p.slippage);
 		if (!bps) throw new AppError("swap.error.slippage");
-		const probe = amountIn / 1000n;
-		const request = { tokenIn: shape.inAddress, tokenOut: shape.outAddress, fee: p.feeTier || undefined };
-		const [quote, small] = await quoteMany(chainId, [
-			{ ...request, amountIn },
-			{ ...request, amountIn: probe },
-		]);
-		if (!quote) throw new AppError("swap.error.noRoute");
-		const minOut = applySlippage(quote.amountOut, bps);
-		if (minOut <= 0n) throw new AppError("swap.error.noRoute");
-		let impactBps: number | undefined;
-		if (small && small.amountOut > 0n && probe > 0n) {
-			// Output per unit at a 1000× smaller size approximates the pool price.
-			const ideal = small.amountOut * 1000n;
-			impactBps = Math.max(0, Number(((ideal - quote.amountOut) * 10_000n) / ideal));
-		}
-		let resetAllowance = false;
-		if (!shape.nativeIn) {
-			const allowance = await getPublicClient(chainId).readContract({
-				address: shape.inAddress,
-				abi: ERC20_ABI,
-				functionName: "allowance",
-				args: [safe, (shape.chain.dex as NonNullable<ChainConfig["dex"]>).router],
-			});
-			resetAllowance = allowance > 0n;
-		}
-		resolved.swap = {
-			tokens: quote.tokens.map((t) => getAddress(t)),
-			fees: quote.fees,
-			quoteOut: quote.amountOut.toString(),
-			minOut: minOut.toString(),
-			deadline: Math.floor(Date.now() / 1000) + SWAP_DEADLINE_SECONDS,
-			resetAllowance,
-			impactBps,
-		};
-		bridgeAmount = minOut;
+		const swaps = swapProviderFor(shape.chain);
+		if (!swaps) throw new AppError("swap.error.noDex");
+		resolved.swap = await swaps.resolve(swapCtx(shape, amountIn, safe, recipient), {
+			slippageBps: bps,
+			feeTier: p.feeTier || undefined,
+		});
+		// Exactly the guaranteed minimum crosses; what the exchange returns above it stays in the Safe.
+		crossing = BigInt(resolved.swap.minOut);
 	}
 
-	if (shape.cross) {
-		const finality = fastAvailable(chainId) ? finalityOf(p) : FINALITY_STANDARD;
-		const fees = await fetchCctpFees(chainId, p.destChainId, finality, p.forward);
-		const percentFee = bpsFee(bridgeAmount, fees.minimumFeeBps);
-		const forwardFee = p.forward && fees.forwardFee ? fees.forwardFee[p.forwardLevel] : 0n;
-		// Exactly what the API quotes: with forwarding the whole maxFee is consumed, so no buffer.
-		const maxFee = percentFee + forwardFee;
-		if (bridgeAmount > CCTP_BURN_LIMIT) throw new AppError("swap.error.burnLimit");
-		if (bridgeAmount <= maxFee) throw new AppError("swap.error.belowFee");
-		resolved.bridge = {
-			amount: bridgeAmount.toString(),
-			maxFee: maxFee.toString(),
-			forwardFee: forwardFee.toString(),
-			percentFee: percentFee.toString(),
-			finality,
-			forward: p.forward,
-			receive: (bridgeAmount - maxFee).toString(),
-		};
+	if (shape.route) {
+		const bridge = bridgeOf(shape.route.kind);
+		const leg = await bridge.resolve(legCtx(shape, shape.route, p, crossing, safe, recipient), p);
+		(resolved as unknown as Record<string, unknown>)[bridge.legKey] = leg;
 	}
 	return resolved;
-};
-
-const mismatch = (): never => {
-	throw new AppError("ops.error.mismatch");
 };
 
 /** A token known to the app must be described with its real decimals – amounts are shown in them. */
@@ -241,110 +324,51 @@ const checkDecimals = (chainId: number, token: string, decimals: number): void =
 export const buildSwapCalls = (p: SwapParams, chainId: number, safe: Address): MetaTx[] => {
 	const r = p.resolved;
 	if (!r) throw new AppError("swap.error.notPrepared");
-	const shape = swapShape(p, chainId);
+	const crossLeg = legOf(r);
+	if (crossLeg && crossLeg.count > 1) return mismatch();
+	// The leg an operation carries says how it crosses; it is then checked against that very route.
+	const shape = swapShape(p, chainId, viaOf(p));
+	if (shape.route?.kind !== crossLeg?.provider.id) return mismatch();
+	if (shape.cross && (p.receive || r.fallback)) {
+		const asked = swapShape(p, chainId, p.receive);
+		if (r.fallback) {
+			// A fallback is what it says only when the bridge asked for is one that can run out, and another carried it.
+			if (!asked.route || asked.route.kind === shape.route?.kind || !bridgeOf(asked.route.kind).limitError) {
+				return mismatch();
+			}
+		} else if (asked.receive !== shape.receive) {
+			// What was explicitly asked for is what is delivered. (An operation made before there was
+			// a choice asks for nothing.)
+			return mismatch();
+		}
+	}
 	const amountIn = parseAmountIn(p);
 	if (!amountIn || amountIn.toString() !== r.amountIn) return mismatch();
 	checkDecimals(chainId, p.tokenIn, p.tokenInDecimals);
 	const recipient = p.recipient ? parseAddress(p.recipient) : getAddress(safe);
 	if (!recipient) throw new AppError("swap.error.recipient");
-	if (!!r.swap !== shape.needSwap || !!r.bridge !== shape.cross) return mismatch();
+	if (!!r.swap !== shape.needSwap) return mismatch();
 
 	const calls: MetaTx[] = [];
-	let bridgeAmount = amountIn;
+	let crossing = amountIn;
 
 	if (r.swap) {
-		const leg = r.swap;
-		const dex = shape.chain.dex as NonNullable<ChainConfig["dex"]>;
+		const swaps = swapProviderFor(shape.chain);
+		if (!swaps) return mismatch();
 		if (!shape.cross) checkDecimals(chainId, p.tokenOut, p.tokenOutDecimals);
-		if (
-			leg.tokens.length < 2 ||
-			leg.fees.length !== leg.tokens.length - 1 ||
-			!sameAddress(leg.tokens[0], shape.inAddress) ||
-			!sameAddress(leg.tokens[leg.tokens.length - 1], shape.outAddress) ||
-			leg.fees.some((f) => !dex.feeTiers.includes(f))
-		) {
-			return mismatch();
-		}
-		const minOut = BigInt(leg.minOut);
-		if (minOut <= 0n) return mismatch();
-		// Cross-chain: USDC lands in the Safe and is burned right after, in the same transaction.
-		const swapRecipient = shape.cross ? getAddress(safe) : recipient;
-		if (!shape.nativeIn) {
-			const approve = (amount: bigint): MetaTx => ({
-				to: shape.inAddress,
-				value: 0n,
-				data: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [dex.router, amount] }),
-			});
-			if (leg.resetAllowance) calls.push(approve(0n));
-			calls.push(approve(amountIn));
-		}
-		const inner: Hex[] = [
-			encodeFunctionData({
-				abi: ROUTER02_ABI,
-				functionName: "exactInput",
-				args: [
-					{
-						path: encodePath({ tokens: leg.tokens, fees: leg.fees }),
-						// Native out: the router keeps the wrapped coin and unwraps it to the recipient.
-						recipient: shape.nativeOut ? dex.router : swapRecipient,
-						amountIn,
-						amountOutMinimum: minOut,
-					},
-				],
-			}),
-		];
-		if (shape.nativeOut) {
-			inner.push(encodeFunctionData({ abi: ROUTER02_ABI, functionName: "unwrapWETH9", args: [minOut, swapRecipient] }));
-		}
-		calls.push({
-			to: dex.router,
-			value: shape.nativeIn ? amountIn : 0n,
-			data: encodeFunctionData({ abi: ROUTER02_ABI, functionName: "multicall", args: [BigInt(leg.deadline), inner] }),
-		});
-		bridgeAmount = minOut;
+		calls.push(...swaps.build(swapCtx(shape, amountIn, safe, recipient), r.swap));
+		crossing = BigInt(r.swap.minOut);
 	}
 
-	if (r.bridge) {
-		const leg = r.bridge;
-		const usdc = shape.chain.usdc as Address;
-		const amount = BigInt(leg.amount);
-		const maxFee = BigInt(leg.maxFee);
-		if (amount !== bridgeAmount || maxFee >= amount || maxFee < 0n) return mismatch();
-		if (maxFee !== BigInt(leg.forwardFee) + BigInt(leg.percentFee)) return mismatch();
-		if ((amount - maxFee).toString() !== leg.receive || leg.forward !== p.forward) return mismatch();
-		if (leg.finality !== FINALITY_FAST && leg.finality !== FINALITY_STANDARD) return mismatch();
-		if (!leg.forward && BigInt(leg.forwardFee) !== 0n) return mismatch();
-		const messenger = tokenMessengerOf(chainId);
-		calls.push({
-			to: usdc,
-			value: 0n,
-			data: encodeFunctionData({ abi: ERC20_ABI, functionName: "approve", args: [messenger, amount] }),
-		});
-		calls.push({
-			to: messenger,
-			value: 0n,
-			data: encodeBurn({
-				amount,
-				dstChainId: p.destChainId,
-				recipient,
-				usdc,
-				maxFee,
-				finality: leg.finality,
-				forward: leg.forward,
-			}),
-		});
+	if (crossLeg && shape.route) {
+		const ctx = legCtx(shape, shape.route, p, crossing, safe, recipient);
+		calls.push(...crossLeg.provider.build(ctx, crossLeg.leg, p));
 	}
 	return calls;
 };
 
-/** Progress of the cross-chain leg, kept in `op.result.extra.bridge`. */
-export interface BridgeProgress {
-	stage: "burned" | "attested" | "credited";
-	nonce?: string;
-	attestedAt?: number;
-	mintTxHash?: string;
-	claimTxHash?: string;
-}
+/** The bridge that carries the cross-chain leg of an operation, if it has one. */
+export const crossLegOf = (p: SwapParams): BridgeKind | undefined => legOf(p.resolved)?.provider.id;
 
 export const bridgeProgressOf = (op: Operation): BridgeProgress | undefined =>
 	op.result?.extra?.bridge as BridgeProgress | undefined;

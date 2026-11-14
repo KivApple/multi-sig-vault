@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from "react";
 import { Field } from "@/components/ui/Field";
 import { Segmented, type SegmentedOption } from "@/components/ui/Segmented";
+import { getChain } from "@/config/chains";
 import { useT } from "@/i18n";
 import type { ForwardLevel } from "@/lib/evm/cctp";
 import { fastAvailable, type SwapParams } from "@/lib/evm/swapBuild";
@@ -14,7 +15,7 @@ export interface SwapBridgeOptionsProps {
 /** Bridge leg options: transfer speed and who submits the mint on the destination network. */
 export const SwapBridgeOptions: React.FC<SwapBridgeOptionsProps> = ({ value, onChange, chainId }) => {
 	const t = useT();
-	const fast = fastAvailable(chainId);
+	const fast = fastAvailable(getChain(chainId).key);
 
 	const speedOptions = useMemo<SegmentedOption<SwapParams["speed"]>[]>(
 		() => [

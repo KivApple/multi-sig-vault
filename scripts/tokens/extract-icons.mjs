@@ -48,6 +48,8 @@ for (const name of ["ethereum", "arbitrum", "base", "polygon"]) {
 	write(`network/${name}.svg`, official(name));
 }
 write("network/hyperevm.svg", HYPERLIQUID);
+// BNB Chain: the mark in white on the brand yellow, as the pack has it.
+write("network/bnb.svg", await load("networks/background/binance-smart-chain"));
 
 // --- Tokens ------------------------------------------------------------------------------
 const OVERRIDES = {
@@ -87,7 +89,7 @@ const KEEP_LARGE = new Set(["DOGE", "PEPE", "APE"]);
 const MAX_BYTES = 12_000;
 
 const wanted = new Set(EXTRA);
-for (const chainId of ["1", "42161", "8453", "137", "999"]) {
+for (const chainId of ["1", "42161", "8453", "137", "56", "999"]) {
 	for (const token of builtin.chains[chainId] ?? []) wanted.add(token[1].toUpperCase());
 }
 for (const name of hlSymbols)

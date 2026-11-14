@@ -1,6 +1,7 @@
 import { Globe } from "lucide-react";
 import arbitrum from "@/assets/icons/network/arbitrum.svg";
 import base from "@/assets/icons/network/base.svg";
+import bnb from "@/assets/icons/network/bnb.svg";
 import ethereum from "@/assets/icons/network/ethereum.svg";
 import hyperevm from "@/assets/icons/network/hyperevm.svg";
 import polygon from "@/assets/icons/network/polygon.svg";
@@ -13,7 +14,7 @@ export interface NetworkIconProps {
 	className?: string;
 }
 
-const SRC: Record<ChainKey, string> = { ethereum, arbitrum, base, hyperevm, polygon };
+const SRC: Record<ChainKey, string> = { ethereum, arbitrum, base, hyperevm, polygon, bnb };
 
 /** Network mark; a testnet uses the mark of its mainnet. */
 export const NetworkIcon: React.FC<NetworkIconProps> = ({ chainId, size = 24, className }) => {

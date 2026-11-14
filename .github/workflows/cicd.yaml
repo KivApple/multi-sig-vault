@@ -25,6 +25,10 @@ jobs:
       PUBLIC_RELEASE_CHAIN_ID: "999,1"
       # Two independent endpoints per network, networks separated by ";"
       RELEASE_RPC_URLS: https://hyperliquid.drpc.org,https://hyperliquid-json-rpc.stakely.io;https://ethereum-rpc.publicnode.com,https://eth.drpc.org
+      # Optional credentials of the Across bridge API: higher rate limits, and transfers attributed to the app.
+      # Both are compiled into the public build
+      ACROSS_API_KEY: ${{ secrets.ACROSS_API_KEY }}
+      ACROSS_INTEGRATOR_ID: ${{ secrets.ACROSS_INTEGRATOR_ID }}
 
     steps:
       - name: Checkout
