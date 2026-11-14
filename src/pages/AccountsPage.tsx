@@ -179,7 +179,8 @@ export const AccountsPage: React.FC = () => {
 						<p className="text-base-content/60 mb-3 flex flex-wrap gap-x-4 px-1 text-sm">
 							{showMainnet && (
 								<span>
-									{t("accounts.total")}{" "}
+									{/* "Total" only while it is the one figure: next to a testnet sum it is named as what it is. */}
+									{showTestnet ? "Mainnet" : t("accounts.total")}{" "}
 									<span className="text-base-content tabular font-semibold">{formatUsd(mainnetTotal, lang)}</span>
 								</span>
 							)}
