@@ -189,10 +189,35 @@ describe("the one check of a recipient address", () => {
 		expect(usd({ destination: USER, amount: "5" }, hl).destination).toBe(USER.toLowerCase());
 		expect(() => usd({ destination: ZERO, amount: "5" }, hl)).toThrow();
 		expect(() => usd({ destination: hlSystemAddress(150, "HYPE"), amount: "5" }, hl)).toThrow();
+		// A unified account has USDC on spot: the exchange refuses usdSend, so it goes as sendAsset spot → spot.
+		const USDC = "USDC:0x6d1e7cde53ba9467b783cb7c530ce054";
+		expect(usd({ destination: USER, amount: "5", spotToken: USDC }, hl)).toEqual({
+			type: "sendAsset",
+			destination: USER.toLowerCase(),
+			sourceDex: "spot",
+			destinationDex: "spot",
+			token: USDC,
+			amount: "5",
+			fromSubAccount: "",
+		});
+		// Only USDC can stand behind an operation that says "USDC".
+		expect(() =>
+			usd({ destination: USER, amount: "5", spotToken: "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec" }, hl),
+		).toThrow();
 		const spot = spotSendOp.buildHl as NonNullable<typeof spotSendOp.buildHl>;
 		const token = { token: 1, tokenRef: "PURR:0xc1fb593aeffbeb02f85e0308e9956a90", coin: "PURR", amount: "5" };
 		expect(() => spot({ ...token, destination: hlSystemAddress(1, "PURR") }, hl)).toThrow();
 		expect(spot({ ...token, destination: USER }, hl).destination).toBe(USER.toLowerCase());
+		// From a unified account any spot token goes as sendAsset spot → spot.
+		expect(spot({ ...token, destination: USER, asset: true }, hl)).toEqual({
+			type: "sendAsset",
+			destination: USER.toLowerCase(),
+			sourceDex: "spot",
+			destinationDex: "spot",
+			token: token.tokenRef,
+			amount: "5",
+			fromSubAccount: "",
+		});
 		const withdraw = withdrawOp.buildHl as NonNullable<typeof withdrawOp.buildHl>;
 		expect(() => withdraw({ destination: low(1), amount: "5" }, hl)).toThrow();
 

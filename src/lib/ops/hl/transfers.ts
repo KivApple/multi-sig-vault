@@ -1,5 +1,6 @@
 import { ArrowDownUp, ArrowUpFromLine, Landmark, Send, SendHorizontal } from "lucide-react";
 import { getChain, HL_BRIDGE_CHAIN, HL_EVM_CHAIN } from "@/config/chains";
+import { AppError } from "@/lib/errors";
 import { ClassTransferForm } from "@/components/ops/hl/ClassTransferForm";
 import { SpotSendForm } from "@/components/ops/hl/SpotSendForm";
 import { SpotWithdrawForm } from "@/components/ops/hl/SpotWithdrawForm";
@@ -21,6 +22,13 @@ import { amountError } from "./common";
 export interface UsdParams {
 	destination: string;
 	amount: string;
+	/**
+	 * `USDC:<token id>` when the account is in a unified mode (unified account, portfolio margin): USDC
+	 * is then a spot balance, and the exchange refuses `usdSend` ("Action disabled when unified account is
+	 * active"). It is sent with `sendAsset` from spot to spot instead, as the exchange's own app does.
+	 * Fixed right before the first signature, from the account's mode at that time.
+	 */
+	spotToken?: string;
 }
 
 export const withdrawOp: OpDefinition<UsdParams> = {
@@ -75,11 +83,23 @@ export const usdSendOp: OpDefinition<UsdParams> = {
 		if (a) errors.amount = a;
 		return errors;
 	},
-	buildHl: (p) => ({
-		type: "usdSend",
-		destination: requireRecipient(p.destination, { hyperliquid: true }).toLowerCase(),
-		amount: trimDecimal(p.amount),
-	}),
+	prepare: async (p, env) => ({ ...p, spotToken: env.hl?.unified ? env.hl.usdcToken : undefined }),
+	buildHl: (p) => {
+		const destination = requireRecipient(p.destination, { hyperliquid: true }).toLowerCase();
+		if (p.spotToken === undefined) return { type: "usdSend", destination, amount: trimDecimal(p.amount) };
+		// Only USDC itself: the operation says "USDC", and that is what is shown to every signer.
+		if (!/^USDC:0x[0-9a-f]{32}$/.test(p.spotToken)) throw new AppError("ops.error.mismatch");
+		// What the exchange's own app sends from a unified account: the spot balance to the recipient's spot balance.
+		return {
+			type: "sendAsset",
+			destination,
+			sourceDex: "spot",
+			destinationDex: "spot",
+			token: p.spotToken,
+			amount: trimDecimal(p.amount),
+			fromSubAccount: "",
+		};
+	},
 	summary: (p, { t, lang }) => [
 		{ label: t("ops.amount"), value: `${formatAmount(p.amount, lang)} USDC` },
 		{ label: t("ops.recipient"), address: p.destination as never },
@@ -95,6 +115,12 @@ export interface SpotParams {
 	tokenRef: string;
 	coin: string;
 	amount: string;
+	/**
+	 * Sent with `sendAsset` from spot to spot: the account is in a unified mode, where the exchange's own
+	 * app sends tokens this way (seen working for USDC and other tokens). Fixed right before the first
+	 * signature, from the account's mode at that time.
+	 */
+	asset?: boolean;
 }
 
 const spotErrors: OpDefinition<SpotParams>["validate"] = (p, env, t) => {
@@ -120,12 +146,21 @@ export const spotSendOp: OpDefinition<SpotParams> = {
 		if (d) errors.destination = d;
 		return errors;
 	},
-	buildHl: (p) => ({
-		type: "spotSend",
-		destination: requireRecipient(p.destination, { hyperliquid: true }).toLowerCase(),
-		token: p.tokenRef,
-		amount: trimDecimal(p.amount),
-	}),
+	prepare: async (p, env) => ({ ...p, asset: env.hl?.unified ? true : undefined }),
+	buildHl: (p) => {
+		const destination = requireRecipient(p.destination, { hyperliquid: true }).toLowerCase();
+		const amount = trimDecimal(p.amount);
+		if (!p.asset) return { type: "spotSend", destination, token: p.tokenRef, amount };
+		return {
+			type: "sendAsset",
+			destination,
+			sourceDex: "spot",
+			destinationDex: "spot",
+			token: p.tokenRef,
+			amount,
+			fromSubAccount: "",
+		};
+	},
 	summary: (p, { t, lang }) => [
 		{ label: t("ops.amount"), value: `${formatAmount(p.amount, lang, 8)} ${p.coin}` },
 		{ label: t("ops.recipient"), address: p.destination as never },
