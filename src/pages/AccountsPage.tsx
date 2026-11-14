@@ -3,6 +3,7 @@ import { Check, KeyRound, Pencil, Plus, RefreshCw, ScanLine, Wallet } from "luci
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AccountCard } from "@/components/accounts/AccountCard";
+import { SafeGroupCard } from "@/components/accounts/SafeGroupCard";
 import { SortableList } from "@/components/common/SortableList";
 import { SortableRow } from "@/components/common/SortableRow";
 import { ImportOperationDialog } from "@/components/ops/ImportOperationDialog";
@@ -12,6 +13,7 @@ import { IconButton } from "@/components/ui/IconButton";
 import { PageHeader } from "@/components/ui/PageHeader";
 import { findChain } from "@/config/chains";
 import { useLang, useT } from "@/i18n";
+import { flattenItems, groupAccounts } from "@/lib/accountGroups";
 import { requestRefresh, useCacheStore } from "@/lib/dataCache";
 import { describeError } from "@/lib/describeError";
 import { formatUsd } from "@/lib/format";
@@ -34,7 +36,9 @@ export const AccountsPage: React.FC = () => {
 	const [parsed, setParsed] = useState<ParsedImport | null>(null);
 
 	const visible = useMemo(() => (editing ? accounts : accounts.filter((a) => !a.hidden)), [accounts, editing]);
-	const ids = useMemo(() => visible.map((a) => a.id), [visible]);
+	const grouping = useAppStore((s) => s.settings.groupSafes);
+	const items = useMemo(() => groupAccounts(visible, grouping), [visible, grouping]);
+	const ids = useMemo(() => items.map((item) => item.id), [items]);
 	// Mainnet and testnet are never added up: testnet money is not money. Hidden accounts count only while editing.
 	const totals = useCacheStore((s) => {
 		const sums = { mainnet: 0, testnet: 0 };
@@ -54,7 +58,16 @@ export const AccountsPage: React.FC = () => {
 	const showTestnet = testnetTotal !== undefined && testnetTotal > 0;
 	const showMainnet = mainnetTotal !== undefined && visible.some((a) => a.env === "mainnet");
 
-	const handleReorder = useCallback((next: string[]) => useAppStore.getState().reorderAccounts(next), []);
+	// A card moves with all its rows; rows move inside their card.
+	const handleReorder = useCallback(
+		(next: string[]) => useAppStore.getState().reorderAccounts(flattenItems(items, next)),
+		[items],
+	);
+	const handleReorderRows = useCallback(
+		(groupId: string, rowIds: string[]) =>
+			useAppStore.getState().reorderAccounts(flattenItems(items, undefined, { groupId, ids: rowIds })),
+		[items],
+	);
 
 	const handleScan = useCallback(
 		async (text: string) => {
@@ -178,11 +191,20 @@ export const AccountsPage: React.FC = () => {
 							)}
 						</p>
 					)}
-					<SortableList ids={ids} onReorder={handleReorder}>
-						<ul className="grid grid-cols-1 gap-2 lg:grid-cols-2">
-							{visible.map((account) => (
-								<SortableRow key={account.id} id={account.id} editing={editing}>
-									<AccountCard account={account} editing={editing} />
+					{/* Grouped cards differ in height: they go in one column. */}
+					<SortableList ids={ids} onReorder={handleReorder} layout={grouping ? "column" : "grid"}>
+						<ul className={`grid grid-cols-1 gap-2 ${grouping ? "" : "lg:grid-cols-2"}`}>
+							{items.map((item) => (
+								<SortableRow key={item.id} id={item.id} editing={editing}>
+									{item.accounts.length > 1 ? (
+										<SafeGroupCard
+											accounts={item.accounts}
+											editing={editing}
+											onReorder={(rowIds) => handleReorderRows(item.id, rowIds)}
+										/>
+									) : (
+										<AccountCard account={item.accounts[0]} editing={editing} />
+									)}
 								</SortableRow>
 							))}
 						</ul>

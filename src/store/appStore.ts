@@ -15,6 +15,7 @@ import {
 export const DEFAULT_SETTINGS: Settings = {
 	theme: "system",
 	lang: "system",
+	groupSafes: false,
 	mevProtection: true,
 	feeSpeed: "fast",
 	tokenListAutoUpdate: true,

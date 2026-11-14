@@ -62,6 +62,7 @@ Details are in [MetaMask on a phone](#metamask-on-a-phone). The relay is `relay/
 - Bridge USDC between any two supported networks through Circle CCTP V2, alone or right after a swap.
 - Change owners and threshold.
 - Call a contract by ABI, deploy a contract, sign a message hash (EIP-1271).
+- Optionally show the Safes of one address as one card with a row per network (settings).
 - Choose a slower or a faster network fee; a transaction that stays unconfirmed can be sent again with the same signatures.
 - Any of your signers can send a signed transaction and pay its fee. A Safe can be limited (account settings, kept on the device) to its own signers or to the signers you choose.
 

@@ -20,6 +20,19 @@ export const SettingsPage: React.FC = () => {
 			<PageHeader title={t("nav.settings")} />
 			<SettingsSection title={t("settings.appearance")}>
 				<AppearanceSettings />
+				<SettingRow
+					label={t("settings.groupSafes")}
+					hint={t("settings.groupSafesHint")}
+					control={
+						<input
+							type="checkbox"
+							className="toggle toggle-primary"
+							checked={settings.groupSafes}
+							onChange={(e) => update({ groupSafes: e.target.checked })}
+							aria-label={t("settings.groupSafes")}
+						/>
+					}
+				/>
 			</SettingsSection>
 
 			<SettingsSection title={t("settings.network")}>

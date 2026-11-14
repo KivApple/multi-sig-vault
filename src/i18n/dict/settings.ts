@@ -5,6 +5,9 @@ export default defineDict({
 	en: {
 		"settings.appearance": "Appearance",
 		"settings.theme": "Theme",
+		"settings.groupSafes": "Group Safes of one address",
+		"settings.groupSafesHint":
+			"A Safe at the same address on several networks is one card on the home screen, with a row per network. Mainnet and testnet stay apart.",
 		"settings.language": "Language",
 		"settings.system": "System",
 		"settings.systemLang": "System",
@@ -28,6 +31,9 @@ export default defineDict({
 	ru: {
 		"settings.appearance": "Оформление",
 		"settings.theme": "Тема",
+		"settings.groupSafes": "Объединять Safe с одним адресом",
+		"settings.groupSafesHint":
+			"Safe с одним адресом в нескольких сетях — одна карточка на главном экране, со строкой на каждую сеть. Mainnet и testnet не смешиваются.",
 		"settings.language": "Язык",
 		"settings.system": "Системная",
 		"settings.systemLang": "Системный",

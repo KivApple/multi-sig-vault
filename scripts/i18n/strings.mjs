@@ -118,6 +118,10 @@ export const STRINGS = [
 		"Только отмеченные, подписывают они за этот Safe или нет",
 	],
 	["accounts.sendMode.pickOne", "Tick at least one signer.", "Отметьте хотя бы одного подписанта."],
+	["accounts.networks_one", "{count} network", "{count} сеть"],
+	["accounts.networks_few", "{count} networks", "{count} сети"],
+	["accounts.networks_many", "{count} networks", "{count} сетей"],
+	["accounts.networks_other", "{count} networks", "{count} сетей"],
 	["accounts.unnamed", "Unnamed account", "Счёт без имени"],
 	["owners.keys_one", "{m} of {count} key", "{m} из {count} ключа"],
 	["owners.keys_few", "{m} of {count} keys", "{m} из {count} ключей"],
@@ -156,6 +160,12 @@ export const STRINGS = [
 	// ---- settings ----
 	["settings.appearance", "Appearance", "Оформление"],
 	["settings.theme", "Theme", "Тема"],
+	["settings.groupSafes", "Group Safes of one address", "Объединять Safe с одним адресом"],
+	[
+		"settings.groupSafesHint",
+		"A Safe at the same address on several networks is one card on the home screen, with a row per network. Mainnet and testnet stay apart.",
+		"Safe с одним адресом в нескольких сетях — одна карточка на главном экране, со строкой на каждую сеть. Mainnet и testnet не смешиваются.",
+	],
 	["settings.language", "Language", "Язык"],
 	["settings.system", "System", "Системная"],
 	["settings.systemLang", "System", "Системный"],

@@ -127,6 +127,8 @@ export interface Operation {
 export interface Settings {
 	theme: ThemeSetting;
 	lang: LangSetting;
+	/** Home screen: Safes that share an address (within mainnet or within testnet) are one card. */
+	groupSafes: boolean;
 	mevProtection: boolean;
 	/** Fee level of the transactions the app sends itself. */
 	feeSpeed: FeeSpeed;
