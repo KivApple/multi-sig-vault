@@ -28,6 +28,7 @@ export const useSwapPreview = (params: SwapParams, chainId: number, safe: Addres
 				params.speed,
 				params.forward,
 				params.forwardLevel,
+				params.acrossReserve,
 			]),
 		[params],
 	);

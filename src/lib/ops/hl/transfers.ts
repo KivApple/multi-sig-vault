@@ -5,13 +5,17 @@ import { SpotSendForm } from "@/components/ops/hl/SpotSendForm";
 import { SpotWithdrawForm } from "@/components/ops/hl/SpotWithdrawForm";
 import { UsdSendForm } from "@/components/ops/hl/UsdSendForm";
 import { WithdrawForm } from "@/components/ops/hl/WithdrawForm";
-import { formatAmount, trimDecimal } from "@/lib/format";
+import { formatAmount, isDecimal, trimDecimal } from "@/lib/format";
 import { useT } from "@/i18n";
 import { HL_WITHDRAW_FEE, hlSystemAddress } from "@/lib/hl/account";
 import { assertEvmWithdrawable } from "@/lib/hl/evm";
 import { recipientError, requireRecipient } from "@/lib/recipient";
-import { useContractRecipient, useHlNewRecipient } from "../recipientNotices";
-import type { OpDefinition, OpErrors } from "../types";
+import { mergeNotices, useContractRecipient, useHlNewRecipient } from "../recipientNotices";
+import type { OpDefinition, OpErrors, OpNotices } from "../types";
+import { unlessUnchecked, useCheck } from "../useCheck";
+
+/** What the HyperEVM look throws when it could not look. */
+const EVM_UNCHECKED = ["hl.spotWithdraw.error.unchecked"];
 import { amountError } from "./common";
 
 export interface UsdParams {
@@ -137,21 +141,38 @@ export const spotWithdrawOp: OpDefinition<SpotParams> = {
 	available: (env) => !!env.hl && env.hl.spot.some((s) => s.evm && s.token !== 0),
 	defaults: () => ({ destination: "", token: null, tokenRef: "", coin: "", amount: "" }),
 	Form: SpotWithdrawForm,
-	// The tokens arrive at the account's own address on HyperEVM, and a multi-sig has no say there.
-	useNotices: (_p, env) => {
+	useNotices: (p, env) => {
 		const t = useT();
-		return {
+		const { account } = env;
+		// The exchange debits the account whether or not HyperEVM can pay the token out: look first.
+		const ready = p.token !== null && !!p.coin && isDecimal(p.amount, 8) && Number(p.amount) > 0;
+		const payout = useCheck(
+			ready ? `evm-payout:${account.env}:${account.address}:${p.token}:${trimDecimal(p.amount)}` : null,
+			() => assertEvmWithdrawable(account.env, p.token as number, p.coin, p.amount, account.address),
+			EVM_UNCHECKED,
+			{ unchecked: t("hl.spotWithdraw.uncheckedNote", { coin: p.coin }) },
+		);
+		// The tokens arrive at the account's own address on HyperEVM, and a multi-sig has no say there.
+		const key: OpNotices = {
 			notices: env.hl?.multiSig ? [{ id: "evm-key", text: t("hl.evmKeyNote"), confirm: t("hl.evmKeyConfirm") }] : [],
 		};
+		return mergeNotices(payout, key);
 	},
 	validate: spotErrors,
-	// The exchange debits the account whether or not HyperEVM can pay the token out: look first.
+	// The same look, by the engine: a problem found stops the signing and, days later, the sending.
+	// "Could not look" does not: the card asked about that.
 	prepare: async (p, env) => {
-		await assertEvmWithdrawable(env.account.env, p.token as number, p.coin, p.amount, env.account.address);
+		await unlessUnchecked(
+			assertEvmWithdrawable(env.account.env, p.token as number, p.coin, p.amount, env.account.address),
+			EVM_UNCHECKED,
+		);
 		return p;
 	},
-	// Signatures may take days: what HyperEVM could pay then, it may not pay now.
-	recheck: (p, account) => assertEvmWithdrawable(account.env, p.token as number, p.coin, p.amount, account.address),
+	recheck: (p, account) =>
+		unlessUnchecked(
+			assertEvmWithdrawable(account.env, p.token as number, p.coin, p.amount, account.address),
+			EVM_UNCHECKED,
+		),
 	buildHl: (p) => ({
 		type: "spotSend",
 		destination: hlSystemAddress(p.token as number, p.coin).toLowerCase(),

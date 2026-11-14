@@ -86,6 +86,8 @@ export interface SwapParams {
 	/** Circle submits the mint on the destination chain and deducts its cost from the transfer. */
 	forward: boolean;
 	forwardLevel: ForwardLevel;
+	/** Option of the Across bridge: leave the relayer room for gas growing while signatures are collected. Absent – on. */
+	acrossReserve?: boolean;
 	/** Filled right before the first signature. */
 	resolved?: SwapResolved;
 }

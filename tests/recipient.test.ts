@@ -8,7 +8,9 @@ import { unitWithdrawOp } from "@/lib/ops/hl/unit";
 import { safeSendOp } from "@/lib/ops/safe/send";
 import { parseAddress } from "@/lib/format";
 import { parseSolanaAccount, isSolanaWallet } from "@/lib/hl/solana";
+import { AppError } from "@/lib/errors";
 import { mergeNotices } from "@/lib/ops/recipientNotices";
+import { settle, unlessUnchecked } from "@/lib/ops/useCheck";
 import { unknownSigners } from "@/lib/ops/useUnknownSigners";
 import { knownContracts, recipientProblem, requireRecipient } from "@/lib/recipient";
 
@@ -317,5 +319,37 @@ describe("several findings about one operation", () => {
 		const none = mergeNotices({ notices: [] }, { notices: [] });
 		expect(none).toMatchObject({ notices: [], pending: false, checking: false });
 		expect(none.refresh).toBeUndefined();
+	});
+});
+
+describe("a check that asks the network", () => {
+	const UNCHECKED = ["x.unchecked"];
+
+	it("tells a problem found from not having been able to ask", async () => {
+		expect(await settle(async () => undefined, UNCHECKED)).toEqual({ ok: true });
+		expect(
+			await settle(async () => {
+				throw new AppError("x.noSupply", { coin: "SIX" });
+			}, UNCHECKED),
+		).toEqual({ ok: false, key: "x.noSupply", vars: { coin: "SIX" } });
+		// Could not ask – by its own word, or because the request itself failed: no answer, to be asked again.
+		await expect(
+			settle(async () => {
+				throw new AppError("x.unchecked");
+			}, UNCHECKED),
+		).rejects.toThrow();
+		await expect(
+			settle(async () => {
+				throw new TypeError("Failed to fetch");
+			}, UNCHECKED),
+		).rejects.toThrow();
+	});
+
+	it("stops the engine on a problem only", async () => {
+		await expect(unlessUnchecked(Promise.resolve(), UNCHECKED)).resolves.toBeUndefined();
+		await expect(unlessUnchecked(Promise.reject(new AppError("x.unchecked")), UNCHECKED)).resolves.toBeUndefined();
+		await expect(unlessUnchecked(Promise.reject(new AppError("x.noSupply")), UNCHECKED)).rejects.toMatchObject({
+			key: "x.noSupply",
+		});
 	});
 });

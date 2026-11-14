@@ -18,6 +18,8 @@ export default defineDict({
 			"On HyperEVM this address is controlled by the account's original key, not by the multi-sig: managing the tokens there takes that key.",
 		"hl.newRecipient":
 			"Nothing has happened at this address on Hyperliquid yet: there is no account there. Check the address; this transfer will open one.",
+		"hl.spotWithdraw.uncheckedNote":
+			"No connection to HyperEVM: could not check that it can pay {coin} out. The exchange debits the account either way, so if it cannot, the tokens will not arrive.",
 		"hl.evmKeyConfirm": "The account's original key is available",
 		"hl.spotWithdraw.error.unchecked":
 			"Could not check that HyperEVM can pay {coin} out: its contract there did not answer. Nothing was signed.",
@@ -33,6 +35,8 @@ export default defineDict({
 		"hl.unit.error.api": "Unit did not provide a withdrawal address: {detail}",
 		"hl.unit.error.belowMin":
 			"Below Unit's minimum of {min} {symbol}: such a transfer cannot be processed and may not be returned.",
+		"hl.unit.solanaUncheckedNote":
+			"No connection to Solana: could not check that this address is a wallet. A payout sent to a token account or a program cannot be spent.",
 		"hl.unit.error.solanaNotWallet":
 			"This Solana address is a token account or a program, not a wallet: a payout sent there could not be spent. Enter the address of the wallet.",
 		"hl.unit.error.solanaUnchecked": "Could not check this address on Solana. Nothing was signed; try again later.",
@@ -120,6 +124,8 @@ export default defineDict({
 			"В HyperEVM этим адресом управляет исходный ключ счёта, а не multi-sig: чтобы распоряжаться токенами там, понадобится этот ключ.",
 		"hl.newRecipient":
 			"На этом адресе в Hyperliquid ещё ничего не происходило: счёта там нет. Проверьте адрес; этот перевод откроет счёт.",
+		"hl.spotWithdraw.uncheckedNote":
+			"Нет связи с HyperEVM: не удалось проверить, что он сможет выдать {coin}. Биржа спишет токены в любом случае, и если не сможет — они не придут.",
 		"hl.evmKeyConfirm": "Исходный ключ счёта доступен",
 		"hl.spotWithdraw.error.unchecked":
 			"Не удалось проверить, что HyperEVM сможет выдать {coin}: контракт токена там не ответил. Ничего не подписано.",
@@ -135,6 +141,8 @@ export default defineDict({
 		"hl.unit.error.api": "Unit не выдал адрес для вывода: {detail}",
 		"hl.unit.error.belowMin":
 			"Меньше минимума Unit, {min} {symbol}: такой перевод не будет обработан и может не вернуться.",
+		"hl.unit.solanaUncheckedNote":
+			"Нет связи с Solana: не удалось проверить, что этот адрес — кошелёк. Выплатой, отправленной на токен-счёт или программу, распорядиться нельзя.",
 		"hl.unit.error.solanaNotWallet":
 			"Этот адрес в Solana — токен-счёт или программа, а не кошелёк: выплатой, отправленной туда, нельзя будет распорядиться. Укажите адрес кошелька.",
 		"hl.unit.error.solanaUnchecked": "Не удалось проверить этот адрес в Solana. Ничего не подписано; попробуйте позже.",

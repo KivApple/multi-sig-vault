@@ -30,7 +30,8 @@ export default defineDict({
 			"There is no Safe at this address on {network} yet. The funds will wait at the address; to manage them the Safe has to be created there (Create Safe, same address as an existing one). It will start with the signers and threshold this Safe was created with, which differ from the current ones.",
 		"swap.twin.cannotCreate":
 			"There is no Safe at this address on {network}, and this app cannot create one there: how this Safe was created is unknown to it or not supported. Managing funds at this address there will take other tools.",
-		"swap.twin.unknown": "Could not check whether there is a Safe at this address on {network}.",
+		"swap.twin.unknown":
+			"No connection to {network}: could not check whether a Safe stands at this address there, and whose it is.",
 		"swap.twin.foreignOwners":
 			"The Safe at this address on {network} has other signers or another threshold than this one. There the funds will be controlled by its signers, not by this Safe's.",
 		"swap.twin.notSafe":
@@ -122,6 +123,20 @@ export default defineDict({
 		"swap.error.belowFee": "The amount does not cover the bridge fee",
 		"swap.error.feeApi": "Could not get bridge fees from Circle. Try again later.",
 		"swap.error.acrossApi": "Could not get a usable quote from the Across bridge. Try again later.",
+		"swap.reserve": "Gas reserve",
+		"swap.reserve.on": "With reserve",
+		"swap.reserve.off": "No reserve",
+		"swap.reserve.onHint":
+			"The relayer is left room for gas to triple while signatures are collected: cents on most networks. Without it a transfer may go undelivered and come back in a few hours.",
+		"swap.reserve.offHint":
+			"Exactly the quoted fee. If gas on the destination grows before the transaction runs, no relayer may take it, and it comes back in a few hours.",
+		"swap.across.withReserve": "with a gas reserve",
+		"swap.across.feeHigh":
+			"The bridge fee fixed for this transfer is more than the gas price on {network} explains now. It may have been quoted when gas was dearer; check the amount before signing.",
+		"swap.across.feeConfirm": "The fee is checked",
+		"swap.error.acrossFee":
+			"The Across bridge asks a fee above 1% of the amount plus ten times what delivery costs in gas on {network} now. Nothing was signed; try again later.",
+		"swap.error.acrossGas": "Could not read the gas price on {network} to check the bridge fee. Try again.",
 		"swap.error.acrossLimit": "More than the Across bridge carries on this route right now",
 		"swap.error.noForward": "Automatic crediting is not available for this route. Turn it off to continue.",
 		"swap.error.attestationApi": "Circle API is not responding. Try again later.",
@@ -157,7 +172,8 @@ export default defineDict({
 			"В сети {network} по этому адресу Safe ещё не создан. Средства будут ждать на адресе; чтобы ими распоряжаться, Safe нужно будет создать там («Создать Safe», тот же адрес, что у существующего). Он получит подписантов и порог, с которыми был создан этот Safe, — сейчас они другие.",
 		"swap.twin.cannotCreate":
 			"В сети {network} по этому адресу Safe не создан, и приложение не может создать его там: как был создан этот Safe, ему неизвестно или не поддерживается. Чтобы распоряжаться средствами на этом адресе там, понадобятся другие инструменты.",
-		"swap.twin.unknown": "Не удалось проверить, есть ли Safe по этому адресу в сети {network}.",
+		"swap.twin.unknown":
+			"Нет связи с сетью {network}: не удалось проверить, есть ли там Safe по этому адресу и чей он.",
 		"swap.twin.foreignOwners":
 			"У Safe по этому адресу в сети {network} другие подписанты или другой порог, чем у этого. Средствами там будут распоряжаться его подписанты, а не подписанты этого Safe.",
 		"swap.twin.notSafe":
@@ -249,6 +265,21 @@ export default defineDict({
 		"swap.error.belowFee": "Сумма не покрывает комиссию моста",
 		"swap.error.feeApi": "Не удалось получить комиссии моста от Circle. Повторите позже.",
 		"swap.error.acrossApi": "Не удалось получить пригодную котировку от моста Across. Повторите позже.",
+		"swap.reserve": "Запас на газ",
+		"swap.reserve.on": "С запасом",
+		"swap.reserve.off": "Без запаса",
+		"swap.reserve.onHint":
+			"Релееру оставляется запас на трёхкратный рост газа, пока собираются подписи: центы в большинстве сетей. Без него перевод могут не доставить, и он вернётся через несколько часов.",
+		"swap.reserve.offHint":
+			"Ровно по котировке. Если газ в сети получения вырастет до исполнения транзакции, релееры могут её не взять, и перевод вернётся через несколько часов.",
+		"swap.across.withReserve": "с запасом на газ",
+		"swap.across.feeHigh":
+			"Комиссия моста, зафиксированная для этого перевода, выше, чем объясняет текущая цена газа в сети {network}. Возможно, её считали при более дорогом газе; проверьте сумму перед подписью.",
+		"swap.across.feeConfirm": "Комиссия проверена",
+		"swap.error.acrossFee":
+			"Мост Across просит комиссию больше 1% суммы плюс десятикратной стоимости доставки по текущему газу в сети {network}. Ничего не подписано; попробуйте позже.",
+		"swap.error.acrossGas":
+			"Не удалось прочитать цену газа в сети {network}, чтобы проверить комиссию моста. Попробуйте ещё раз.",
 		"swap.error.acrossLimit": "Больше, чем мост Across сейчас переносит по этому маршруту",
 		"swap.error.noForward": "Автоматическое зачисление недоступно для этого маршрута. Отключите его, чтобы продолжить.",
 		"swap.error.attestationApi": "API Circle не отвечает. Повторите позже.",

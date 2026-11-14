@@ -349,6 +349,7 @@ export const STRINGS = [
 	],
 	["ops.notice.checking", "Checking…", "Проверяем…"],
 	["ops.notice.recheck", "Check again", "Проверить снова"],
+	["ops.notice.proceed", "Go on without this check", "Продолжить без этой проверки"],
 	["ops.confirmIn.metamask", "Confirm in MetaMask…", "Подтвердите в MetaMask…"],
 	["ops.confirmIn.trezor", "Confirm on your Trezor…", "Подтвердите на Trezor…"],
 	["ops.confirmIn.ledger", "Confirm on your Ledger…", "Подтвердите на Ledger…"],
@@ -568,6 +569,11 @@ export const STRINGS = [
 		"Nothing has happened at this address on Hyperliquid yet: there is no account there. Check the address; this transfer will open one.",
 		"На этом адресе в Hyperliquid ещё ничего не происходило: счёта там нет. Проверьте адрес; этот перевод откроет счёт.",
 	],
+	[
+		"hl.spotWithdraw.uncheckedNote",
+		"No connection to HyperEVM: could not check that it can pay {coin} out. The exchange debits the account either way, so if it cannot, the tokens will not arrive.",
+		"Нет связи с HyperEVM: не удалось проверить, что он сможет выдать {coin}. Биржа спишет токены в любом случае, и если не сможет — они не придут.",
+	],
 	["hl.evmKeyConfirm", "The account's original key is available", "Исходный ключ счёта доступен"],
 	[
 		"hl.spotWithdraw.error.unchecked",
@@ -603,6 +609,11 @@ export const STRINGS = [
 		"hl.unit.error.belowMin",
 		"Below Unit's minimum of {min} {symbol}: such a transfer cannot be processed and may not be returned.",
 		"Меньше минимума Unit, {min} {symbol}: такой перевод не будет обработан и может не вернуться.",
+	],
+	[
+		"hl.unit.solanaUncheckedNote",
+		"No connection to Solana: could not check that this address is a wallet. A payout sent to a token account or a program cannot be spent.",
+		"Нет связи с Solana: не удалось проверить, что этот адрес — кошелёк. Выплатой, отправленной на токен-счёт или программу, распорядиться нельзя.",
 	],
 	[
 		"hl.unit.error.solanaNotWallet",

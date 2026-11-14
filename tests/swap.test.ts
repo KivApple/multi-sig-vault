@@ -14,7 +14,7 @@ import { getChain } from "@/config/chains";
 import { bridgeRoute, bridgeRoutes } from "@/lib/evm/bridges";
 import {
 	acrossFee,
-	acrossFeeCap,
+	acrossFeeLimit,
 	acrossToken,
 	parseAcrossQuote,
 	parseAcrossStatus,
@@ -651,13 +651,16 @@ describe("USDT through Across (BNB Chain routes)", () => {
 		const wrong = structuredClone(eth);
 		wrong.resolved!.across!.asset = "USDT";
 		expect(() => buildSwapCalls(wrong, 1, SAFE)).toThrow();
-		const greedy = structuredClone(eth);
-		greedy.resolved!.across!.output = parseUnits("0.98", 18).toString();
-		greedy.resolved!.across!.fee = parseUnits("0.02", 18).toString();
-		expect(() => buildSwapCalls(greedy, 1, SAFE)).toThrow();
+		// A fee that does not add up to what is paid out, or a reserve larger than the fee itself.
+		const untrue = structuredClone(eth);
+		untrue.resolved!.across!.fee = parseUnits("0.00001", 18).toString();
+		expect(() => buildSwapCalls(untrue, 1, SAFE)).toThrow();
+		const reserved = structuredClone(eth);
+		reserved.resolved!.across!.reserve = parseUnits("0.001", 18).toString();
+		expect(() => buildSwapCalls(reserved, 1, SAFE)).toThrow();
+		reserved.resolved!.across!.reserve = parseUnits("0.00005", 18).toString();
+		expect(buildSwapCalls(reserved, 1, SAFE)).toHaveLength(1);
 		// 1% of the amount plus about five dollars of the asset.
-		expect(acrossFeeCap(parseUnits("1", 18), "WETH", acrossToken(1, "WETH"))).toBe(parseUnits("0.012", 18));
-		expect(acrossFeeCap(100_000_000n, "WBTC", acrossToken(1, "WBTC"))).toBe(1_005_000n);
 	});
 
 	it("converts between 6 and 18 decimals and counts the fee in the token sent", () => {
@@ -666,8 +669,10 @@ describe("USDT through Across (BNB Chain routes)", () => {
 		expect(acrossFee(1_000_000_000n, 999_896_436n * E12, usdt(1), usdt(56))).toBe(103_564n);
 		expect(acrossFee(1000n * 10n ** 18n, 999_875_694n, usdt(56), usdt(1))).toBe(124_306n * E12);
 		// 1% of the amount plus 5 USDT.
-		expect(acrossFeeCap(1_000_000_000n, "USDT", usdt(1))).toBe(15_000_000n);
-		expect(acrossFeeCap(1000n * 10n ** 18n, "USDT", usdt(56))).toBe(15n * 10n ** 18n);
+		// The bridge's own share up to 1%, and ten times what the fill costs in gas now.
+		expect(acrossFeeLimit(1_000_000_000n, 0n)).toBe(10_000_000n);
+		expect(acrossFeeLimit(1_000_000_000n, 73_000n)).toBe(10_730_000n);
+		expect(acrossFeeLimit(10_000_000n, 2_000_000n)).toBe(20_100_000n);
 	});
 
 	it("takes the amount to receive from a quote only when it is about this route and within the fee cap", () => {
@@ -700,8 +705,10 @@ describe("USDT through Across (BNB Chain routes)", () => {
 		refused(answer(), 2_000_000_000n);
 		// A swap added on either side is not the plain transfer the app shows.
 		refused(answer({}, { steps: { ...(answer() as { steps: object }).steps, destinationSwap: {} } }));
-		// More than 1% + 5 USDT kept, or more paid out than sent: not a price.
-		refused(answer({ outputAmount: (980_000_000n * E12).toString() }));
+		// More paid out than sent is not a price. (How much may be kept is judged against the gas price.)
+		expect(parseAcrossQuote(answer({ outputAmount: (980_000_000n * E12).toString() }), eth, bnb, "USDT", amount)).toBe(
+			980_000_000n * E12,
+		);
 		refused(answer({ outputAmount: (1_000_000_001n * E12).toString() }));
 		refused(answer({ outputAmount: "0" }));
 		refused(answer({ outputAmount: "1e21" }));
@@ -805,10 +812,10 @@ describe("USDT through Across (BNB Chain routes)", () => {
 		broken((p) => {
 			leg(p).output = (990_000_000n * E12).toString();
 		});
-		// A fee above the cap, even when shown honestly.
+		// A fee that does not leave the recipient anything.
 		broken((p) => {
-			leg(p).output = (900_000_000n * E12).toString();
-			leg(p).fee = "100000000";
+			leg(p).output = "0";
+			leg(p).fee = "1000000000";
 		});
 		broken((p) => {
 			leg(p).amount = "2000000000";

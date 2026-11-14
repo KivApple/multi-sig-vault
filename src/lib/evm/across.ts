@@ -2,6 +2,7 @@ import { concat, encodeFunctionData, parseAbi, parseEventLogs, type Address, typ
 import { getChain, type AcrossAsset, type AcrossToken, type ChainConfig } from "@/config/chains";
 import { AppError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
+import { dexWeth, quoteBest } from "./dex";
 import { getPublicClient } from "@/lib/rpc";
 import { addressToBytes32 } from "./cctp";
 
@@ -76,21 +77,78 @@ export const scaleUnits = (amount: bigint, from: number, to: number): bigint =>
 export const acrossFee = (amount: bigint, output: bigint, src: AcrossToken, dst: AcrossToken): bigint =>
 	amount - scaleUnits(output, dst.decimals, src.decimals);
 
-/** About five dollars of each asset, as a fraction of one unit: what a relayer's gas may cost on a busy day. */
-const FEE_FLOOR: Record<AcrossAsset, [bigint, bigint]> = {
-	USDT: [5n, 1n],
-	WETH: [2n, 1000n],
-	WBTC: [5n, 100_000n],
+/**
+ * Gas one fill takes on the destination, with room. Real fills of a plain transfer took 95–160 thousand
+ * on every supported network (receipts of recent fills, November 2026).
+ */
+export const ACROSS_FILL_GAS = 200_000n;
+/** A fill transaction's size, for the L1 data fee of an OP-stack network (Base). Real ones are smaller. */
+const FILL_TX_BYTES = 800n;
+/** OP-stack's GasPriceOracle predeploy. */
+const OP_GAS_ORACLE: Address = "0x420000000000000000000000000000000000000F";
+const OP_GAS_ORACLE_ABI = parseAbi(["function getL1FeeUpperBound(uint256 unsignedTxSize) view returns (uint256)"]);
+
+/** The share of the amount the bridge may keep for itself: its LP and relayer-capital fees (0–0.35% today). */
+export const ACROSS_MAX_FEE_BPS = 100n;
+/** How many times today's gas cost the fee may hold before it is taken for a broken quote. */
+export const ACROSS_GAS_HEADROOM = 10n;
+/** How many times today's gas cost the recipient's amount leaves for the relayer when the reserve is on. */
+export const ACROSS_GAS_RESERVE = 3n;
+
+/**
+ * What one fill would cost a relayer in gas on the destination right now, in units of the token being
+ * sent. Read from the network itself – the gas price, the L1 data fee where there is one – and priced
+ * in the token through the destination's own DEX: nothing here comes from the bridge's API.
+ */
+export const acrossGasCost = async (
+	dstChainId: number,
+	destToken: AcrossToken,
+	srcToken: AcrossToken,
+): Promise<bigint> => {
+	const dst = getChain(dstChainId);
+	const client = getPublicClient(dstChainId);
+	const unchecked = (): never => {
+		throw new AppError("swap.error.acrossGas", { network: dst.name });
+	};
+	const gasPrice = await client.getGasPrice().catch(unchecked);
+	let wei = gasPrice * ACROSS_FILL_GAS;
+	// Base is the one OP-stack network here: a fill also pays for its data on Ethereum.
+	if (dst.key === "base") {
+		wei += await client
+			.readContract({
+				address: OP_GAS_ORACLE,
+				abi: OP_GAS_ORACLE_ABI,
+				functionName: "getL1FeeUpperBound",
+				args: [FILL_TX_BYTES],
+			})
+			.catch(unchecked);
+	}
+	let inDest: bigint;
+	if (sameAddress(destToken.address, dst.wrappedNative)) inDest = wei;
+	else {
+		// The price of one coin, not of the gas amount itself: a quote that small would be all rounding.
+		const one = 10n ** 18n;
+		const quote = await quoteBest(dstChainId, {
+			tokenIn: dexWeth(dst),
+			tokenOut: destToken.address,
+			amountIn: one,
+		}).catch(unchecked);
+		if (!quote || quote.amountOut <= 0n) return unchecked();
+		inDest = (wei * quote.amountOut + one - 1n) / one;
+	}
+	// Rounded up: a cost is never understated by the change of decimals.
+	const back = scaleUnits(inDest, destToken.decimals, srcToken.decimals);
+	return scaleUnits(back, srcToken.decimals, destToken.decimals) < inDest ? back + 1n : back;
 };
 
 /**
- * The most the bridge may keep: 1% of the amount plus about five dollars for the relayer's gas. The
- * quote comes from an API; an answer above this is treated as broken, and a transaction above it is never built.
+ * The most the bridge may keep: its own fees up to 1% of the amount, plus ten times what the fill costs
+ * in gas now. It moves with the gas price instead of being a fixed sum, so a busy day on Ethereum does
+ * not turn a fair fee into a refusal, and a quiet one does not let an absurd fee through. Above it a
+ * quote is taken for a broken one and nothing is signed.
  */
-export const acrossFeeCap = (amount: bigint, asset: AcrossAsset, src: AcrossToken): bigint => {
-	const [n, d] = FEE_FLOOR[asset];
-	return amount / 100n + (n * 10n ** BigInt(src.decimals)) / d;
-};
+export const acrossFeeLimit = (amount: bigint, gasCost: bigint): bigint =>
+	(amount * ACROSS_MAX_FEE_BPS) / 10_000n + gasCost * ACROSS_GAS_HEADROOM;
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === "object" && v !== null;
 const toUnits = (v: unknown): bigint | undefined =>
@@ -134,8 +192,8 @@ export const parseAcrossQuote = (
 	const output = toUnits(bridge.outputAmount);
 	if (output === undefined) return bad();
 	if (output <= 0n) throw new AppError("swap.error.belowFee");
-	const fee = acrossFee(amount, output, a, b);
-	if (fee < 0n || fee > acrossFeeCap(amount, asset, a)) return bad();
+	// More paid out than sent is not a price. How much is kept is judged against the gas price by the caller.
+	if (acrossFee(amount, output, a, b) < 0n) return bad();
 	return output;
 };
 

@@ -29,7 +29,7 @@ export const useOpNotices = (def: OpDefinition, params: Record<string, unknown>,
 		(id: string) => setTicked((ids) => (ids.includes(id) ? ids.filter((i) => i !== id) : [...ids, id])),
 		[],
 	);
-	const waiting = !!state.pending || state.notices.some((n) => n.confirm && !ticked.includes(n.id));
+	const waiting = !!state.pending || state.notices.some((n) => n.block || (n.confirm && !ticked.includes(n.id)));
 	return { state, ticked, toggle, waiting };
 };
 
@@ -45,7 +45,7 @@ export const OpNoticeList: React.FC<OpNoticesState> = ({ state, ticked, toggle }
 				</p>
 			)}
 			{notices.map((n) => (
-				<Notice key={n.id} tone="warning">
+				<Notice key={n.id} tone={n.block ? "error" : "warning"}>
 					<div className="flex items-start gap-2">
 						<div className="min-w-0 flex-1">
 							<p>{n.text}</p>

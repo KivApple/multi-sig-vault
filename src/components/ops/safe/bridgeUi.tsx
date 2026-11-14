@@ -2,6 +2,7 @@ import type { BridgeKind, ChainConfig } from "@/config/chains";
 import { useT } from "@/i18n";
 import type { SwapParams } from "@/lib/evm/swapBuild";
 import type { OpResultProps } from "@/lib/ops/types";
+import { SwapAcrossOptions } from "./SwapAcrossOptions";
 import { SwapAcrossResult } from "./SwapAcrossResult";
 import { SwapBridgeOptions } from "./SwapBridgeOptions";
 import { SwapCctpResult } from "./SwapCctpResult";
@@ -29,5 +30,5 @@ const AcrossNote: React.FC<{ src: ChainConfig }> = ({ src }) => {
 
 export const BRIDGE_UI: Record<BridgeKind, BridgeUi> = {
 	cctp: { Options: SwapBridgeOptions, Result: SwapCctpResult },
-	across: { Note: AcrossNote, Result: SwapAcrossResult },
+	across: { Options: SwapAcrossOptions, Note: AcrossNote, Result: SwapAcrossResult },
 };

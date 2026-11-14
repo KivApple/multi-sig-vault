@@ -68,6 +68,8 @@ export interface OpNotice {
 	text: string;
 	/** Checkbox label: signing stays unavailable until it is ticked. */
 	confirm?: string;
+	/** A problem found, not a question: the card's action stays off, and there is nothing to tick. */
+	block?: boolean;
 }
 
 export interface OpNotices {

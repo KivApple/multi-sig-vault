@@ -1,5 +1,6 @@
 import { encodeFunctionData, getAddress } from "viem";
 import { ACROSS_ASSETS, type AcrossAsset } from "@/config/chains";
+import { AppError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
 import { getPublicClient } from "@/lib/rpc";
 import { ERC20_ABI } from "@/lib/safe/abis";
@@ -8,12 +9,15 @@ import {
 	ACROSS_FILL_SECONDS,
 	ACROSS_MAX_FILL_SECONDS,
 	ACROSS_MIN_FILL_SECONDS,
+	ACROSS_GAS_RESERVE,
 	acrossFee,
-	acrossFeeCap,
+	acrossFeeLimit,
+	acrossGasCost,
 	acrossIntegrator,
 	encodeAcrossDeposit,
 	fetchAcrossQuote,
 	isIntegratorId,
+	scaleUnits,
 } from "../across";
 import { mismatch } from "../mismatch";
 import type { BridgeProvider, Lane } from "./types";
@@ -29,6 +33,11 @@ export interface AcrossLeg {
 	fee: string;
 	/** Seconds relayers have to fill, counted from the block that executes the deposit. */
 	fillDeadlineOffset: number;
+	/**
+	 * Part of `fee`, raw units of the source token: left to the relayer on top of the quote, so that the
+	 * transfer is still worth delivering if gas grows while signatures are collected.
+	 */
+	reserve?: string;
 	/** The token needs its allowance zeroed first (USDT-style approve). */
 	resetAllowance: boolean;
 	/**
@@ -76,12 +85,26 @@ export const acrossBridge: BridgeProvider<AcrossLeg> = {
 	},
 	// Across carries what its relayers hold on the destination.
 	limitError: "swap.error.acrossLimit",
-	resolve: async ({ src, dst, lane, amount, safe, recipient, coin }) => {
+	resolve: async ({ src, dst, lane, amount, safe, recipient, coin }, p) => {
 		const asset = assetOf(lane);
 		const pool = src.across?.spokePool;
 		if (!asset || !pool) return mismatch();
 		const side = sides(lane);
-		const output = await fetchAcrossQuote(src.id, dst.id, asset, amount);
+		const [quoted, gas] = await Promise.all([
+			fetchAcrossQuote(src.id, dst.id, asset, amount),
+			acrossGasCost(dst.id, side.dst, side.src),
+		]);
+		// The bridge's quote is judged against the gas price of the destination as the app reads it.
+		const quotedFee = acrossFee(amount, quoted, side.src, side.dst);
+		if (quotedFee > acrossFeeLimit(amount, gas)) {
+			throw new AppError("swap.error.acrossFee", { network: dst.name });
+		}
+		// The quote fits today's gas. Signatures take time and gas may rise meanwhile: unless asked not
+		// to, the relayer is left room for twice more – cents on most networks.
+		const reserve = p.acrossReserve === false ? 0n : gas * (ACROSS_GAS_RESERVE - 1n);
+		const output = quoted - scaleUnits(reserve, side.src.decimals, side.dst.decimals);
+		if (output <= 0n) throw new AppError("swap.error.belowFee");
+		const fee = acrossFee(amount, output, side.src, side.dst);
 		// The coin itself is deposited as the value of the call: nothing to approve.
 		let resetAllowance = false;
 		if (!coin) {
@@ -108,7 +131,8 @@ export const acrossBridge: BridgeProvider<AcrossLeg> = {
 			asset,
 			amount: amount.toString(),
 			output: output.toString(),
-			fee: acrossFee(amount, output, side.src, side.dst).toString(),
+			fee: fee.toString(),
+			reserve: fee > quotedFee ? (fee - quotedFee).toString() : undefined,
 			fillDeadlineOffset: ACROSS_FILL_SECONDS,
 			resetAllowance,
 			unwrap,
@@ -122,9 +146,13 @@ export const acrossBridge: BridgeProvider<AcrossLeg> = {
 		const amount = BigInt(leg.amount);
 		const output = BigInt(leg.output);
 		if (amount !== crossing || output <= 0n) return mismatch();
-		// The fee shown is the fee taken, and it is never more than the bridge may reasonably ask.
+		// The fee shown is the fee taken. Whether it is a fair one was judged against the gas price when it
+		// was quoted, and is judged again by every signer's card – not here, where nothing can be asked.
 		const fee = acrossFee(amount, output, side.src, side.dst);
-		if (fee < 0n || fee > acrossFeeCap(amount, leg.asset, side.src) || fee.toString() !== leg.fee) return mismatch();
+		if (fee < 0n || fee.toString() !== leg.fee) return mismatch();
+		if (leg.reserve !== undefined && !(/^\d{1,60}$/.test(leg.reserve) && BigInt(leg.reserve) <= fee)) {
+			return mismatch();
+		}
 		const offset = leg.fillDeadlineOffset;
 		if (!Number.isInteger(offset) || offset < ACROSS_MIN_FILL_SECONDS || offset > ACROSS_MAX_FILL_SECONDS) {
 			return mismatch();
@@ -161,10 +189,10 @@ export const acrossBridge: BridgeProvider<AcrossLeg> = {
 		return calls;
 	},
 	receiveOf: (leg) => leg.asset,
-	view: (leg) => ({
+	view: (leg, t) => ({
 		amount: leg.amount,
 		fee: leg.fee,
-		feeNote: "Across",
+		feeNote: leg.reserve ? `Across · ${t("swap.across.withReserve")}` : "Across",
 		output: leg.output,
 		wrapped: leg.unwrap === false,
 	}),

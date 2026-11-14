@@ -1,5 +1,6 @@
 import { Bitcoin } from "lucide-react";
 import { UnitWithdrawForm } from "@/components/ops/hl/UnitWithdrawForm";
+import { useT } from "@/i18n";
 import { AppError } from "@/lib/errors";
 import { formatAmount, trimDecimal } from "@/lib/format";
 import { assertSolanaWallet } from "@/lib/hl/solana";
@@ -13,8 +14,12 @@ import {
 	unitAssetOf,
 	verifyUnitAddress,
 } from "@/lib/hl/unit";
-import { useContractRecipient } from "../recipientNotices";
+import { mergeNotices, useContractRecipient } from "../recipientNotices";
 import type { OpDefinition } from "../types";
+import { unlessUnchecked, useCheck } from "../useCheck";
+
+/** What the Solana look throws when it could not look. */
+const SOLANA_UNCHECKED = ["hl.unit.error.solanaUnchecked"];
 import { amountError } from "./common";
 
 export interface UnitWithdrawParams {
@@ -48,11 +53,22 @@ export const unitWithdrawOp: OpDefinition<UnitWithdrawParams> = {
 		signatures: {},
 	}),
 	Form: UnitWithdrawForm,
-	// Paid out on an EVM network the app knows: a contract there is worth a word.
 	useNotices: (p, env) => {
-		const chain = unitAssetOf(env.account.env, p.coin)?.chain;
-		const chainId = chain ? UNIT_EVM_CHAIN_ID[chain]?.[env.account.env] : undefined;
-		return useContractRecipient(chainId, chainId === undefined ? "" : p.destination, env);
+		const t = useT();
+		const hlEnv = env.account.env;
+		const chain = unitAssetOf(hlEnv, p.coin)?.chain;
+		// Paid out on an EVM network the app knows: a contract there is worth a word.
+		const chainId = chain ? UNIT_EVM_CHAIN_ID[chain]?.[hlEnv] : undefined;
+		const contract = useContractRecipient(chainId, chainId === undefined ? "" : p.destination, env);
+		// On Solana a token account and a program look like any address; only a wallet can spend a payout.
+		const solana = chain === "solana" && !!p.destination && isUnitDestination("solana", p.destination, hlEnv);
+		const wallet = useCheck(
+			solana ? `solana-wallet:${hlEnv}:${p.destination}` : null,
+			() => assertSolanaWallet(hlEnv, normalizeUnitDestination("solana", p.destination)),
+			SOLANA_UNCHECKED,
+			{ unchecked: t("hl.unit.solanaUncheckedNote") },
+		);
+		return mergeNotices(contract, wallet);
 	},
 	validate: (p, env, t) => {
 		const errors: Record<string, string> = {};
@@ -79,8 +95,11 @@ export const unitWithdrawOp: OpDefinition<UnitWithdrawParams> = {
 		const unit = unitAssetOf(env.account.env, p.coin);
 		if (!unit) throw new AppError("ops.error.mismatch");
 		const destination = normalizeUnitDestination(unit.chain, p.destination);
-		// On Solana a token account and a program look like any address; only a wallet can spend a payout.
-		if (unit.chain === "solana") await assertSolanaWallet(env.account.env, destination);
+		// The same look as the card's: a token account or a program stops the signing; "could not look"
+		// does not – the card asked about that.
+		if (unit.chain === "solana") {
+			await unlessUnchecked(assertSolanaWallet(env.account.env, destination), SOLANA_UNCHECKED);
+		}
 		const generated = await fetchUnitAddress(env.account.env, unit, destination);
 		return { ...p, destination, protocolAddress: generated.address, signatures: generated.signatures };
 	},

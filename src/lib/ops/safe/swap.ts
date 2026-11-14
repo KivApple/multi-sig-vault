@@ -4,9 +4,11 @@ import { formatUnits, type Address } from "viem";
 import { SwapForm } from "@/components/ops/safe/SwapForm";
 import { SwapResult } from "@/components/ops/safe/SwapResult";
 import { useCached } from "@/hooks/useCached";
+import { useOnline } from "@/hooks/useOnline";
 import { useT } from "@/i18n";
 import { findChain, getChain } from "@/config/chains";
 import { AppError } from "@/lib/errors";
+import { acrossFeeLimit, acrossGasCost, acrossToken } from "@/lib/evm/across";
 import { bridgeOf, bridgeRoute, legOf } from "@/lib/evm/bridges";
 import {
 	bridgeAssetOf,
@@ -29,7 +31,7 @@ import { inspectTwin, twinFinding } from "@/lib/safe/creation";
 import { simulateSafeTx } from "@/lib/safe/simulate";
 import { toSafeTx } from "@/lib/safe/tx";
 import { findToken } from "@/lib/tokens";
-import { useContractRecipient } from "../recipientNotices";
+import { mergeNotices, useContractRecipient } from "../recipientNotices";
 import type { OpDefinition, OpEnv, OpErrors, OpNotices, SummaryRow } from "../types";
 
 const NO_NOTICES: OpNotices = { notices: [] };
@@ -88,34 +90,75 @@ export const swapOp: OpDefinition<SwapParams> = {
 	useNotices: (p, env) => {
 		const t = useT();
 		const { account, safe } = env;
+		const online = useOnline();
+		const network = findChain(p.destChainId)?.name ?? String(p.destChainId);
+
+		// Sent to the Safe's own address on another network: is there a Safe at that address, and whose?
 		const toTwin = p.destChainId !== account.chainId && !p.recipient;
 		const owners = safe?.owners;
 		const threshold = safe?.threshold;
-		const fetcher = useCallback(
+		const twinFetcher = useCallback(
 			() => inspectTwin(account, p.destChainId, owners && threshold ? { owners, threshold } : undefined),
 			[account, p.destChainId, owners, threshold],
 		);
 		// A Safe may be created at the address at any moment, by anyone: the answer is kept for five minutes.
-		const twin = useCached(toTwin ? `twin:${account.id}:${p.destChainId}` : null, fetcher, TWIN_TTL_MS);
+		const twin = useCached(toTwin ? `twin:${account.id}:${p.destChainId}` : null, twinFetcher, TWIN_TTL_MS);
+		let twinNotices: OpNotices = NO_NOTICES;
+		if (toTwin) {
+			const notice = (kind: string): OpNotices => ({
+				notices: [
+					{
+						// A tick is for this network and this finding, not for the next one.
+						id: `twin:${p.destChainId}:${kind}`,
+						text: t(`swap.twin.${kind}`, { network }),
+						confirm: t("swap.twin.confirm", { network }),
+					},
+				],
+				refresh: () => void twin.refresh(),
+				checking: twin.loading,
+			});
+			const finding = twin.data && twinFinding(twin.data);
+			// Without a network there is nothing to wait for: a device that signs offline says it could
+			// not look, and lets the signer decide.
+			if (!twin.data)
+				twinNotices = twin.error !== undefined || !online ? notice("unknown") : { notices: [], pending: true };
+			else if (finding) twinNotices = notice(finding);
+		}
+
 		// Somebody else's address typed in: is it a contract on the network the funds arrive on?
 		const contract = useContractRecipient(p.destChainId, p.recipient, env);
-		if (!toTwin) return contract;
-		const network = findChain(p.destChainId)?.name ?? String(p.destChainId);
-		const notice = (kind: string): OpNotices => ({
-			notices: [
-				{
-					// A tick is for this network and this finding, not for the next one.
-					id: `twin:${p.destChainId}:${kind}`,
-					text: t(`swap.twin.${kind}`, { network }),
-					confirm: t("swap.twin.confirm", { network }),
-				},
-			],
-			refresh: () => void twin.refresh(),
-			checking: twin.loading,
-		});
-		if (!twin.data) return twin.error !== undefined ? notice("unknown") : { notices: [], pending: true };
-		const finding = twinFinding(twin.data);
-		return finding ? notice(finding) : NO_NOTICES;
+
+		// A fee fixed earlier – by another device, or imported – is weighed again against the gas price
+		// this device sees. Too high is pointed out, not refused: gas may simply have fallen since.
+		const leg = p.resolved?.across;
+		const feeFetcher = useCallback(async () => {
+			if (!leg) return true;
+			const src = acrossToken(account.chainId as number, leg.asset);
+			const dst = acrossToken(p.destChainId, leg.asset);
+			const gas = await acrossGasCost(p.destChainId, dst, src);
+			return BigInt(leg.fee) <= acrossFeeLimit(BigInt(leg.amount), gas);
+		}, [leg, account.chainId, p.destChainId]);
+		const fair = useCached(
+			leg ? `across-fee:${p.destChainId}:${leg.amount}:${leg.fee}` : null,
+			feeFetcher,
+			TWIN_TTL_MS,
+		);
+		const feeNotices: OpNotices =
+			leg && fair.data === false
+				? {
+						notices: [
+							{
+								id: `across-fee:${leg.fee}`,
+								text: t("swap.across.feeHigh", { network }),
+								confirm: t("swap.across.feeConfirm"),
+							},
+						],
+						refresh: () => void fair.refresh(),
+						checking: fair.loading,
+					}
+				: NO_NOTICES;
+
+		return mergeNotices(twinNotices, contract, feeNotices);
 	},
 	validate: (p, env, t) => {
 		const errors: OpErrors = {};
