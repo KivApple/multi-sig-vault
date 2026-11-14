@@ -55,6 +55,8 @@ export default defineDict({
 			"The sender pays the network fee. Only the signers of this Safe can send: this is set in the account settings.",
 		"ops.pick.sendSelectedHint":
 			"The sender pays the network fee. Only the signers chosen in the account settings can send.",
+		"ops.notice.checking": "Checking…",
+		"ops.notice.recheck": "Check again",
 		"ops.confirmIn.metamask": "Confirm in MetaMask…",
 		"ops.confirmIn.trezor": "Confirm on your Trezor…",
 		"ops.confirmIn.ledger": "Confirm on your Ledger…",
@@ -192,6 +194,8 @@ export default defineDict({
 			"Отправитель платит комиссию сети. Отправлять могут только подписанты этого Safe: так задано в настройках счёта.",
 		"ops.pick.sendSelectedHint":
 			"Отправитель платит комиссию сети. Отправлять могут только подписанты, выбранные в настройках счёта.",
+		"ops.notice.checking": "Проверяем…",
+		"ops.notice.recheck": "Проверить снова",
 		"ops.confirmIn.metamask": "Подтвердите в MetaMask…",
 		"ops.confirmIn.trezor": "Подтвердите на Trezor…",
 		"ops.confirmIn.ledger": "Подтвердите на Ledger…",

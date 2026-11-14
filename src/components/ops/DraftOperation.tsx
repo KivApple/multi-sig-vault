@@ -10,6 +10,7 @@ import type { OpDefinition, OpEnv } from "@/lib/ops/types";
 import { useAppStore } from "@/store/appStore";
 import type { Operation, Signer } from "@/types/domain";
 import { OpCardFrame } from "./OpCardFrame";
+import { OpNoticeList, useOpNotices } from "./OpNoticeList";
 import { SignerPickerDialog } from "./SignerPickerDialog";
 
 export interface DraftOperationProps {
@@ -61,6 +62,8 @@ export const DraftOperation: React.FC<DraftOperationProps> = ({ op, def, env }) 
 	);
 	const closePicker = useCallback(() => setPicking(false), []);
 
+	const notices = useOpNotices(def, op.params, env);
+
 	const scope = env.account.kind === "safe" ? { chainId: env.account.chainId as number } : { hlEnv: env.account.env };
 	const firstMatters = env.account.kind === "hl" && owners?.multiSig;
 
@@ -74,13 +77,14 @@ export const DraftOperation: React.FC<DraftOperationProps> = ({ op, def, env }) 
 				</IconButton>
 			}
 			footer={
-				<button type="button" className="btn btn-primary" onClick={handleSign} disabled={!owners}>
+				<button type="button" className="btn btn-primary" onClick={handleSign} disabled={!owners || notices.waiting}>
 					<PenLine className="size-4" />
 					{t("ops.sign")}
 				</button>
 			}
 		>
 			<Form opId={op.id} value={op.params} onChange={handleChange} env={env} errors={showErrors ? errors : {}} />
+			<OpNoticeList {...notices} />
 			{!owners && <Notice tone="warning">{t("ops.needAccountData")}</Notice>}
 			{def.hlSigning === "l1" && <Notice>{t("ops.l1Note")}</Notice>}
 			{owners && (

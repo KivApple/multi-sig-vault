@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { Hex } from "viem";
 import { explorerTx, findChain, getChain } from "@/config/chains";
 import { useT } from "@/i18n";
-import { fetchAcrossStatus } from "@/lib/evm/across";
+import { acrossFilledOnChain, fetchAcrossStatus } from "@/lib/evm/across";
 import {
 	bridgeAssetOf,
 	bridgeProgressOf,
@@ -70,7 +70,16 @@ export const SwapAcrossResult: React.FC<OpResultProps> = ({ op, account }) => {
 						save({ refund: "refunded", refundTxHash: status.refundTxHash });
 						return;
 					}
-					if (status?.state === "expired" && progressRef.current?.refund !== "expired") save({ refund: "expired" });
+					if (status?.state === "expired") {
+						// "Expired" is what the bridge's index believes; whether it was paid out, the destination pool knows.
+						const filled = await acrossFilledOnChain(srcChainId, destId, txHash as Hex).catch(() => undefined);
+						if (stopped) return;
+						if (filled) {
+							save({ stage: "credited", refund: undefined });
+							return;
+						}
+						if (progressRef.current?.refund !== "expired") save({ refund: "expired" });
+					}
 				} catch {
 					// Transient API failure – try again later.
 				}
@@ -110,6 +119,9 @@ export const SwapAcrossResult: React.FC<OpResultProps> = ({ op, account }) => {
 	const asset = bridgeAssetOf(srcChainId, dest.id, params.tokenIn, leg.asset);
 	const symbol = asset?.symbol ?? leg.asset;
 	const received = asset ? receivedSymbol(asset, leg.unwrap === false) : symbol;
+	// A deposit of the coin was wrapped by the pool, and comes back as the wrapped token.
+	const refunded =
+		asset && asset.address.toLowerCase() === src.wrappedNative.toLowerCase() ? `W${src.nativeSymbol}` : symbol;
 	const fillHash = progress?.mintTxHash;
 	const refundHash = progress?.refundTxHash;
 
@@ -120,9 +132,9 @@ export const SwapAcrossResult: React.FC<OpResultProps> = ({ op, account }) => {
 				{stage === "credited"
 					? t("swap.across.credited", { network: dest.name, symbol: received })
 					: refund === "refunded"
-						? t("swap.across.refunded", { network: src.name, symbol })
+						? t("swap.across.refunded", { network: src.name, symbol: refunded })
 						: refund === "expired"
-							? t("swap.across.expired", { network: src.name, symbol })
+							? t("swap.across.expired", { network: src.name, symbol: refunded })
 							: t("swap.across.waiting", { network: dest.name, symbol: received })}
 			</p>
 			{stage === "credited" && fillHash && (

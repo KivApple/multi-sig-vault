@@ -1,7 +1,10 @@
 import { ArrowLeftRight } from "lucide-react";
+import { useCallback } from "react";
 import { formatUnits, type Address } from "viem";
 import { SwapForm } from "@/components/ops/safe/SwapForm";
 import { SwapResult } from "@/components/ops/safe/SwapResult";
+import { useCached } from "@/hooks/useCached";
+import { useT } from "@/i18n";
 import { findChain, getChain } from "@/config/chains";
 import { AppError } from "@/lib/errors";
 import { bridgeOf, bridgeRoute, legOf } from "@/lib/evm/bridges";
@@ -15,15 +18,22 @@ import {
 	receivedSymbol,
 	resolveSwap,
 	slippageBps,
+	swapRecipientRules,
 	swapShape,
 	viaOf,
 	type SwapParams,
 } from "@/lib/evm/swapBuild";
 import { formatAmount, formatDateTime, parseAddress, sameAddress } from "@/lib/format";
+import { recipientError } from "@/lib/recipient";
+import { inspectTwin, twinFinding } from "@/lib/safe/creation";
 import { simulateSafeTx } from "@/lib/safe/simulate";
 import { toSafeTx } from "@/lib/safe/tx";
 import { findToken } from "@/lib/tokens";
-import type { OpDefinition, OpEnv, OpErrors, SummaryRow } from "../types";
+import { useContractRecipient } from "../recipientNotices";
+import type { OpDefinition, OpEnv, OpErrors, OpNotices, SummaryRow } from "../types";
+
+const NO_NOTICES: OpNotices = { notices: [] };
+const TWIN_TTL_MS = 5 * 60_000;
 
 export type { BridgeProgress, SwapParams } from "@/lib/evm/swapBuild";
 
@@ -74,6 +84,39 @@ export const swapOp: OpDefinition<SwapParams> = {
 		};
 	},
 	Form: SwapForm,
+	// Sent to the Safe's own address on another network: is there a Safe at that address yet?
+	useNotices: (p, env) => {
+		const t = useT();
+		const { account, safe } = env;
+		const toTwin = p.destChainId !== account.chainId && !p.recipient;
+		const owners = safe?.owners;
+		const threshold = safe?.threshold;
+		const fetcher = useCallback(
+			() => inspectTwin(account, p.destChainId, owners && threshold ? { owners, threshold } : undefined),
+			[account, p.destChainId, owners, threshold],
+		);
+		// A Safe may be created at the address at any moment, by anyone: the answer is kept for five minutes.
+		const twin = useCached(toTwin ? `twin:${account.id}:${p.destChainId}` : null, fetcher, TWIN_TTL_MS);
+		// Somebody else's address typed in: is it a contract on the network the funds arrive on?
+		const contract = useContractRecipient(p.destChainId, p.recipient, env);
+		if (!toTwin) return contract;
+		const network = findChain(p.destChainId)?.name ?? String(p.destChainId);
+		const notice = (kind: string): OpNotices => ({
+			notices: [
+				{
+					// A tick is for this network and this finding, not for the next one.
+					id: `twin:${p.destChainId}:${kind}`,
+					text: t(`swap.twin.${kind}`, { network }),
+					confirm: t("swap.twin.confirm", { network }),
+				},
+			],
+			refresh: () => void twin.refresh(),
+			checking: twin.loading,
+		});
+		if (!twin.data) return twin.error !== undefined ? notice("unknown") : { notices: [], pending: true };
+		const finding = twinFinding(twin.data);
+		return finding ? notice(finding) : NO_NOTICES;
+	},
 	validate: (p, env, t) => {
 		const errors: OpErrors = {};
 		const chainId = env.account.chainId as number;
@@ -90,7 +133,9 @@ export const swapOp: OpDefinition<SwapParams> = {
 			if (holding && amountIn > BigInt(holding.balance)) errors.amount = t("swap.error.balance");
 		}
 		if (!cross && !p.tokenOut) errors.tokenOut = t("error.required");
-		if (p.recipient && !parseAddress(p.recipient)) errors.recipient = t("error.invalidAddress");
+		// Empty is the Safe's own address; anything typed goes through the same check as every recipient.
+		const r = p.recipient ? recipientError(p.recipient, t, swapRecipientRules(p, chainId)) : undefined;
+		if (r) errors.recipient = r;
 		if (!slippageBps(p.slippage)) errors.slippage = t("swap.error.slippage", { max: MAX_SLIPPAGE_PERCENT });
 		if (Object.keys(errors).length === 0) {
 			try {

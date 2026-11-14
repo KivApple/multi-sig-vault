@@ -29,8 +29,8 @@ export interface BridgeLeg {
 	receive: string;
 }
 
-/** Fast transfers are not offered when burning on HyperEVM. */
-export const fastAvailable = (chainKey: string): boolean => chainKey !== "hyperevm";
+/** Circle does not offer fast transfers for burns on HyperEVM and on Polygon. */
+export const fastAvailable = (chainKey: string): boolean => chainKey !== "hyperevm" && chainKey !== "polygon";
 
 export const cctpBridge: BridgeProvider<BridgeLeg> = {
 	id: "cctp",

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { Users } from "lucide-react";
 import { encodeFunctionData, getAddress, type Address } from "viem";
 import { SafeOwnersForm } from "@/components/ops/safe/SafeOwnersForm";
@@ -5,6 +6,7 @@ import { parseAddress, sameAddress } from "@/lib/format";
 import { SAFE_ABI } from "@/lib/safe/abis";
 import type { MetaTx } from "@/lib/safe/tx";
 import type { OpDefinition } from "../types";
+import { useUnknownSigners } from "../useUnknownSigners";
 
 export interface SafeOwnersParams {
 	owners: string[];
@@ -79,6 +81,12 @@ export const safeOwnersOp: OpDefinition<SafeOwnersParams> = {
 		currentThreshold: env.safe?.threshold ?? 1,
 	}),
 	Form: SafeOwnersForm,
+	// A new owner the app has no key for: asked about, on the draft and on every signer's card.
+	useNotices: (p, env) => {
+		const current = env.safe?.owners ?? p.current;
+		const added = useMemo(() => p.owners.filter((o) => !current.some((x) => sameAddress(x, o))), [p.owners, current]);
+		return useUnknownSigners(added, env);
+	},
 	validate: (p, env, t) => {
 		const errors: Record<string, string> = {};
 		p.owners.forEach((o, i) => {

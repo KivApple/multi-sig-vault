@@ -10,6 +10,17 @@ export default defineDict({
 		"address.badQr": "This QR code has no address",
 		"address.scanTitle": "Scan an address",
 		"address.self": "This is the account itself",
+		"address.zero": "The zero address: nothing sent there can be recovered",
+		"address.checksum":
+			"The capital letters of this address do not match its checksum: a character is probably mistyped",
+		"address.contract":
+			"This is a contract the app itself works with (a token, an exchange or a bridge), not a recipient: funds sent to it stay there",
+		"address.isContract":
+			"This address is a contract on {network}, not a wallet. Make sure it can manage what it receives.",
+		"address.reserved": "A reserved system address, not somebody's account",
+		"address.burn": "A burn address: nothing sent there can be recovered",
+		"address.hlSystem":
+			"A system address of the exchange, not an account. To move a token to HyperEVM use the withdrawal to HyperEVM",
 		"amount.available": "Available: {amount} {symbol}",
 		"amount.invalid": "Enter a positive number (up to {decimals} decimals)",
 		"amount.exceeds": "More than available",
@@ -23,6 +34,9 @@ export default defineDict({
 		"owners.outOf": "of {total}",
 		"owners.mOfN": "{m} of {n}",
 		"owners.mode": "Multi-sig",
+		"owners.unknownNote":
+			"Not among the signers this app knows: {list}. Make sure somebody holds the keys of these addresses: the account will need their signatures.",
+		"owners.unknownConfirm": "The keys of these addresses are held",
 		"owners.duplicate": "This address is already in the list",
 		"owners.badThreshold": "Threshold must be between 1 and the number of signers",
 		"link.title": "Link",
@@ -45,6 +59,16 @@ export default defineDict({
 		"address.badQr": "В этом QR-коде нет адреса",
 		"address.scanTitle": "Сканировать адрес",
 		"address.self": "Это адрес самого счёта",
+		"address.zero": "Нулевой адрес: отправленное туда не вернуть",
+		"address.checksum": "Заглавные буквы в адресе не сходятся с контрольной суммой: вероятно, в нём опечатка",
+		"address.contract":
+			"Это контракт, с которым работает само приложение (токен, обменник или мост), а не получатель: отправленное на него там и останется",
+		"address.isContract":
+			"Этот адрес в сети {network} — контракт, а не кошелёк. Убедитесь, что он сможет распорядиться полученным.",
+		"address.reserved": "Служебный системный адрес, а не чей-то счёт",
+		"address.burn": "Адрес для сжигания: отправленное туда не вернуть",
+		"address.hlSystem":
+			"Системный адрес биржи, а не счёт. Чтобы перевести токен в HyperEVM, используйте вывод в HyperEVM",
 		"amount.available": "Доступно: {amount} {symbol}",
 		"amount.invalid": "Введите положительное число (до {decimals} знаков после запятой)",
 		"amount.exceeds": "Больше, чем доступно",
@@ -58,6 +82,9 @@ export default defineDict({
 		"owners.outOf": "из {total}",
 		"owners.mOfN": "{m} из {n}",
 		"owners.mode": "Multi-sig",
+		"owners.unknownNote":
+			"Нет среди подписантов, известных приложению: {list}. Убедитесь, что ключи от этих адресов у кого-то есть: счёту понадобятся их подписи.",
+		"owners.unknownConfirm": "Ключи от этих адресов на руках",
 		"owners.duplicate": "Этот адрес уже есть в списке",
 		"owners.badThreshold": "Порог должен быть от 1 до числа подписантов",
 		"link.title": "Ссылка",

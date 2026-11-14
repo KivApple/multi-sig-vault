@@ -62,6 +62,24 @@ export interface SafeBuildCtx {
 	safe: Address;
 }
 
+/** Something the user is told before the first signature, in the card under the form. */
+export interface OpNotice {
+	id: string;
+	text: string;
+	/** Checkbox label: signing stays unavailable until it is ticked. */
+	confirm?: string;
+}
+
+export interface OpNotices {
+	notices: OpNotice[];
+	/** Still finding out whether there is something to tell: the card's action waits. */
+	pending?: boolean;
+	/** What was found can change (a contract may appear at an address): look again. */
+	refresh?: () => void;
+	/** A look is under way; what is shown is the previous answer. */
+	checking?: boolean;
+}
+
 /**
  * One kind of operation. `build*` must be pure and deterministic: the app re-runs it to prove that
  * the parameters shown to the user are exactly what the signed payload does.
@@ -78,9 +96,22 @@ export interface OpDefinition<P = any> {
 	/** Async part of creation (e.g. generating an agent key); returns a params patch. */
 	init?: (opId: string, params: P) => Promise<Partial<P>>;
 	Form: React.FC<OpFormProps<P>>;
+	/**
+	 * A React hook: what the user has to be told, and agree to, before signing or sending an operation
+	 * with these parameters. Every card of the operation runs it – the draft, and later the card of each
+	 * signer and of the sender – shows the notices and keeps its action off until every `confirm` is
+	 * ticked. It is worked out on the device from what that device sees: nothing of it is stored in the
+	 * operation or carried between devices. A form does not build this itself.
+	 */
+	useNotices?: (params: P, env: OpEnv) => OpNotices;
 	validate: (params: P, env: OpEnv, t: TFunc) => OpErrors;
 	/** Resolves network-dependent values right before the first signature (quotes, current owners…). */
 	prepare?: (params: P, env: OpEnv) => Promise<P>;
+	/**
+	 * Asked of the network once more right before the operation is sent, when what `prepare` found may
+	 * no longer hold by then. Throws to stop the sending; the signatures stay valid.
+	 */
+	recheck?: (params: P, account: Account) => Promise<void>;
 	buildHl?: (params: P, ctx: HlBuildCtx) => Record<string, unknown>;
 	buildSafe?: (params: P, ctx: SafeBuildCtx) => MetaTx[];
 	summary: (params: P, ctx: SummaryCtx) => SummaryRow[];

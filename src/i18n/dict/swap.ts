@@ -19,12 +19,23 @@ export default defineDict({
 		"swap.chooseToken": "Choose a token",
 		"swap.crossHint": "The token is swapped to {symbol} here, then {symbol} is bridged to {network}.",
 		"swap.acrossNote":
-			"A relayer of the Across bridge pays the recipient, usually within a minute, and is repaid from what this Safe sends. A transfer nobody delivers in time comes back to this Safe on {network} within a few hours.",
+			"A relayer of the Across bridge pays the recipient, usually within a minute, and is repaid from what this Safe sends. A transfer nobody delivers in time comes back to this Safe on {network} within a few hours; the coin comes back as its wrapped token.",
 		"swap.recipient": "Recipient",
 		"swap.toThisSafe": "Funds are credited to this Safe.",
 		"swap.toSameSafe": "Funds are credited to your Safe with the same address on {network}.",
-		"swap.unknownSafeWarning":
-			"No Safe with this address is added on {network}. The funds will not be lost: a Safe can be created there at the same address later (Create Safe, same address as an existing one) and will then hold them. That is a separate operation, and the new Safe starts with the signers and threshold this one was created with, not the current ones.",
+		"swap.toSameAddress": "Funds go to the address of this Safe on {network}.",
+		"swap.twin.missing":
+			"There is no Safe at this address on {network} yet. The funds will wait at the address; to manage them the Safe has to be created there (Create Safe, same address as an existing one).",
+		"swap.twin.otherOwners":
+			"There is no Safe at this address on {network} yet. The funds will wait at the address; to manage them the Safe has to be created there (Create Safe, same address as an existing one). It will start with the signers and threshold this Safe was created with, which differ from the current ones.",
+		"swap.twin.cannotCreate":
+			"There is no Safe at this address on {network}, and this app cannot create one there: how this Safe was created is unknown to it or not supported. Managing funds at this address there will take other tools.",
+		"swap.twin.unknown": "Could not check whether there is a Safe at this address on {network}.",
+		"swap.twin.foreignOwners":
+			"The Safe at this address on {network} has other signers or another threshold than this one. There the funds will be controlled by its signers, not by this Safe's.",
+		"swap.twin.notSafe":
+			"The contract at this address on {network} does not answer as a Safe. Funds sent there may be out of this Safe's reach.",
+		"swap.twin.confirm": "Send to this address on {network} anyway",
 		"swap.slippage": "Slippage",
 		"swap.slippageHint": "Fixed when signing starts. Collecting signatures takes time — leave room for price moves.",
 		"swap.custom": "Other",
@@ -135,12 +146,23 @@ export default defineDict({
 		"swap.chooseToken": "Выберите токен",
 		"swap.crossHint": "Токен обменивается на {symbol} в этой сети, затем {symbol} уходит через мост в {network}.",
 		"swap.acrossNote":
-			"Получателю платит релеер моста Across, обычно в пределах минуты, и получает возмещение из того, что отправил этот Safe. Перевод, который никто не доставил вовремя, возвращается в этот Safe в сети {network} за несколько часов.",
+			"Получателю платит релеер моста Across, обычно в пределах минуты, и получает возмещение из того, что отправил этот Safe. Перевод, который никто не доставил вовремя, возвращается в этот Safe в сети {network} за несколько часов; монета возвращается обёрнутым токеном.",
 		"swap.recipient": "Получатель",
 		"swap.toThisSafe": "Средства будут зачислены в этот Safe.",
 		"swap.toSameSafe": "Средства будут зачислены в ваш Safe с тем же адресом в сети {network}.",
-		"swap.unknownSafeWarning":
-			"Safe с этим адресом в сети {network} не добавлен. Средства не пропадут: Safe по тому же адресу там можно создать позже («Создать Safe», тот же адрес, что у существующего), и они окажутся в нём. Это отдельная операция, и новый Safe получит подписантов и порог, с которыми был создан этот, а не текущих.",
+		"swap.toSameAddress": "Средства придут на адрес этого Safe в сети {network}.",
+		"swap.twin.missing":
+			"В сети {network} по этому адресу Safe ещё не создан. Средства будут ждать на адресе; чтобы ими распоряжаться, Safe нужно будет создать там («Создать Safe», тот же адрес, что у существующего).",
+		"swap.twin.otherOwners":
+			"В сети {network} по этому адресу Safe ещё не создан. Средства будут ждать на адресе; чтобы ими распоряжаться, Safe нужно будет создать там («Создать Safe», тот же адрес, что у существующего). Он получит подписантов и порог, с которыми был создан этот Safe, — сейчас они другие.",
+		"swap.twin.cannotCreate":
+			"В сети {network} по этому адресу Safe не создан, и приложение не может создать его там: как был создан этот Safe, ему неизвестно или не поддерживается. Чтобы распоряжаться средствами на этом адресе там, понадобятся другие инструменты.",
+		"swap.twin.unknown": "Не удалось проверить, есть ли Safe по этому адресу в сети {network}.",
+		"swap.twin.foreignOwners":
+			"У Safe по этому адресу в сети {network} другие подписанты или другой порог, чем у этого. Средствами там будут распоряжаться его подписанты, а не подписанты этого Safe.",
+		"swap.twin.notSafe":
+			"Контракт по этому адресу в сети {network} не отвечает как Safe. Отправленные туда средства могут оказаться вне досягаемости этого Safe.",
+		"swap.twin.confirm": "Всё равно отправить на этот адрес в сети {network}",
 		"swap.slippage": "Проскальзывание",
 		"swap.slippageHint":
 			"Фиксируется при первой подписи. Сбор подписей занимает время — оставьте запас на движение цены.",

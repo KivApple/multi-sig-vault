@@ -8,6 +8,41 @@ export const STRINGS = [
 	["address.badQr", "This QR code has no address", "В этом QR-коде нет адреса"],
 	["address.scanTitle", "Scan an address", "Сканировать адрес"],
 	["address.self", "This is the account itself", "Это адрес самого счёта"],
+	[
+		"address.zero",
+		"The zero address: nothing sent there can be recovered",
+		"Нулевой адрес: отправленное туда не вернуть",
+	],
+	[
+		"address.checksum",
+		"The capital letters of this address do not match its checksum: a character is probably mistyped",
+		"Заглавные буквы в адресе не сходятся с контрольной суммой: вероятно, в нём опечатка",
+	],
+	[
+		"address.contract",
+		"This is a contract the app itself works with (a token, an exchange or a bridge), not a recipient: funds sent to it stay there",
+		"Это контракт, с которым работает само приложение (токен, обменник или мост), а не получатель: отправленное на него там и останется",
+	],
+	[
+		"address.isContract",
+		"This address is a contract on {network}, not a wallet. Make sure it can manage what it receives.",
+		"Этот адрес в сети {network} — контракт, а не кошелёк. Убедитесь, что он сможет распорядиться полученным.",
+	],
+	[
+		"address.reserved",
+		"A reserved system address, not somebody's account",
+		"Служебный системный адрес, а не чей-то счёт",
+	],
+	[
+		"address.burn",
+		"A burn address: nothing sent there can be recovered",
+		"Адрес для сжигания: отправленное туда не вернуть",
+	],
+	[
+		"address.hlSystem",
+		"A system address of the exchange, not an account. To move a token to HyperEVM use the withdrawal to HyperEVM",
+		"Системный адрес биржи, а не счёт. Чтобы перевести токен в HyperEVM, используйте вывод в HyperEVM",
+	],
 	["amount.available", "Available: {amount} {symbol}", "Доступно: {amount} {symbol}"],
 	[
 		"amount.invalid",
@@ -25,6 +60,12 @@ export const STRINGS = [
 	["owners.outOf", "of {total}", "из {total}"],
 	["owners.mOfN", "{m} of {n}", "{m} из {n}"],
 	["owners.mode", "Multi-sig", "Multi-sig"],
+	[
+		"owners.unknownNote",
+		"Not among the signers this app knows: {list}. Make sure somebody holds the keys of these addresses: the account will need their signatures.",
+		"Нет среди подписантов, известных приложению: {list}. Убедитесь, что ключи от этих адресов у кого-то есть: счёту понадобятся их подписи.",
+	],
+	["owners.unknownConfirm", "The keys of these addresses are held", "Ключи от этих адресов на руках"],
 	["owners.duplicate", "This address is already in the list", "Этот адрес уже есть в списке"],
 	[
 		"owners.badThreshold",
@@ -306,6 +347,8 @@ export const STRINGS = [
 		"The sender pays the network fee. Only the signers chosen in the account settings can send.",
 		"Отправитель платит комиссию сети. Отправлять могут только подписанты, выбранные в настройках счёта.",
 	],
+	["ops.notice.checking", "Checking…", "Проверяем…"],
+	["ops.notice.recheck", "Check again", "Проверить снова"],
 	["ops.confirmIn.metamask", "Confirm in MetaMask…", "Подтвердите в MetaMask…"],
 	["ops.confirmIn.trezor", "Confirm on your Trezor…", "Подтвердите на Trezor…"],
 	["ops.confirmIn.ledger", "Confirm on your Ledger…", "Подтвердите на Ledger…"],
@@ -517,8 +560,29 @@ export const STRINGS = [
 	["hl.evmKeyNote.label", "Note", "Важно"],
 	[
 		"hl.evmKeyNote",
-		"On HyperEVM this address is controlled by the account's original key, not by the multi-sig.",
-		"В HyperEVM этим адресом управляет исходный ключ счёта, а не multi-sig.",
+		"On HyperEVM this address is controlled by the account's original key, not by the multi-sig: managing the tokens there takes that key.",
+		"В HyperEVM этим адресом управляет исходный ключ счёта, а не multi-sig: чтобы распоряжаться токенами там, понадобится этот ключ.",
+	],
+	[
+		"hl.newRecipient",
+		"Nothing has happened at this address on Hyperliquid yet: there is no account there. Check the address; this transfer will open one.",
+		"На этом адресе в Hyperliquid ещё ничего не происходило: счёта там нет. Проверьте адрес; этот перевод откроет счёт.",
+	],
+	["hl.evmKeyConfirm", "The account's original key is available", "Исходный ключ счёта доступен"],
+	[
+		"hl.spotWithdraw.error.unchecked",
+		"Could not check that HyperEVM can pay {coin} out: its contract there did not answer. Nothing was signed.",
+		"Не удалось проверить, что HyperEVM сможет выдать {coin}: контракт токена там не ответил. Ничего не подписано.",
+	],
+	[
+		"hl.spotWithdraw.error.noSupply",
+		"HyperEVM can pay out only {available} {coin} right now. Nothing was signed.",
+		"HyperEVM сейчас может выдать только {available} {coin}. Ничего не подписано.",
+	],
+	[
+		"hl.spotWithdraw.error.precision",
+		"On HyperEVM {coin} has {decimals} decimals: enter an amount with no more",
+		"В HyperEVM у {coin} {decimals} знаков после запятой: введите сумму не точнее",
 	],
 	["hl.unit.badAddress", "Not a valid {network} address", "Некорректный адрес в сети {network}"],
 	["hl.unit.min", "Minimum {min} {symbol}", "Минимум {min} {symbol}"],
@@ -534,6 +598,21 @@ export const STRINGS = [
 		"hl.unit.error.api",
 		"Unit did not provide a withdrawal address: {detail}",
 		"Unit не выдал адрес для вывода: {detail}",
+	],
+	[
+		"hl.unit.error.belowMin",
+		"Below Unit's minimum of {min} {symbol}: such a transfer cannot be processed and may not be returned.",
+		"Меньше минимума Unit, {min} {symbol}: такой перевод не будет обработан и может не вернуться.",
+	],
+	[
+		"hl.unit.error.solanaNotWallet",
+		"This Solana address is a token account or a program, not a wallet: a payout sent there could not be spent. Enter the address of the wallet.",
+		"Этот адрес в Solana — токен-счёт или программа, а не кошелёк: выплатой, отправленной туда, нельзя будет распорядиться. Укажите адрес кошелька.",
+	],
+	[
+		"hl.unit.error.solanaUnchecked",
+		"Could not check this address on Solana. Nothing was signed; try again later.",
+		"Не удалось проверить этот адрес в Solana. Ничего не подписано; попробуйте позже.",
 	],
 	[
 		"hl.unit.error.unverified",
@@ -624,6 +703,11 @@ export const STRINGS = [
 	["hl.multiSig.count", "From 1 to 10 signers", "От 1 до 10 подписантов"],
 	["hl.multiSig.selfOwner", "The account cannot be its own signer", "Счёт не может быть собственным подписантом"],
 	[
+		"hl.multiSig.notUsers",
+		"These addresses are not ordinary Hyperliquid accounts (an agent key, a vault or a sub-account cannot be a signer): {list}",
+		"Эти адреса — не обычные счета Hyperliquid (ключ агента, хранилище или суб-счёт не может быть подписантом): {list}",
+	],
+	[
 		"hl.multiSig.missingUsers",
 		"These addresses have no Hyperliquid account yet: {list}. Send them any amount of USDC first.",
 		"У этих адресов ещё нет аккаунта Hyperliquid: {list}. Сначала отправьте им любую сумму USDC.",
@@ -656,7 +740,12 @@ export const STRINGS = [
 	["hl.error.isVault", "This is a vault address, not an account.", "Это адрес хранилища (vault), а не аккаунта."],
 
 	// ---- Safe ----
-	["safe.send.tokenContract", "This is the token's own contract", "Это адрес контракта самого токена"],
+	["safe.send.wrap", "Wrapping", "Обёртывание"],
+	[
+		"safe.send.wrapValue",
+		"the contract credits this Safe with the same amount of {symbol}",
+		"контракт зачислит этому Safe столько же {symbol}",
+	],
 	["safe.owners.added", "Added", "Добавляется"],
 	["safe.owners.removed", "Removed", "Удаляется"],
 	["safe.owners.invalidOwner", "This address cannot be an owner", "Этот адрес не может быть владельцем"],

@@ -14,7 +14,15 @@ export default defineDict({
 		"hl.transfer.sanctioned": "Hyperliquid blocks transfers to this address.",
 		"hl.spotWithdraw.sameAddress": "Tokens arrive at the same address on HyperEVM. The recipient cannot be changed.",
 		"hl.evmKeyNote.label": "Note",
-		"hl.evmKeyNote": "On HyperEVM this address is controlled by the account's original key, not by the multi-sig.",
+		"hl.evmKeyNote":
+			"On HyperEVM this address is controlled by the account's original key, not by the multi-sig: managing the tokens there takes that key.",
+		"hl.newRecipient":
+			"Nothing has happened at this address on Hyperliquid yet: there is no account there. Check the address; this transfer will open one.",
+		"hl.evmKeyConfirm": "The account's original key is available",
+		"hl.spotWithdraw.error.unchecked":
+			"Could not check that HyperEVM can pay {coin} out: its contract there did not answer. Nothing was signed.",
+		"hl.spotWithdraw.error.noSupply": "HyperEVM can pay out only {available} {coin} right now. Nothing was signed.",
+		"hl.spotWithdraw.error.precision": "On HyperEVM {coin} has {decimals} decimals: enter an amount with no more",
 		"hl.unit.badAddress": "Not a valid {network} address",
 		"hl.unit.min": "Minimum {min} {symbol}",
 		"hl.unit.fee": "network fee ≈ {fee} {symbol}",
@@ -23,6 +31,11 @@ export default defineDict({
 		"hl.unit.feeNote":
 			"The tokens go to Unit's address on Hyperliquid; Unit sends them on to the recipient minus the destination network fee.",
 		"hl.unit.error.api": "Unit did not provide a withdrawal address: {detail}",
+		"hl.unit.error.belowMin":
+			"Below Unit's minimum of {min} {symbol}: such a transfer cannot be processed and may not be returned.",
+		"hl.unit.error.solanaNotWallet":
+			"This Solana address is a token account or a program, not a wallet: a payout sent there could not be spent. Enter the address of the wallet.",
+		"hl.unit.error.solanaUnchecked": "Could not check this address on Solana. Nothing was signed; try again later.",
 		"hl.unit.error.unverified": "The withdrawal address is not confirmed by Unit guardians. The operation is blocked.",
 		"hl.agent.name": "Agent name",
 		"hl.agent.nameHint": "An agent with the same name is replaced.",
@@ -76,6 +89,8 @@ export default defineDict({
 			"After this the account's own key can no longer act alone: every operation will need signatures of these signers.",
 		"hl.multiSig.count": "From 1 to 10 signers",
 		"hl.multiSig.selfOwner": "The account cannot be its own signer",
+		"hl.multiSig.notUsers":
+			"These addresses are not ordinary Hyperliquid accounts (an agent key, a vault or a sub-account cannot be a signer): {list}",
 		"hl.multiSig.missingUsers":
 			"These addresses have no Hyperliquid account yet: {list}. Send them any amount of USDC first.",
 		"hl.disable.note": "The account returns under the control of its own key. Make sure you still have that key.",
@@ -101,7 +116,15 @@ export default defineDict({
 		"hl.transfer.sanctioned": "Hyperliquid блокирует переводы на этот адрес.",
 		"hl.spotWithdraw.sameAddress": "Токены поступят на тот же адрес в HyperEVM. Изменить получателя нельзя.",
 		"hl.evmKeyNote.label": "Важно",
-		"hl.evmKeyNote": "В HyperEVM этим адресом управляет исходный ключ счёта, а не multi-sig.",
+		"hl.evmKeyNote":
+			"В HyperEVM этим адресом управляет исходный ключ счёта, а не multi-sig: чтобы распоряжаться токенами там, понадобится этот ключ.",
+		"hl.newRecipient":
+			"На этом адресе в Hyperliquid ещё ничего не происходило: счёта там нет. Проверьте адрес; этот перевод откроет счёт.",
+		"hl.evmKeyConfirm": "Исходный ключ счёта доступен",
+		"hl.spotWithdraw.error.unchecked":
+			"Не удалось проверить, что HyperEVM сможет выдать {coin}: контракт токена там не ответил. Ничего не подписано.",
+		"hl.spotWithdraw.error.noSupply": "HyperEVM сейчас может выдать только {available} {coin}. Ничего не подписано.",
+		"hl.spotWithdraw.error.precision": "В HyperEVM у {coin} {decimals} знаков после запятой: введите сумму не точнее",
 		"hl.unit.badAddress": "Некорректный адрес в сети {network}",
 		"hl.unit.min": "Минимум {min} {symbol}",
 		"hl.unit.fee": "комиссия сети ≈ {fee} {symbol}",
@@ -110,6 +133,11 @@ export default defineDict({
 		"hl.unit.feeNote":
 			"Токены уходят на адрес Unit в Hyperliquid; Unit переводит их получателю за вычетом комиссии сети получения.",
 		"hl.unit.error.api": "Unit не выдал адрес для вывода: {detail}",
+		"hl.unit.error.belowMin":
+			"Меньше минимума Unit, {min} {symbol}: такой перевод не будет обработан и может не вернуться.",
+		"hl.unit.error.solanaNotWallet":
+			"Этот адрес в Solana — токен-счёт или программа, а не кошелёк: выплатой, отправленной туда, нельзя будет распорядиться. Укажите адрес кошелька.",
+		"hl.unit.error.solanaUnchecked": "Не удалось проверить этот адрес в Solana. Ничего не подписано; попробуйте позже.",
 		"hl.unit.error.unverified": "Адрес для вывода не подтверждён гардианами Unit. Операция заблокирована.",
 		"hl.agent.name": "Имя агента",
 		"hl.agent.nameHint": "Агент с таким же именем будет заменён.",
@@ -163,6 +191,8 @@ export default defineDict({
 			"После этого собственный ключ счёта не сможет действовать в одиночку: для каждой операции потребуются подписи этих подписантов.",
 		"hl.multiSig.count": "От 1 до 10 подписантов",
 		"hl.multiSig.selfOwner": "Счёт не может быть собственным подписантом",
+		"hl.multiSig.notUsers":
+			"Эти адреса — не обычные счета Hyperliquid (ключ агента, хранилище или суб-счёт не может быть подписантом): {list}",
 		"hl.multiSig.missingUsers":
 			"У этих адресов ещё нет аккаунта Hyperliquid: {list}. Сначала отправьте им любую сумму USDC.",
 		"hl.disable.note": "Счёт вернётся под управление собственного ключа. Убедитесь, что этот ключ у вас есть.",

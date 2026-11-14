@@ -3,6 +3,7 @@ import { findChain } from "@/config/chains";
 import { AppError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
 import { getPublicClient } from "@/lib/rpc";
+import { SAFE_ABI } from "./abis";
 import type { Account, SafeCreation } from "@/types/domain";
 import {
 	CREATE_PROXY_SELECTOR,
@@ -107,4 +108,82 @@ export const inspectTarget = async (
 	const codes = await Promise.all([address, ...deps].map((a) => client.getCode({ address: a })));
 	const has = (code: Hex | undefined): boolean => !!code && code !== "0x";
 	return { deployed: has(codes[0]), missing: deps.filter((_, i) => !has(codes[i + 1])) };
+};
+
+/** What stands at a Safe's own address on another network. */
+export type TwinState =
+	| {
+			deployed: true;
+			/** The contract there answers as a Safe. */
+			safe: boolean;
+			/** Its signers and threshold are the ones this Safe has now; `undefined` – could not be compared. */
+			sameOwners?: boolean;
+	  }
+	| {
+			deployed: false;
+			/** The app can create the Safe there: its creation is known, acceptable, and its contracts are on that network. */
+			recreatable: boolean;
+			/** The signers and threshold it would start with are the current ones; `undefined` – unknown. */
+			sameOwners?: boolean;
+	  };
+
+/** What there is to tell the user about it; `undefined` – it is this Safe, with these signers. */
+export type TwinFinding = "missing" | "otherOwners" | "cannotCreate" | "foreignOwners" | "notSafe";
+
+export const twinFinding = (twin: TwinState): TwinFinding | undefined => {
+	if (twin.deployed) return !twin.safe ? "notSafe" : twin.sameOwners === false ? "foreignOwners" : undefined;
+	if (!twin.recreatable) return "cannotCreate";
+	return twin.sameOwners === false ? "otherOwners" : "missing";
+};
+
+const sameSigners = (
+	a: { owners: readonly Address[]; threshold: number },
+	b: { owners: readonly Address[]; threshold: number },
+): boolean =>
+	a.threshold === b.threshold &&
+	a.owners.length === b.owners.length &&
+	a.owners.every((o) => b.owners.some((c) => sameAddress(c, o)));
+
+/**
+ * Looks at the address of `account` on `destChainId`.
+ *
+ * An address is the same on every network, a Safe is not: each network has its own contract there,
+ * with its own signers. A Safe created at that address on another network starts with the signers this
+ * one was *created* with, and anyone may create it. So neither "there is a contract" nor "there will be
+ * a Safe" means "the people who sign here control the funds there" – the signers are compared.
+ */
+export const inspectTwin = async (
+	account: Account,
+	destChainId: number,
+	current?: { owners: Address[]; threshold: number },
+): Promise<TwinState> => {
+	const client = getPublicClient(destChainId);
+	const code = await client.getCode({ address: account.address });
+	if (code && code !== "0x") {
+		try {
+			const [owners, threshold] = await Promise.all([
+				client.readContract({ address: account.address, abi: SAFE_ABI, functionName: "getOwners" }),
+				client.readContract({ address: account.address, abi: SAFE_ABI, functionName: "getThreshold" }),
+			]);
+			const there = { owners, threshold: Number(threshold) };
+			return { deployed: true, safe: true, sameOwners: current ? sameSigners(there, current) : undefined };
+		} catch {
+			return { deployed: true, safe: false };
+		}
+	}
+	const creation = await resolveCreation(account);
+	if (!creation) return { deployed: false, recreatable: false };
+	try {
+		const { setup } = validateCreation(creation);
+		const target = await inspectTarget(destChainId, creation, account.address);
+		return {
+			deployed: false,
+			recreatable: target.missing.length === 0,
+			sameOwners: current ? sameSigners(setup, current) : undefined,
+		};
+	} catch (e) {
+		// Parameters the app refuses to create a Safe from are an answer; a network failure is not.
+		if (e instanceof AppError) return { deployed: false, recreatable: false };
+		throw e;
+	}
 };

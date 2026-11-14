@@ -456,6 +456,15 @@ export const HL_APP: Record<NetworkEnv, string> = {
 
 export const HL_EVM_CHAIN: Record<NetworkEnv, number> = { mainnet: 999, testnet: 998 };
 
+/**
+ * Hyperliquid's bridge on that chain. USDC sent to it is a deposit to the exchange in the name of the
+ * sender – for a Safe, an exchange account nobody holds a key of – and under 5 USDC is lost outright.
+ */
+export const HL_BRIDGE: Record<NetworkEnv, Address> = {
+	mainnet: "0x2Df1c51E09aECF9cacB7bc98cB1742757f163dF7",
+	testnet: "0x08cfc1B6b2dCF36A1480b99353A354AA8AC56f89",
+};
+
 /** Chain HL USDC withdrawals (`withdraw3`) arrive on. */
 export const HL_BRIDGE_CHAIN: Record<NetworkEnv, number> = { mainnet: 42161, testnet: 421614 };
 

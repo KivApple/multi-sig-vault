@@ -1,11 +1,12 @@
 import { ArrowUpRight } from "lucide-react";
 import { encodeFunctionData, getAddress, parseUnits } from "viem";
 import { SafeSendForm } from "@/components/ops/safe/SafeSendForm";
-import { getChain } from "@/config/chains";
+import { findChain, getChain } from "@/config/chains";
 import { formatAmount, isDecimal, sameAddress, trimDecimal } from "@/lib/format";
 import { ERC20_ABI } from "@/lib/safe/abis";
 import { formatUnits } from "viem";
-import { addressError } from "../hl/common";
+import { knownContracts, recipientError, requireRecipient } from "@/lib/recipient";
+import { useContractRecipient } from "../recipientNotices";
 import type { OpDefinition } from "../types";
 
 export interface SafeSendParams {
@@ -16,6 +17,21 @@ export interface SafeSendParams {
 	recipient: string;
 	amount: string;
 }
+
+/**
+ * Contracts that cannot be the recipient of this send: the token itself and everything the app works
+ * with on the network. One exception: the coin sent to its wrapped-token contract is not lost – the
+ * contract credits the sender with the same amount of the wrapped token. That is how a coin is wrapped,
+ * and it holds on every supported network (checked on forks). A token sent there would stay there.
+ */
+const notRecipients = (p: SafeSendParams, chainId: number | undefined): (string | undefined)[] => {
+	const wrapped = findChain(chainId)?.wrappedNative;
+	return [p.token, ...knownContracts(chainId).filter((c) => p.token !== "" || !sameAddress(c, wrapped))];
+};
+
+/** The send is the coin going to its wrapped-token contract: the Safe gets the wrapped token for it. */
+const isWrap = (p: SafeSendParams, chainId: number | undefined): boolean =>
+	p.token === "" && sameAddress(p.recipient, findChain(chainId)?.wrappedNative);
 
 export const safeSendOp: OpDefinition<SafeSendParams> = {
 	type: "safe.send",
@@ -30,11 +46,16 @@ export const safeSendOp: OpDefinition<SafeSendParams> = {
 		amount: "",
 	}),
 	Form: SafeSendForm,
+	// Wrapping aside, a contract as the recipient is worth a word.
+	useNotices: (p, env) =>
+		useContractRecipient(env.account.chainId, isWrap(p, env.account.chainId) ? "" : p.recipient, env),
 	validate: (p, env, t) => {
 		const errors: Record<string, string> = {};
-		const r = addressError(p.recipient, t, env.account.address);
+		const r = recipientError(p.recipient, t, {
+			self: env.account.address,
+			contracts: notRecipients(p, env.account.chainId),
+		});
 		if (r) errors.recipient = r;
-		else if (p.token && sameAddress(p.recipient, p.token)) errors.recipient = t("safe.send.tokenContract");
 		const holding = env.safe?.holdings.find((h) => (h.token?.address ?? "") === p.token);
 		if (!p.amount) errors.amount = t("error.required");
 		else if (!isDecimal(p.amount, p.decimals) || Number(p.amount) <= 0) {
@@ -44,9 +65,9 @@ export const safeSendOp: OpDefinition<SafeSendParams> = {
 		}
 		return errors;
 	},
-	buildSafe: (p) => {
+	buildSafe: (p, { chainId }) => {
 		const amount = parseUnits(trimDecimal(p.amount), p.decimals);
-		const recipient = getAddress(p.recipient);
+		const recipient = requireRecipient(p.recipient, { contracts: notRecipients(p, chainId) });
 		return p.token
 			? [
 					{
@@ -62,6 +83,9 @@ export const safeSendOp: OpDefinition<SafeSendParams> = {
 		...(p.token ? [{ label: t("ops.tokenContract"), value: p.token, mono: true }] : []),
 		{ label: t("ops.recipient"), address: getAddress(p.recipient), chainId: account.chainId },
 		{ label: t("common.network"), value: getChain(account.chainId as number).name },
+		...(isWrap(p, account.chainId)
+			? [{ label: t("safe.send.wrap"), value: t("safe.send.wrapValue", { symbol: `W${p.symbol}` }) }]
+			: []),
 	],
 };
 

@@ -1,7 +1,8 @@
-import { concat, encodeFunctionData, parseAbi, type Address, type Hex } from "viem";
+import { concat, encodeFunctionData, parseAbi, parseEventLogs, type Address, type Hex } from "viem";
 import { getChain, type AcrossAsset, type AcrossToken, type ChainConfig } from "@/config/chains";
 import { AppError } from "@/lib/errors";
 import { sameAddress } from "@/lib/format";
+import { getPublicClient } from "@/lib/rpc";
 import { addressToBytes32 } from "./cctp";
 
 /**
@@ -247,4 +248,61 @@ export const fetchAcrossStatus = async (
 	if (res.status === 404) return undefined;
 	if (!res.ok) throw new Error(`Across status: HTTP ${res.status}`);
 	return parseAcrossStatus(await res.json(), srcChainId, dstChainId);
+};
+
+const FILL_ABI = parseAbi([
+	"struct V3RelayData { bytes32 depositor; bytes32 recipient; bytes32 exclusiveRelayer; bytes32 inputToken; bytes32 outputToken; uint256 inputAmount; uint256 outputAmount; uint256 originChainId; uint256 depositId; uint32 fillDeadline; uint32 exclusivityDeadline; bytes message; }",
+	"function getV3RelayHash(V3RelayData relayData) view returns (bytes32)",
+	"function fillStatuses(bytes32 relayHash) view returns (uint256)",
+]);
+/** `FillStatus.Filled` of the SpokePool. */
+const FILLED = 2n;
+
+/**
+ * Whether the deposit made by `depositTxHash` was paid out, as the destination pool itself records it.
+ * The bridge's API is an index and can miss a fill: a transfer it calls expired may have been delivered.
+ * `undefined` – the transaction made no deposit that can be found.
+ */
+export const acrossFilledOnChain = async (
+	srcChainId: number,
+	dstChainId: number,
+	depositTxHash: Hex,
+): Promise<boolean | undefined> => {
+	const receipt = await getPublicClient(srcChainId).getTransactionReceipt({ hash: depositTxHash });
+	const pool = spokePoolOf(srcChainId);
+	const deposit = parseEventLogs({ abi: SPOKE_POOL_ABI, logs: receipt.logs, eventName: "FundsDeposited" }).find(
+		(e) => sameAddress(e.address, pool) && e.args.destinationChainId === BigInt(dstChainId),
+	)?.args;
+	if (!deposit) return undefined;
+	const destination = getPublicClient(dstChainId);
+	const address = spokePoolOf(dstChainId);
+	// The pool hashes the deposit together with its own chain id; it is asked for the hash rather than trusted to be imitated.
+	const relayHash = await destination.readContract({
+		address,
+		abi: FILL_ABI,
+		functionName: "getV3RelayHash",
+		args: [
+			{
+				depositor: deposit.depositor,
+				recipient: deposit.recipient,
+				exclusiveRelayer: deposit.exclusiveRelayer,
+				inputToken: deposit.inputToken,
+				outputToken: deposit.outputToken,
+				inputAmount: deposit.inputAmount,
+				outputAmount: deposit.outputAmount,
+				originChainId: BigInt(srcChainId),
+				depositId: deposit.depositId,
+				fillDeadline: deposit.fillDeadline,
+				exclusivityDeadline: deposit.exclusivityDeadline,
+				message: deposit.message,
+			},
+		],
+	});
+	const status = await destination.readContract({
+		address,
+		abi: FILL_ABI,
+		functionName: "fillStatuses",
+		args: [relayHash],
+	});
+	return status === FILLED;
 };

@@ -3,7 +3,8 @@ import { defineDict } from "../define";
 
 export default defineDict({
 	en: {
-		"safe.send.tokenContract": "This is the token's own contract",
+		"safe.send.wrap": "Wrapping",
+		"safe.send.wrapValue": "the contract credits this Safe with the same amount of {symbol}",
 		"safe.owners.added": "Added",
 		"safe.owners.removed": "Removed",
 		"safe.owners.invalidOwner": "This address cannot be an owner",
@@ -18,7 +19,8 @@ export default defineDict({
 		"safeError.other": "The Safe rejected the transaction ({detail}).",
 	},
 	ru: {
-		"safe.send.tokenContract": "Это адрес контракта самого токена",
+		"safe.send.wrap": "Обёртывание",
+		"safe.send.wrapValue": "контракт зачислит этому Safe столько же {symbol}",
 		"safe.owners.added": "Добавляется",
 		"safe.owners.removed": "Удаляется",
 		"safe.owners.invalidOwner": "Этот адрес не может быть владельцем",

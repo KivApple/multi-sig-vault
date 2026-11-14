@@ -1,4 +1,3 @@
-import { TriangleAlert } from "lucide-react";
 import { useCallback, useMemo } from "react";
 import { formatUnits } from "viem";
 import { AddressField } from "@/components/common/AddressField";
@@ -166,16 +165,12 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 	);
 
 	const toSelf = !value.recipient;
-	const recipientHint = !toSelf ? undefined : !cross ? (
-		t("swap.toThisSafe")
-	) : ownOnDest ? (
-		t("swap.toSameSafe", { network: dest.name })
-	) : (
-		<span className="text-warning flex items-start gap-1">
-			<TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
-			{t("swap.unknownSafeWarning", { network: dest.name })}
-		</span>
-	);
+	// Whether a Safe stands at that address on the other network is found out, and said, by the card (see `useNotices`).
+	const recipientHint = !toSelf
+		? undefined
+		: !cross
+			? t("swap.toThisSafe")
+			: t(ownOnDest ? "swap.toSameSafe" : "swap.toSameAddress", { network: dest.name });
 
 	// What can arrive on the other network: the token itself where a bridge carries it, and whatever
 	// else the bridges carry there after a swap here. The first is the default.

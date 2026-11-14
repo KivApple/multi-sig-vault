@@ -1,7 +1,6 @@
 import { useMemo } from "react";
 import { AddressLabel } from "@/components/common/AddressLabel";
 import { AmountField } from "@/components/common/AmountField";
-import { Notice } from "@/components/common/Notice";
 import { Field } from "@/components/ui/Field";
 import { getChain, HL_EVM_CHAIN } from "@/config/chains";
 import { useT } from "@/i18n";
@@ -49,7 +48,6 @@ export const SpotWithdrawForm: React.FC<OpFormProps<SpotParams>> = ({ value, onC
 					<AddressLabel address={env.account.address} scope={{ hlEnv: env.account.env }} />
 				</div>
 			</Field>
-			{env.hl?.multiSig && <Notice tone="warning">{t("hl.evmKeyNote")}</Notice>}
 		</div>
 	);
 };

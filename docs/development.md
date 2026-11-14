@@ -45,6 +45,13 @@ scripts           icons, token lists, dictionaries, release.json
 
 An operation is one definition file (`OpDefinition` in `src/lib/ops/types.ts`: its form, validation, the pure function that builds the payload, the summary signers read) and a line in `src/lib/ops/registry.ts`. The engine freezes it at the first signature, rebuilds and compares the payload before every later step, and sends it.
 
+Two things an operation does not do by itself:
+
+- **An address that receives funds** goes through `src/lib/recipient.ts`: `recipientError` in `validate`, `requireRecipient` in the builder. It refuses the zero address, reserved and burn addresses, an address whose mixed case does not match its checksum and, for a Hyperliquid recipient, the exchange's system addresses. Do not check addresses in the operation.
+- **Something the user must agree to before signing** is a notice: `useNotices` in the definition returns the text and the label of its checkbox. Every card of the operation runs it — the draft, then the card of each signer and of the sender — shows the notice and keeps its button off until the box is ticked (and while the notice is still being worked out). It is computed on the device from what that device sees, with a "check again" button where the answer can change; nothing of it is stored in the operation or carried in a QR code. A form does not build its own.
+
+A check that needs the network and can stop the operation (a bridge limit, a token HyperEVM cannot pay out) belongs in `prepare`, which runs right before the first signature; one that needs none belongs in the builder, which runs again before every signature, before sending and on import.
+
 ## Adding a network
 
 Any EVM network works where the canonical Safe 1.4.1 contracts and Multicall3 are deployed at their usual addresses (`src/lib/safe/deployments.ts`, `src/config/constants.ts`). Check that first, with `eth_getCode` on the network itself: the app assumes those addresses and has no per-network overrides.

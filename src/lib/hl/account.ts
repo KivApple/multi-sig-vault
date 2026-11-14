@@ -305,8 +305,9 @@ export const verifyHlAccount = async (env: NetworkEnv, user: Address): Promise<v
 	if (role.role === "vault") throw new AppError("hl.error.isVault");
 };
 
-export const hlUserExists = async (env: NetworkEnv, user: Address): Promise<boolean> =>
-	(await hlInfo<HlUserRole>(env, { type: "userRole", user })).role !== "missing";
+/** What the exchange knows an address as: `user` is an ordinary account, the only kind that can sign for a multi-sig. */
+export const hlRoleOf = async (env: NetworkEnv, user: Address): Promise<string> =>
+	(await hlInfo<HlUserRole>(env, { type: "userRole", user })).role;
 
 /** Fee charged for sending to `destination` (1 USDC when the account does not exist yet). */
 export const hlTransferCheck = (env: NetworkEnv, source: Address, destination: Address): Promise<HlPreTransferCheck> =>

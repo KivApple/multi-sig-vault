@@ -9,9 +9,19 @@ export const sameAddress = (a?: string | null, b?: string | null): boolean =>
 
 export const toChecksum = (address: string): Address => getAddress(address);
 
+/**
+ * Mixed case in an address is a checksum (EIP-55), and a wrong one means a mistyped character.
+ * An address written all in lower or all in upper case carries none.
+ */
+export const checksumHolds = (value: string): boolean => {
+	const hex = value.trim().slice(2);
+	return hex === hex.toLowerCase() || hex === hex.toUpperCase() || isAddress(value.trim());
+};
+
+/** An address as typed, pasted or scanned, checksummed; `undefined` when it is not one or its checksum does not hold. */
 export const parseAddress = (value: string): Address | undefined => {
 	const v = value.trim();
-	return isAddress(v, { strict: false }) ? getAddress(v) : undefined;
+	return isAddress(v, { strict: false }) && checksumHolds(v) ? getAddress(v) : undefined;
 };
 
 export const formatUsd = (value: number, lang: string, compact = false): string => {

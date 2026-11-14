@@ -1,7 +1,7 @@
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import type { Address, Hex } from "viem";
 import type { TFunc } from "@/i18n";
-import { isDecimal, parseAddress, sameAddress } from "@/lib/format";
+import { isDecimal } from "@/lib/format";
 import { agentKeyId, secureGet, secureSet } from "@/lib/secureStore";
 
 /** Validates a decimal amount against precision and available balance; returns a message or undefined. */
@@ -17,13 +17,6 @@ export const amountError = (
 		return t(opts.minExclusive ? "amount.minExclusive" : "amount.min", { min: opts.min, symbol: opts.symbol ?? "" });
 	}
 	if (opts.max !== undefined && n > Number(opts.max)) return t("amount.exceeds");
-	return undefined;
-};
-
-export const addressError = (value: string, t: TFunc, self?: string): string | undefined => {
-	if (!value) return t("error.required");
-	if (!parseAddress(value)) return t("error.invalidAddress");
-	if (self && sameAddress(value, self)) return t("address.self");
 	return undefined;
 };
 

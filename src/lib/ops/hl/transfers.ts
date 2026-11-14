@@ -6,9 +6,13 @@ import { SpotWithdrawForm } from "@/components/ops/hl/SpotWithdrawForm";
 import { UsdSendForm } from "@/components/ops/hl/UsdSendForm";
 import { WithdrawForm } from "@/components/ops/hl/WithdrawForm";
 import { formatAmount, trimDecimal } from "@/lib/format";
+import { useT } from "@/i18n";
 import { HL_WITHDRAW_FEE, hlSystemAddress } from "@/lib/hl/account";
+import { assertEvmWithdrawable } from "@/lib/hl/evm";
+import { recipientError, requireRecipient } from "@/lib/recipient";
+import { useContractRecipient, useHlNewRecipient } from "../recipientNotices";
 import type { OpDefinition, OpErrors } from "../types";
-import { addressError, amountError } from "./common";
+import { amountError } from "./common";
 
 export interface UsdParams {
 	destination: string;
@@ -22,9 +26,10 @@ export const withdrawOp: OpDefinition<UsdParams> = {
 	available: (env) => !!env.hl,
 	defaults: () => ({ destination: "", amount: "" }),
 	Form: WithdrawForm,
+	useNotices: (p, env) => useContractRecipient(HL_BRIDGE_CHAIN[env.account.env], p.destination, env),
 	validate: (p, env, t) => {
 		const errors: Record<string, string> = {};
-		const d = addressError(p.destination, t);
+		const d = recipientError(p.destination, t);
 		if (d) errors.destination = d;
 		const a = amountError(p.amount, t, {
 			decimals: 6,
@@ -36,7 +41,11 @@ export const withdrawOp: OpDefinition<UsdParams> = {
 		if (a) errors.amount = a;
 		return errors;
 	},
-	buildHl: (p) => ({ type: "withdraw3", destination: p.destination.toLowerCase(), amount: trimDecimal(p.amount) }),
+	buildHl: (p) => ({
+		type: "withdraw3",
+		destination: requireRecipient(p.destination).toLowerCase(),
+		amount: trimDecimal(p.amount),
+	}),
 	summary: (p, { t, lang, account }) => [
 		{ label: t("ops.amount"), value: `${formatAmount(p.amount, lang)} USDC` },
 		{ label: t("ops.fee"), value: `${HL_WITHDRAW_FEE} USDC` },
@@ -53,15 +62,20 @@ export const usdSendOp: OpDefinition<UsdParams> = {
 	available: (env) => !!env.hl,
 	defaults: () => ({ destination: "", amount: "" }),
 	Form: UsdSendForm,
+	useNotices: (p, env) => useHlNewRecipient(p.destination, env),
 	validate: (p, env, t) => {
 		const errors: Record<string, string> = {};
-		const d = addressError(p.destination, t, env.account.address);
+		const d = recipientError(p.destination, t, { self: env.account.address, hyperliquid: true });
 		if (d) errors.destination = d;
 		const a = amountError(p.amount, t, { decimals: 6, max: env.hl?.withdrawable });
 		if (a) errors.amount = a;
 		return errors;
 	},
-	buildHl: (p) => ({ type: "usdSend", destination: p.destination.toLowerCase(), amount: trimDecimal(p.amount) }),
+	buildHl: (p) => ({
+		type: "usdSend",
+		destination: requireRecipient(p.destination, { hyperliquid: true }).toLowerCase(),
+		amount: trimDecimal(p.amount),
+	}),
 	summary: (p, { t, lang }) => [
 		{ label: t("ops.amount"), value: `${formatAmount(p.amount, lang)} USDC` },
 		{ label: t("ops.recipient"), address: p.destination as never },
@@ -95,15 +109,16 @@ export const spotSendOp: OpDefinition<SpotParams> = {
 	available: (env) => !!env.hl && env.hl.spot.length > 0,
 	defaults: () => ({ destination: "", token: null, tokenRef: "", coin: "", amount: "" }),
 	Form: SpotSendForm,
+	useNotices: (p, env) => useHlNewRecipient(p.destination, env),
 	validate: (p, env, t) => {
 		const errors = spotErrors(p, env, t);
-		const d = addressError(p.destination, t, env.account.address);
+		const d = recipientError(p.destination, t, { self: env.account.address, hyperliquid: true });
 		if (d) errors.destination = d;
 		return errors;
 	},
 	buildHl: (p) => ({
 		type: "spotSend",
-		destination: p.destination.toLowerCase(),
+		destination: requireRecipient(p.destination, { hyperliquid: true }).toLowerCase(),
 		token: p.tokenRef,
 		amount: trimDecimal(p.amount),
 	}),
@@ -122,7 +137,21 @@ export const spotWithdrawOp: OpDefinition<SpotParams> = {
 	available: (env) => !!env.hl && env.hl.spot.some((s) => s.evm && s.token !== 0),
 	defaults: () => ({ destination: "", token: null, tokenRef: "", coin: "", amount: "" }),
 	Form: SpotWithdrawForm,
+	// The tokens arrive at the account's own address on HyperEVM, and a multi-sig has no say there.
+	useNotices: (_p, env) => {
+		const t = useT();
+		return {
+			notices: env.hl?.multiSig ? [{ id: "evm-key", text: t("hl.evmKeyNote"), confirm: t("hl.evmKeyConfirm") }] : [],
+		};
+	},
 	validate: spotErrors,
+	// The exchange debits the account whether or not HyperEVM can pay the token out: look first.
+	prepare: async (p, env) => {
+		await assertEvmWithdrawable(env.account.env, p.token as number, p.coin, p.amount, env.account.address);
+		return p;
+	},
+	// Signatures may take days: what HyperEVM could pay then, it may not pay now.
+	recheck: (p, account) => assertEvmWithdrawable(account.env, p.token as number, p.coin, p.amount, account.address),
 	buildHl: (p) => ({
 		type: "spotSend",
 		destination: hlSystemAddress(p.token as number, p.coin).toLowerCase(),

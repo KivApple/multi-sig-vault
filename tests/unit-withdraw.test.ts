@@ -162,5 +162,9 @@ describe("Unit withdrawal operation", () => {
 		expect(() =>
 			buildPayload({ type: "hl.unitWithdraw", params: { ...params, signatures: {} } }, account, seed),
 		).toThrow();
+		// Under Unit's minimum the transfer could not be processed, nor surely returned: not built at all.
+		expect(() =>
+			buildPayload({ type: "hl.unitWithdraw", params: { ...params, amount: "0.0001" } }, account, seed),
+		).toThrow();
 	});
 });

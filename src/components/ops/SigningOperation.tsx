@@ -27,6 +27,7 @@ import type { OpDefinition, OpEnv } from "@/lib/ops/types";
 import { toast } from "@/lib/toast";
 import type { Operation, Signer } from "@/types/domain";
 import { OpCardFrame } from "./OpCardFrame";
+import { OpNoticeList, useOpNotices } from "./OpNoticeList";
 import { OpSummary } from "./OpSummary";
 import { SignerPickerDialog } from "./SignerPickerDialog";
 import { SignersProgress } from "./SignersProgress";
@@ -182,6 +183,8 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 		}
 	}, [confirm, op.id, t]);
 
+	// Looked at again on this device: what the drafter saw may have changed, and is not taken on trust.
+	const notices = useOpNotices(def, op.params, env);
 	const leaderKnown = !hlPayload?.multiSig || signers.some((s) => sameAddress(s.address, hlPayload.leader));
 	const canSend = ready && nonceState === "ok" && !expired;
 
@@ -236,7 +239,7 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 							type="button"
 							className="btn btn-primary"
 							onClick={() => void handleSend()}
-							disabled={!canSend || sending}
+							disabled={!canSend || sending || notices.waiting}
 						>
 							{sending ? <Spinner /> : <Send className="size-4" />}
 							{t("ops.send")}
@@ -246,7 +249,7 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 							type="button"
 							className="btn btn-primary"
 							onClick={() => setDialog("sign")}
-							disabled={expired || nonceState === "used"}
+							disabled={expired || nonceState === "used" || notices.waiting}
 						>
 							<PenLine className="size-4" />
 							{t("ops.sign")}
@@ -263,6 +266,7 @@ export const SigningOperation: React.FC<SigningOperationProps> = ({ op, def, env
 				leader={hlPayload?.multiSig ? getAddress(hlPayload.leader) : undefined}
 				scope={scope}
 			/>
+			<OpNoticeList {...notices} />
 			{expiresAt !== undefined && !expired && (
 				<p className="text-base-content/60 text-xs">{t("ops.validUntil", { date: formatDateTime(expiresAt, lang) })}</p>
 			)}

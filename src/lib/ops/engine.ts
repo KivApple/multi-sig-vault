@@ -260,6 +260,7 @@ export const sendHlOperation = async (op: Operation, account: Account, leaderSig
 	const payload = op.payload as HlPayload;
 	verifyOperation(op, account);
 	await verifySignatures(op, account);
+	await getOpDefinition(op.type)?.recheck?.(op.params, account);
 
 	if (!payload.multiSig) {
 		const own = op.signatures.find((s) => sameAddress(s.signer, account.address));
@@ -339,6 +340,7 @@ export const planSafeSend = async (op: Operation, account: Account, from: Addres
 
 /** Executes the Safe transaction from `executor` (any address may pay for gas, unless the account limits it). */
 export const sendSafeOperation = async (op: Operation, account: Account, executor: Signer): Promise<void> => {
+	await getOpDefinition(op.type)?.recheck?.(op.params, account);
 	const plan = await planSafeSend(op, account, executor.address);
 	const txHash = await sendTransactionWith(executor, {
 		chainId: account.chainId as number,

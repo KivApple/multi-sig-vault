@@ -2,6 +2,7 @@ import { getAddress, parseUnits, type Address } from "viem";
 import { getChain, type AcrossAsset, type BridgeKind, type ChainConfig } from "@/config/chains";
 import { AppError } from "@/lib/errors";
 import { isDecimal, parseAddress, sameAddress } from "@/lib/format";
+import { knownContracts, requireRecipient } from "@/lib/recipient";
 import type { MetaTx } from "@/lib/safe/tx";
 import { findToken } from "@/lib/tokens";
 import type { Operation } from "@/types/domain";
@@ -217,6 +218,23 @@ export const parseAmountIn = (p: SwapParams): bigint | undefined => {
 	return raw > 0n ? raw : undefined;
 };
 
+/**
+ * Who gets the outcome of the operation. Left empty it is the Safe itself; an address typed in must be
+ * able to receive – and is not one of the contracts the operation works with, on the network the funds
+ * arrive on or on this one.
+ */
+export const swapRecipientRules = (p: SwapParams, chainId: number): { contracts: (string | undefined)[] } => ({
+	contracts: [
+		p.tokenIn === NATIVE ? undefined : p.tokenIn,
+		p.tokenOut === NATIVE ? undefined : p.tokenOut,
+		...knownContracts(chainId),
+		...(p.destChainId === chainId ? [] : knownContracts(p.destChainId)),
+	],
+});
+
+const recipientOf = (p: SwapParams, chainId: number, safe: Address): Address =>
+	p.recipient ? requireRecipient(p.recipient, swapRecipientRules(p, chainId)) : getAddress(safe);
+
 const swapCtx = (shape: SwapShape, amountIn: bigint, safe: Address, recipient: Address): SwapCtx => ({
 	chain: shape.chain,
 	tokenIn: shape.inAddress,
@@ -282,7 +300,7 @@ const resolveVia = async (
 	const shape = swapShape(p, chainId, want);
 	const amountIn = parseAmountIn(p);
 	if (!amountIn) throw new AppError("swap.error.amount");
-	const recipient = parseAddress(p.recipient) ?? getAddress(safe);
+	const recipient = recipientOf(p, chainId, safe);
 	const resolved: SwapResolved = { amountIn: amountIn.toString(), preparedAt: Date.now() };
 	let crossing = amountIn;
 
@@ -345,8 +363,7 @@ export const buildSwapCalls = (p: SwapParams, chainId: number, safe: Address): M
 	const amountIn = parseAmountIn(p);
 	if (!amountIn || amountIn.toString() !== r.amountIn) return mismatch();
 	checkDecimals(chainId, p.tokenIn, p.tokenInDecimals);
-	const recipient = p.recipient ? parseAddress(p.recipient) : getAddress(safe);
-	if (!recipient) throw new AppError("swap.error.recipient");
+	const recipient = recipientOf(p, chainId, safe);
 	if (!!r.swap !== shape.needSwap) return mismatch();
 
 	const calls: MetaTx[] = [];
