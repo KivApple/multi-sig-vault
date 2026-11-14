@@ -34,6 +34,8 @@ const safeAccount: Account = {
 	addedAt: 1,
 };
 
+const usdc = { asset: "perp", tokenRef: "USDC:0x6d1e7cde53ba9467b783cb7c530ce054", coin: "USDC" };
+
 const sign = async (key: Hex, op: Operation, account: Account): Promise<Hex> => {
 	const data = signerTypedData(op.payload as never, account);
 	return privateKeyToAccount(key).signTypedData({
@@ -73,7 +75,7 @@ beforeEach(() => useAppStore.setState({ accounts: [], operations: [], signers: [
 
 describe("operation integrity", () => {
 	it("rebuilds the payload from parameters and detects tampering (Hyperliquid)", async () => {
-		const op = await makeOp(hlAccount, "hl.usdSend", { destination: recipient, amount: "12.50" }, [0, 1]);
+		const op = await makeOp(hlAccount, "hl.send", { ...usdc, destination: recipient, amount: "12.50" }, [0, 1]);
 		expect(() => verifyOperation(op, hlAccount)).not.toThrow();
 		await expect(verifySignatures(op, hlAccount)).resolves.toBeUndefined();
 		// Shown parameters no longer match what was signed.
@@ -99,7 +101,7 @@ describe("operation integrity", () => {
 	});
 
 	it("rejects signatures that do not belong to their signer", async () => {
-		const op = await makeOp(hlAccount, "hl.usdSend", { destination: recipient, amount: "1" }, [0, 1]);
+		const op = await makeOp(hlAccount, "hl.send", { ...usdc, destination: recipient, amount: "1" }, [0, 1]);
 		const swapped = {
 			...op,
 			signatures: [op.signatures[0], { signer: owners[2], signature: op.signatures[1].signature }],
@@ -126,7 +128,7 @@ describe("who may send", () => {
 
 describe("transfer between devices", () => {
 	it("round-trips, adds the unknown account and merges signatures", async () => {
-		const op = await makeOp(hlAccount, "hl.usdSend", { destination: recipient, amount: "3" }, [0, 1]);
+		const op = await makeOp(hlAccount, "hl.send", { ...usdc, destination: recipient, amount: "3" }, [0, 1]);
 		const text = await exportOperation(op, hlAccount);
 		const fresh = await parseImport(text);
 		expect(fresh.action).toBe("new");
@@ -143,7 +145,7 @@ describe("transfer between devices", () => {
 	});
 
 	it("refuses bundles whose parameters do not match the signed payload", async () => {
-		const op = await makeOp(hlAccount, "hl.usdSend", { destination: recipient, amount: "3" }, [0]);
+		const op = await makeOp(hlAccount, "hl.send", { ...usdc, destination: recipient, amount: "3" }, [0]);
 		const bundle = (await unpackTransfer(await exportOperation(op, hlAccount))) as {
 			op: { params: Record<string, unknown>; signatures: { signature: string }[] };
 		};

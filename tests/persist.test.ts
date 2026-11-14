@@ -17,7 +17,7 @@ const account = (id: string, name = id): Account =>
 const signer = (id: string): Signer =>
 	({ id, address: `0x${"2".repeat(40)}`, name: id, wallet: "ledger", addedAt: 1 }) as Signer;
 const op = (id: string, accountId: string): Operation =>
-	({ id, accountId, type: "hl.usdSend", status: "draft" }) as unknown as Operation;
+	({ id, accountId, type: "hl.send", status: "draft" }) as unknown as Operation;
 
 const state = (over: Partial<StoredState> = {}): StoredState => ({
 	accounts: [account("a"), account("b")],

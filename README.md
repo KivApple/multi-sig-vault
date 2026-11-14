@@ -60,7 +60,7 @@ The site itself serves the newest stable release, so a first-time visitor gets a
 
 **Hyperliquid operations**
 
-- Send and withdraw USDC, send spot tokens, move funds between spot and perps.
+- Send USDC or any spot token to another account in one operation, withdraw USDC to Arbitrum, move funds between spot and perps. Transfers use the exchange's general `sendAsset`, which works in every account mode, unified and portfolio margin included.
 - Withdraw spot assets to their native chain through Unit (BTC, ETH, SOL and others) or to HyperEVM.
 - Approve and revoke agent keys, and log in to the exchange web UI by link or QR, for 1 to 180 days.
 - Create and manage sub-accounts.

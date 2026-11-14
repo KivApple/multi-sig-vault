@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { fastAvailable } from "@/lib/evm/bridges/cctp";
 import { buildSwapCalls, type SwapParams } from "@/lib/evm/swapBuild";
 import { hlSystemAddress } from "@/lib/hl/account";
-import { spotSendOp, usdSendOp, withdrawOp } from "@/lib/ops/hl/transfers";
+import { sendOp, spotWithdrawOp, withdrawOp } from "@/lib/ops/hl/transfers";
 import { unitWithdrawOp } from "@/lib/ops/hl/unit";
 import { safeSendOp } from "@/lib/ops/safe/send";
 import { parseAddress } from "@/lib/format";
@@ -16,9 +16,8 @@ import { knownContracts, recipientProblem, requireRecipient } from "@/lib/recipi
 
 // The operation definitions reference their React components; they are irrelevant here.
 vi.mock("@/components/ops/safe/SafeSendForm", () => ({ SafeSendForm: () => null }));
-vi.mock("@/components/ops/hl/SpotSendForm", () => ({ SpotSendForm: () => null }));
+vi.mock("@/components/ops/hl/SendAssetForm", () => ({ SendAssetForm: () => null, sendOptions: () => [] }));
 vi.mock("@/components/ops/hl/SpotWithdrawForm", () => ({ SpotWithdrawForm: () => null }));
-vi.mock("@/components/ops/hl/UsdSendForm", () => ({ UsdSendForm: () => null }));
 vi.mock("@/components/ops/hl/WithdrawForm", () => ({ WithdrawForm: () => null }));
 vi.mock("@/components/ops/hl/ClassTransferForm", () => ({ ClassTransferForm: () => null }));
 vi.mock("@/components/ops/hl/UnitWithdrawForm", () => ({ UnitWithdrawForm: () => null }));
@@ -185,41 +184,49 @@ describe("the one check of a recipient address", () => {
 		expect(() => send(low(2))).toThrow();
 
 		const hl = { env: "mainnet" as const, nonce: 1, user: USER as never };
-		const usd = usdSendOp.buildHl as NonNullable<typeof usdSendOp.buildHl>;
-		expect(usd({ destination: USER, amount: "5" }, hl).destination).toBe(USER.toLowerCase());
-		expect(() => usd({ destination: ZERO, amount: "5" }, hl)).toThrow();
-		expect(() => usd({ destination: hlSystemAddress(150, "HYPE"), amount: "5" }, hl)).toThrow();
-		// A unified account has USDC on spot: the exchange refuses usdSend, so it goes as sendAsset spot → spot.
+		// One operation sends every asset: sendAsset, from a balance to the same kind of balance.
+		const hlSend = sendOp.buildHl as NonNullable<typeof sendOp.buildHl>;
 		const USDC = "USDC:0x6d1e7cde53ba9467b783cb7c530ce054";
-		expect(usd({ destination: USER, amount: "5", spotToken: USDC }, hl)).toEqual({
+		const PURR = "PURR:0xc1fb593aeffbeb02f85e0308e9956a90";
+		const perp = { asset: "perp", tokenRef: USDC, coin: "USDC", amount: "5" };
+		expect(hlSend({ ...perp, destination: USER }, hl)).toEqual({
 			type: "sendAsset",
 			destination: USER.toLowerCase(),
-			sourceDex: "spot",
-			destinationDex: "spot",
+			sourceDex: "",
+			destinationDex: "",
 			token: USDC,
 			amount: "5",
 			fromSubAccount: "",
 		});
-		// Only USDC can stand behind an operation that says "USDC".
-		expect(() =>
-			usd({ destination: USER, amount: "5", spotToken: "HYPE:0x0d01dc56dcaaca66ad901c959b4011ec" }, hl),
-		).toThrow();
-		const spot = spotSendOp.buildHl as NonNullable<typeof spotSendOp.buildHl>;
-		const token = { token: 1, tokenRef: "PURR:0xc1fb593aeffbeb02f85e0308e9956a90", coin: "PURR", amount: "5" };
-		expect(() => spot({ ...token, destination: hlSystemAddress(1, "PURR") }, hl)).toThrow();
-		expect(spot({ ...token, destination: USER }, hl).destination).toBe(USER.toLowerCase());
-		// From a unified account any spot token goes as sendAsset spot → spot.
-		expect(spot({ ...token, destination: USER, asset: true }, hl)).toEqual({
-			type: "sendAsset",
-			destination: USER.toLowerCase(),
+		expect(hlSend({ asset: "1", tokenRef: PURR, coin: "PURR", amount: "5", destination: USER }, hl)).toMatchObject({
 			sourceDex: "spot",
 			destinationDex: "spot",
-			token: token.tokenRef,
+			token: PURR,
+		});
+		// Spot USDC (a unified account's only USDC) goes spot to spot too.
+		expect(hlSend({ asset: "0", tokenRef: USDC, coin: "USDC", amount: "5", destination: USER }, hl)).toMatchObject({
+			sourceDex: "spot",
+			token: USDC,
+		});
+		expect(() => hlSend({ ...perp, destination: ZERO }, hl)).toThrow();
+		expect(() => hlSend({ ...perp, destination: hlSystemAddress(150, "HYPE") }, hl)).toThrow();
+		// What is sent is what the operation says: the token of its name, and only USDC from the perp balance.
+		expect(() => hlSend({ ...perp, coin: "PURR", tokenRef: PURR, destination: USER }, hl)).toThrow();
+		expect(() => hlSend({ asset: "1", tokenRef: USDC, coin: "PURR", amount: "5", destination: USER }, hl)).toThrow();
+		expect(() => hlSend({ ...perp, tokenRef: "USDC:nope", destination: USER }, hl)).toThrow();
+		const withdraw = withdrawOp.buildHl as NonNullable<typeof withdrawOp.buildHl>;
+		expect(() => withdraw({ destination: low(1), amount: "5" }, hl)).toThrow();
+		// To HyperEVM: sendAsset to the token's system address, as the exchange documents it.
+		const evm = spotWithdrawOp.buildHl as NonNullable<typeof spotWithdrawOp.buildHl>;
+		expect(evm({ destination: "", token: 1, tokenRef: PURR, coin: "PURR", amount: "5" }, hl)).toEqual({
+			type: "sendAsset",
+			destination: hlSystemAddress(1, "PURR").toLowerCase(),
+			sourceDex: "spot",
+			destinationDex: "spot",
+			token: PURR,
 			amount: "5",
 			fromSubAccount: "",
 		});
-		const withdraw = withdrawOp.buildHl as NonNullable<typeof withdrawOp.buildHl>;
-		expect(() => withdraw({ destination: low(1), amount: "5" }, hl)).toThrow();
 
 		const swap: SwapParams = {
 			tokenIn: "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48",

@@ -1,7 +1,7 @@
 import { approveAgentOp, loginOp, revokeAgentOp } from "./hl/agents";
 import { disableMultiSigOp, multiSigOp } from "./hl/multisig";
 import { createSubOp, renameSubOp, subTransferOp } from "./hl/subs";
-import { classTransferOp, spotSendOp, spotWithdrawOp, usdSendOp, withdrawOp } from "./hl/transfers";
+import { classTransferOp, sendOp, spotWithdrawOp, withdrawOp } from "./hl/transfers";
 import { callOp } from "./safe/call";
 import { deployOp } from "./safe/deploy";
 import { safeOwnersOp } from "./safe/owners";
@@ -19,11 +19,10 @@ let cache: OpDefinition[] | undefined;
  */
 export const allOperations = (): OpDefinition[] => {
 	cache ??= [
+		sendOp,
 		withdrawOp,
-		usdSendOp,
 		spotWithdrawOp,
 		unitWithdrawOp,
-		spotSendOp,
 		classTransferOp,
 		loginOp,
 		approveAgentOp,
