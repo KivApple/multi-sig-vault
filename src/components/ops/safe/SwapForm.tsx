@@ -7,7 +7,6 @@ import { PickerSelect, type PickerOption } from "@/components/common/PickerSelec
 import { NetworkIcon } from "@/components/icons/NetworkIcon";
 import { TokenIcon } from "@/components/icons/TokenIcon";
 import { Field } from "@/components/ui/Field";
-import { Segmented, type SegmentedOption } from "@/components/ui/Segmented";
 import { chainsOf, getChain } from "@/config/chains";
 import { useLang, useT } from "@/i18n";
 import { bridgeOf, bridgeRoutes, FALLBACK_RECEIVE, type ReceiveAsset } from "@/lib/evm/bridges";
@@ -187,17 +186,34 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 		? bridgeAssetOf(chainId, value.destChainId, value.tokenIn, fallback ? FALLBACK_RECEIVE : value.receive)
 		: undefined;
 	const needSwap = !cross || !sameAddress(sent, asset?.address);
-	const receiveOptions = useMemo<SegmentedOption<ReceiveAsset>[]>(
+	// One row per thing that can arrive: what it is called there, and how it gets there.
+	const receiveOptions = useMemo<PickerOption[]>(
 		() =>
-			routes.map((r) => ({
-				value: r.receive,
-				label: bridgeAssetOf(chainId, value.destChainId, value.tokenIn, r.receive)?.destSymbol ?? r.receive,
-			})),
-		[routes, chainId, value.destChainId, value.tokenIn],
+			routes.flatMap((r) => {
+				const option = bridgeAssetOf(chainId, value.destChainId, value.tokenIn, r.receive);
+				if (!option) return [];
+				const bridge = bridgeOf(r.kind).name;
+				return [
+					{
+						value: r.receive,
+						title: option.destSymbol,
+						subtitle: sameAddress(sent, r.token) ? bridge : t("swap.viaAfterSwap", { bridge, symbol: option.symbol }),
+						icon: (
+							<TokenIcon
+								symbol={option.destSymbol}
+								chainId={dest.id}
+								address={option.destNative ? undefined : option.destAddress}
+								size={32}
+							/>
+						),
+					},
+				];
+			}),
+		[routes, chainId, value.destChainId, value.tokenIn, sent, dest.id, t],
 	);
 	const received = asset?.receive;
 	const ui = asset && BRIDGE_UI[asset.kind];
-	const handleReceive = useCallback((receive: ReceiveAsset) => onChange({ receive }), [onChange]);
+	const handleReceive = useCallback((receive: string) => onChange({ receive: receive as ReceiveAsset }), [onChange]);
 
 	return (
 		<div className="flex flex-col gap-4">
@@ -240,30 +256,29 @@ export const SwapForm: React.FC<OpFormProps<SwapParams>> = ({ value, onChange, e
 								: undefined
 					}
 				>
-					{/* Across cannot carry the amount: no choice is left, and the quote below says why. */}
-					{receiveOptions.length > 1 && !fallback && received && (
-						<div className="mb-2">
-							<Segmented
-								value={received}
-								options={receiveOptions}
-								onChange={handleReceive}
-								size="sm"
-								ariaLabel={t("swap.receive")}
+					{/* One control: a choice where there is one. With a single way across – or when the bridge
+					    cannot carry the amount and the quote below says why – it only states what arrives. */}
+					{receiveOptions.length > 1 && !fallback && received ? (
+						<PickerSelect
+							value={received}
+							options={receiveOptions}
+							onChange={handleReceive}
+							title={t("swap.receive")}
+						/>
+					) : (
+						<div className="input flex h-auto min-h-12 w-full items-center gap-2 py-1.5">
+							<TokenIcon
+								symbol={asset?.destSymbol ?? "USDC"}
+								chainId={dest.id}
+								address={asset?.destNative ? undefined : (asset?.destAddress ?? dest.usdc)}
+								size={32}
 							/>
+							<span className="flex flex-col leading-tight">
+								<span className="font-medium">{asset?.destSymbol ?? "USDC"}</span>
+								<span className="text-base-content/60 text-xs">{asset ? bridgeOf(asset.kind).name : dest.name}</span>
+							</span>
 						</div>
 					)}
-					<div className="input flex h-auto min-h-12 w-full items-center gap-2 py-1.5">
-						<TokenIcon
-							symbol={asset?.destSymbol ?? "USDC"}
-							chainId={dest.id}
-							address={asset?.destNative ? undefined : (asset?.destAddress ?? dest.usdc)}
-							size={32}
-						/>
-						<span className="flex flex-col leading-tight">
-							<span className="font-medium">{asset?.destSymbol ?? "USDC"}</span>
-							<span className="text-base-content/60 text-xs">{dest.name}</span>
-						</span>
-					</div>
 				</Field>
 			) : (
 				<Field label={t("swap.receive")} error={errors.tokenOut}>

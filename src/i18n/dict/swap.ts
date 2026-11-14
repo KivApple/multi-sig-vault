@@ -9,6 +9,7 @@ export default defineDict({
 		"swap.network": "Receive on",
 		"swap.thisNetwork": "This network",
 		"swap.via": "{symbol} via {bridge}",
+		"swap.viaAfterSwap": "{bridge}, swapped to {symbol} here first",
 		"swap.wrappedHint": "A contract, a Safe included, receives it wrapped: W{symbol}.",
 		"swap.fallbackWarning":
 			"The {bridge} bridge cannot carry this much right now. Instead {symbol} is swapped to USDC here and USDC is bridged: the recipient gets USDC.",
@@ -124,6 +125,7 @@ export default defineDict({
 		"swap.network": "Сеть получения",
 		"swap.thisNetwork": "Эта сеть",
 		"swap.via": "{symbol} через {bridge}",
+		"swap.viaAfterSwap": "{bridge}, сначала обмен на {symbol} в этой сети",
 		"swap.wrappedHint": "Контракт, в том числе Safe, получит обёрнутый токен: W{symbol}.",
 		"swap.fallbackWarning":
 			"Мост {bridge} сейчас не может перенести такую сумму. Вместо этого {symbol} обменивается на USDC в этой сети, и через мост уходит USDC: получатель получит USDC.",
