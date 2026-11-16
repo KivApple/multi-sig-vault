@@ -127,7 +127,7 @@ export const SignerPickerDialog: React.FC<SignerPickerDialogProps> = ({
 								onClick={() => signer && void handlePick(signer)}
 							>
 								<span className="flex min-w-0 flex-1 flex-col">
-									<AddressLabel address={address} scope={scope ?? {}} size={32} />
+									<AddressLabel address={address} scope={scope ?? {}} signer size={32} />
 									{(reason || (!signer && !done)) && (
 										<span className="text-base-content/70 mt-0.5 text-xs">{reason ?? t("ops.unknownSigner")}</span>
 									)}

@@ -39,7 +39,7 @@ export const SignersProgress: React.FC<SignersProgressProps> = ({ owners, thresh
 							) : (
 								<Circle className="text-base-content/25 size-4 shrink-0" aria-label={t("ops.notSigned")} />
 							)}
-							<AddressLabel address={owner} scope={scope} size={22} compact />
+							<AddressLabel address={owner} scope={scope} signer size={22} compact />
 							{leader && sameAddress(leader, owner) && (
 								<span className="badge badge-ghost badge-sm">{t("ops.sender")}</span>
 							)}

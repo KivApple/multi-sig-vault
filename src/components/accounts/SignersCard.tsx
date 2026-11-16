@@ -23,7 +23,7 @@ export const SignersCard: React.FC<SignersCardProps> = ({ mode, owners, scope })
 			<ul className="px-4 pb-2">
 				{owners.map((owner) => (
 					<li key={owner} className="flex items-center justify-between gap-2 py-1.5">
-						<AddressLabel address={owner} scope={scope} size={32} />
+						<AddressLabel address={owner} scope={scope} signer size={32} />
 						<CopyButton value={owner} label={t("common.copyAddress")} />
 					</li>
 				))}

@@ -13,6 +13,8 @@ export interface AddressLabelProps {
 	size?: number;
 	/** Single line: name only for known addresses. */
 	compact?: boolean;
+	/** The address is a key of a multi-sig: a known signer wins over an account at the same address. */
+	signer?: boolean;
 	className?: string;
 }
 
@@ -20,7 +22,14 @@ export interface AddressLabelProps {
  * The one way addresses are shown: wallet/account icon and name when the app knows the address,
  * dimmed short address otherwise.
  */
-export const AddressLabel: React.FC<AddressLabelProps> = ({ address, scope, size = 28, compact, className }) => {
+export const AddressLabel: React.FC<AddressLabelProps> = ({
+	address,
+	scope,
+	size = 28,
+	compact,
+	signer,
+	className,
+}) => {
 	const signers = useAppStore((s) => s.signers);
 	const accounts = useAppStore((s) => s.accounts);
 	const known = useMemo(() => resolveKnown(address, signers, accounts, scope), [address, signers, accounts, scope]);
@@ -32,9 +41,10 @@ export const AddressLabel: React.FC<AddressLabelProps> = ({ address, scope, size
 			</span>
 		);
 	}
-	// Without a scope the address is "who did it" – a signer; with a scope it is "where it goes" – an account.
+	// Without a scope (or as a multi-sig key) the address is "who signs" – a signer; with a scope it is
+	// "where it goes" – an account.
 	const scoped = !!scope && Object.keys(scope).length > 0;
-	const account = scoped || !known.signer ? known.account : undefined;
+	const account = known.signer && (signer || !scoped) ? undefined : known.account;
 	const unnamed = !!account && !account.name?.trim();
 	const name = account ? account.name?.trim() || shortAddress(address) : known.signer?.name;
 	return (
